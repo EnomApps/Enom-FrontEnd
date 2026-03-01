@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter pub get)",
+      "Bash(flutter analyze)",
+      "Bash(flutter devices)",
+      "Bash(flutter run -d 10BE3T2CX7000CK)",
+      "Bash(flutter run -d windows)",
+      "Bash(flutter clean)",
+      "Bash(flutter run -d chrome)"
+    ]
+  }
+}
