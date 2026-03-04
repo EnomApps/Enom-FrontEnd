@@ -213,6 +213,45 @@ class AuthService {
     return (success: true, message: 'Logged out');
   }
 
+  /// Update user profile (multipart for image upload).
+  static Future<({bool success, String message, Map<String, dynamic>? user})> updateProfile({
+    String? name,
+    String? gender,
+    String? dob,
+    String? bio,
+    String? location,
+    String? imagePath,
+  }) async {
+    final fields = <String, String>{};
+    if (name != null) fields['name'] = name;
+    if (gender != null) fields['gender'] = gender;
+    if (dob != null) fields['dob'] = dob;
+    if (bio != null) fields['bio'] = bio;
+    if (location != null) fields['location'] = location;
+
+    final result = await ApiService.postMultipart(
+      '/api/user/profile',
+      fields: fields,
+      filePath: imagePath,
+      fileField: imagePath != null ? 'profile_image' : null,
+      auth: true,
+    );
+
+    final statusCode = result['statusCode'] as int;
+    final body = result['body'] as Map<String, dynamic>;
+    final message = (body['message'] as String?) ?? 'Something went wrong';
+
+    if (statusCode == 200) {
+      final user = body['user'] as Map<String, dynamic>?;
+      if (user != null) {
+        await ApiService.saveUser(user);
+      }
+      return (success: true, message: message, user: user);
+    }
+
+    return (success: false, message: message, user: null as Map<String, dynamic>?);
+  }
+
   /// Get user profile.
   static Future<({bool success, Map<String, dynamic>? user})> getProfile() async {
     final result = await ApiService.get('/api/user/profile', auth: true);

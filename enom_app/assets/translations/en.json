@@ -61,5 +61,16 @@
   "ok": "OK",
   "cancel": "Cancel",
   "network_error": "Network error. Please check your connection.",
-  "something_went_wrong": "Something went wrong. Please try again."
+  "something_went_wrong": "Something went wrong. Please try again.",
+  "edit_profile": "Edit Profile",
+  "save": "Save",
+  "gender": "Gender",
+  "date_of_birth": "Date of Birth",
+  "bio": "Bio",
+  "location": "Location",
+  "male": "Male",
+  "female": "Female",
+  "other_gender": "Other",
+  "profile_updated": "Profile updated successfully.",
+  "change_photo": "Change Photo"
 }

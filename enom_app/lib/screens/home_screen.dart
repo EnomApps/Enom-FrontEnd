@@ -3,6 +3,7 @@ import '../l10n/app_localizations.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import 'welcome_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -290,45 +291,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildProfileTab(AppLocalizations l10n) {
-    final userName = _user?['name'] as String? ?? '';
-    final userEmail = _user?['email'] as String? ?? '';
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const CircleAvatar(
-            radius: 40,
-            backgroundColor: Color(0xFFD4AF37),
-            child: Icon(Icons.person, size: 40, color: Colors.black),
-          ),
-          const SizedBox(height: 16),
-          if (userName.isNotEmpty)
-            Text(
-              userName,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          if (userEmail.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              userEmail,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
-                fontSize: 14,
-              ),
-            ),
-          ],
-          if (userName.isEmpty)
-            Text(
-              l10n.translate('profile'),
-              style: const TextStyle(color: Colors.white, fontSize: 20),
-            ),
-        ],
-      ),
+    return ProfileScreen(
+      user: _user,
+      onUserUpdated: _loadUser,
     );
   }
 
