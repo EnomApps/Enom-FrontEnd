@@ -1,0 +1,5 @@
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/raojhibs/public_html/web
+    - /bin/rm -rf $DEPLOYPATH/*
+    - /bin/cp -R enom_app/* $DEPLOYPATH
