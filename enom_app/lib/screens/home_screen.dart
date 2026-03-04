@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
+import '../services/auth_service.dart';
+import '../services/api_service.dart';
 import 'welcome_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -11,6 +13,35 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  Map<String, dynamic>? _user;
+  bool _isLoggingOut = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final user = await ApiService.getUser();
+    if (mounted && user != null) {
+      setState(() => _user = user);
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    setState(() => _isLoggingOut = true);
+
+    await AuthService.logout();
+
+    if (!mounted) return;
+    setState(() => _isLoggingOut = false);
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,10 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
             color: const Color(0xFF1A1A1A),
             onSelected: (value) {
               if (value == 'logout') {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-                  (route) => false,
-                );
+                _handleLogout();
               }
             },
             itemBuilder: (context) => [
@@ -76,7 +104,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: _buildBody(l10n),
+      body: _isLoggingOut
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFFD4AF37)),
+            )
+          : _buildBody(l10n),
       bottomNavigationBar: Theme(
         data: Theme.of(context).copyWith(
           canvasColor: const Color(0xFF0A0A0A),
@@ -135,6 +167,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHomeTab(AppLocalizations l10n) {
+    final userName = _user?['name'] as String? ?? '';
+    final greeting = userName.isNotEmpty
+        ? '${l10n.translate('welcome_back')}\n$userName'
+        : l10n.translate('welcome_back');
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -142,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           // Welcome message
           Text(
-            l10n.translate('welcome_back'),
+            greeting,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 28,
@@ -253,6 +290,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildProfileTab(AppLocalizations l10n) {
+    final userName = _user?['name'] as String? ?? '';
+    final userEmail = _user?['email'] as String? ?? '';
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -263,10 +303,30 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Icon(Icons.person, size: 40, color: Colors.black),
           ),
           const SizedBox(height: 16),
-          Text(
-            l10n.translate('profile'),
-            style: const TextStyle(color: Colors.white, fontSize: 20),
-          ),
+          if (userName.isNotEmpty)
+            Text(
+              userName,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          if (userEmail.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              userEmail,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 14,
+              ),
+            ),
+          ],
+          if (userName.isEmpty)
+            Text(
+              l10n.translate('profile'),
+              style: const TextStyle(color: Colors.white, fontSize: 20),
+            ),
         ],
       ),
     );

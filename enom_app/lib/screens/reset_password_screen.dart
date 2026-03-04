@@ -1,41 +1,44 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/auth_service.dart';
-import 'signup_screen.dart';
-import 'home_screen.dart';
-import 'forgot_password_screen.dart';
-import 'otp_verification_screen.dart';
+import 'login_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class ResetPasswordScreen extends StatefulWidget {
+  final String resetToken;
+
+  const ResetPasswordScreen({
+    super.key,
+    required this.resetToken,
+  });
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
+  Future<void> _handleReset() async {
     if (!_formKey.currentState!.validate()) return;
 
     final l10n = AppLocalizations.of(context)!;
     setState(() => _isLoading = true);
 
     try {
-      final result = await AuthService.login(
-        email: _emailController.text.trim(),
+      final result = await AuthService.resetPassword(
+        resetToken: widget.resetToken,
         password: _passwordController.text,
       );
 
@@ -43,20 +46,10 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _isLoading = false);
 
       if (result.success) {
+        _showSnackBar(l10n.translate('password_reset_success'));
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
           (route) => false,
-        );
-      } else if (result.statusCode == 403) {
-        // Email not verified — go to OTP screen
-        _showSnackBar(result.message, isError: true);
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => OtpVerificationScreen(
-              email: _emailController.text.trim(),
-              isFromRegistration: false,
-            ),
-          ),
         );
       } else {
         _showSnackBar(result.message, isError: true);
@@ -100,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 20),
-                // Logo centered
+                // Logo
                 Center(
                   child: Image.asset(
                     'assets/images/enom_logo.jpeg',
@@ -111,51 +104,33 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 32),
                 // Title
                 Text(
-                  l10n.translate('login'),
+                  l10n.translate('reset_password'),
                   style: const TextStyle(
                     color: Color(0xFFD4AF37),
-                    fontSize: 32,
+                    fontSize: 28,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Text(
-                  l10n.translate('welcome_back'),
+                  l10n.translate('reset_password_desc'),
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.6),
-                    fontSize: 16,
+                    fontSize: 15,
+                    height: 1.5,
                   ),
                 ),
-                const SizedBox(height: 40),
-                // Email field
-                _buildLabel(l10n.translate('email')),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: _inputDecoration(
-                    l10n.translate('enter_email'),
-                    Icons.email_outlined,
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return l10n.translate('enter_email');
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
-                // Password field
-                _buildLabel(l10n.translate('password')),
+                const SizedBox(height: 32),
+                // New Password
+                _buildLabel(l10n.translate('new_password')),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   style: const TextStyle(color: Colors.white),
                   decoration: _inputDecoration(
-                    l10n.translate('enter_password'),
+                    l10n.translate('enter_new_password'),
                     Icons.lock_outline,
                   ).copyWith(
                     suffixIcon: IconButton(
@@ -174,39 +149,57 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return l10n.translate('enter_password');
+                      return l10n.translate('enter_new_password');
+                    }
+                    if (value.length < 6) {
+                      return 'Password must be at least 6 characters';
                     }
                     return null;
                   },
                 ),
-                const SizedBox(height: 12),
-                // Forgot password
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ForgotPasswordScreen(),
-                        ),
-                      );
-                    },
-                    child: Text(
-                      l10n.translate('forgot_password'),
-                      style: const TextStyle(
-                        color: Color(0xFFD4AF37),
-                        fontSize: 14,
+                const SizedBox(height: 20),
+                // Confirm New Password
+                _buildLabel(l10n.translate('confirm_new_password')),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _confirmPasswordController,
+                  obscureText: _obscureConfirmPassword,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: _inputDecoration(
+                    l10n.translate('enter_confirm_new_password'),
+                    Icons.lock_outline,
+                  ).copyWith(
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureConfirmPassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: Colors.white.withValues(alpha: 0.5),
                       ),
+                      onPressed: () {
+                        setState(() {
+                          _obscureConfirmPassword = !_obscureConfirmPassword;
+                        });
+                      },
                     ),
                   ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return l10n.translate('enter_confirm_new_password');
+                    }
+                    if (value != _passwordController.text) {
+                      return 'Passwords do not match';
+                    }
+                    return null;
+                  },
                 ),
-                const SizedBox(height: 32),
-                // Login button
+                const SizedBox(height: 36),
+                // Reset button
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleLogin,
+                    onPressed: _isLoading ? null : _handleReset,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFD4AF37),
                       foregroundColor: Colors.black,
@@ -227,7 +220,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           )
                         : Text(
-                            l10n.translate('login'),
+                            l10n.translate('reset'),
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -236,75 +229,25 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                   ),
                 ),
-                const SizedBox(height: 32),
-                // Divider
-                Row(
-                  children: [
-                    Expanded(
-                      child: Divider(
-                        color: Colors.white.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        l10n.translate('or_continue_with'),
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.5),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Divider(
-                        color: Colors.white.withValues(alpha: 0.2),
-                      ),
-                    ),
-                  ],
-                ),
                 const SizedBox(height: 24),
-                // Social login buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _socialButton(Icons.g_mobiledata, 'G'),
-                    const SizedBox(width: 16),
-                    _socialButton(Icons.apple, ''),
-                    const SizedBox(width: 16),
-                    _socialButton(Icons.facebook, ''),
-                  ],
-                ),
-                const SizedBox(height: 32),
-                // Sign up link
+                // Back to login
                 Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        l10n.translate('no_account'),
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
-                          fontSize: 14,
-                        ),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                            builder: (_) => const LoginScreen()),
+                        (route) => false,
+                      );
+                    },
+                    child: Text(
+                      l10n.translate('back_to_login'),
+                      style: const TextStyle(
+                        color: Color(0xFFD4AF37),
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
                       ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (_) => const SignupScreen(),
-                            ),
-                          );
-                        },
-                        child: Text(
-                          l10n.translate('signup'),
-                          style: const TextStyle(
-                            color: Color(0xFFD4AF37),
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -350,26 +293,6 @@ class _LoginScreenState extends State<LoginScreen> {
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Colors.redAccent),
-      ),
-    );
-  }
-
-  Widget _socialButton(IconData icon, String text) {
-    return Container(
-      width: 60,
-      height: 60,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: IconButton(
-        onPressed: () {},
-        icon: Icon(
-          icon,
-          color: Colors.white.withValues(alpha: 0.8),
-          size: 28,
-        ),
       ),
     );
   }
