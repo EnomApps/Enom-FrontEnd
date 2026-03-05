@@ -3,7 +3,6 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../l10n/app_localizations.dart';
 import '../services/auth_service.dart';
-import '../services/api_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Map<String, dynamic>? user;
@@ -307,25 +306,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileImage() {
-    final profileImage = _user?['profile_image'] as String?;
-    final hasNetworkImage = profileImage != null && profileImage.isNotEmpty;
+    final profileImageUrl = _user?['profile_image_url'] as String?;
+    final hasNetworkImage = profileImageUrl != null && profileImageUrl.isNotEmpty;
+    final hasPicked = _pickedImagePath != null;
 
     return Stack(
       children: [
-        CircleAvatar(
-          radius: 55,
-          backgroundColor: const Color(0xFFD4AF37).withValues(alpha: 0.2),
-          child: CircleAvatar(
-            radius: 52,
-            backgroundColor: const Color(0xFF121212),
-            backgroundImage: _pickedImagePath != null
-                ? FileImage(File(_pickedImagePath!))
+        Container(
+          width: 110,
+          height: 110,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color(0xFFD4AF37).withValues(alpha: 0.2),
+          ),
+          padding: const EdgeInsets.all(3),
+          child: ClipOval(
+            child: hasPicked
+                ? Image.file(
+                    File(_pickedImagePath!),
+                    width: 104,
+                    height: 104,
+                    fit: BoxFit.cover,
+                  )
                 : hasNetworkImage
-                    ? NetworkImage('${ApiService.baseUrl}/storage/$profileImage')
-                    : null,
-            child: (_pickedImagePath == null && !hasNetworkImage)
-                ? const Icon(Icons.person, size: 52, color: Color(0xFFD4AF37))
-                : null,
+                    ? Image.network(
+                        profileImageUrl,
+                        width: 104,
+                        height: 104,
+                        fit: BoxFit.cover,
+                        cacheWidth: 300,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            width: 104,
+                            height: 104,
+                            color: const Color(0xFF121212),
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFFD4AF37),
+                              ),
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            width: 104,
+                            height: 104,
+                            color: const Color(0xFF121212),
+                            child: const Icon(Icons.person, size: 52, color: Color(0xFFD4AF37)),
+                          );
+                        },
+                      )
+                    : Container(
+                        width: 104,
+                        height: 104,
+                        color: const Color(0xFF121212),
+                        child: const Icon(Icons.person, size: 52, color: Color(0xFFD4AF37)),
+                      ),
           ),
         ),
         if (_isEditing)

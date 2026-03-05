@@ -1,6 +1,6 @@
 {
-    "name": "enom_app",
-    "short_name": "enom_app",
+    "name": "Enom",
+    "short_name": "Enom",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

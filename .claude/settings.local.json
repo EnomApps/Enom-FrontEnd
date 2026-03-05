@@ -10,7 +10,8 @@
       "Bash(flutter run -d chrome)",
       "Bash(flutter doctor)",
       "Bash(flutter build apk --release)",
-      "Bash(flutter build web)"
+      "Bash(flutter build web)",
+      "Bash(flutter run -d android)"
     ]
   }
 }
