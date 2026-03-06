@@ -1,6 +1,7 @@
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import '../l10n/app_localizations.dart';
 import '../services/auth_service.dart';
 
@@ -23,7 +24,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isSaving = false;
   bool _isLoading = false;
   Map<String, dynamic>? _user;
-  String? _pickedImagePath;
+  XFile? _pickedImage;
+  Uint8List? _pickedImageBytes;
 
   late TextEditingController _nameController;
   late TextEditingController _bioController;
@@ -73,12 +75,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _startEditing() {
     _initControllers();
-    _pickedImagePath = null;
+    _pickedImage = null;
+    _pickedImageBytes = null;
     setState(() => _isEditing = true);
   }
 
   void _cancelEditing() {
-    _pickedImagePath = null;
+    _pickedImage = null;
+    _pickedImageBytes = null;
     setState(() => _isEditing = false);
   }
 
@@ -86,7 +90,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 800);
     if (picked != null && mounted) {
-      setState(() => _pickedImagePath = picked.path);
+      final bytes = await picked.readAsBytes();
+      setState(() {
+        _pickedImage = picked;
+        _pickedImageBytes = bytes;
+      });
     }
   }
 
@@ -127,7 +135,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           : null,
       bio: _bioController.text.trim().isNotEmpty ? _bioController.text.trim() : null,
       location: _locationController.text.trim().isNotEmpty ? _locationController.text.trim() : null,
-      imagePath: _pickedImagePath,
+      imagePath: (!kIsWeb && _pickedImage != null) ? _pickedImage!.path : null,
+      imageBytes: _pickedImageBytes,
+      imageFileName: _pickedImage?.name,
     );
 
     if (!mounted) return;
@@ -137,7 +147,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _isEditing = false;
         if (result.user != null) _user = result.user;
-        _pickedImagePath = null;
+        _pickedImage = null;
+        _pickedImageBytes = null;
       });
       widget.onUserUpdated();
       _showSnackBar(result.message, isError: false);
@@ -180,10 +191,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         children: [
           const SizedBox(height: 8),
-          // Profile image
           _buildProfileImage(),
           const SizedBox(height: 16),
-          // Name & email (view mode)
           if (!_isEditing) ...[
             Text(
               _user?['name'] as String? ?? '',
@@ -202,13 +211,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 28),
-            // Info cards
             _buildInfoCard(Icons.person_outline, l10n.translate('gender'), _genderDisplay(l10n)),
             _buildInfoCard(Icons.cake_outlined, l10n.translate('date_of_birth'), _dobDisplay()),
             _buildInfoCard(Icons.info_outline, l10n.translate('bio'), _user?['bio'] as String?),
             _buildInfoCard(Icons.location_on_outlined, l10n.translate('location'), _user?['location'] as String?),
             const SizedBox(height: 24),
-            // Edit button
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -228,7 +235,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ],
-          // Edit mode
           if (_isEditing) ...[
             const SizedBox(height: 24),
             _buildTextField(
@@ -254,7 +260,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               icon: Icons.location_on_outlined,
             ),
             const SizedBox(height: 28),
-            // Save & Cancel buttons
             Row(
               children: [
                 Expanded(
@@ -308,7 +313,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildProfileImage() {
     final profileImageUrl = _user?['profile_image_url'] as String?;
     final hasNetworkImage = profileImageUrl != null && profileImageUrl.isNotEmpty;
-    final hasPicked = _pickedImagePath != null;
+    final hasPicked = _pickedImageBytes != null;
+
+    Widget imageWidget;
+    if (hasPicked) {
+      imageWidget = Image.memory(
+        _pickedImageBytes!,
+        width: 104,
+        height: 104,
+        fit: BoxFit.cover,
+      );
+    } else if (hasNetworkImage) {
+      imageWidget = Image.network(
+        profileImageUrl,
+        width: 104,
+        height: 104,
+        fit: BoxFit.cover,
+        cacheWidth: 300,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            width: 104,
+            height: 104,
+            color: const Color(0xFF121212),
+            child: const Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Color(0xFFD4AF37),
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: 104,
+            height: 104,
+            color: const Color(0xFF121212),
+            child: const Icon(Icons.person, size: 52, color: Color(0xFFD4AF37)),
+          );
+        },
+      );
+    } else {
+      imageWidget = Container(
+        width: 104,
+        height: 104,
+        color: const Color(0xFF121212),
+        child: const Icon(Icons.person, size: 52, color: Color(0xFFD4AF37)),
+      );
+    }
 
     return Stack(
       children: [
@@ -320,51 +372,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: const Color(0xFFD4AF37).withValues(alpha: 0.2),
           ),
           padding: const EdgeInsets.all(3),
-          child: ClipOval(
-            child: hasPicked
-                ? Image.file(
-                    File(_pickedImagePath!),
-                    width: 104,
-                    height: 104,
-                    fit: BoxFit.cover,
-                  )
-                : hasNetworkImage
-                    ? Image.network(
-                        profileImageUrl,
-                        width: 104,
-                        height: 104,
-                        fit: BoxFit.cover,
-                        cacheWidth: 300,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                            width: 104,
-                            height: 104,
-                            color: const Color(0xFF121212),
-                            child: const Center(
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Color(0xFFD4AF37),
-                              ),
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            width: 104,
-                            height: 104,
-                            color: const Color(0xFF121212),
-                            child: const Icon(Icons.person, size: 52, color: Color(0xFFD4AF37)),
-                          );
-                        },
-                      )
-                    : Container(
-                        width: 104,
-                        height: 104,
-                        color: const Color(0xFF121212),
-                        child: const Icon(Icons.person, size: 52, color: Color(0xFFD4AF37)),
-                      ),
-          ),
+          child: ClipOval(child: imageWidget),
         ),
         if (_isEditing)
           Positioned(

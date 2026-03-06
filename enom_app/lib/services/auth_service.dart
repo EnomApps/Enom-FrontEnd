@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'api_service.dart';
 
 class AuthService {
@@ -221,6 +222,8 @@ class AuthService {
     String? bio,
     String? location,
     String? imagePath,
+    Uint8List? imageBytes,
+    String? imageFileName,
   }) async {
     final fields = <String, String>{};
     if (name != null) fields['name'] = name;
@@ -229,11 +232,15 @@ class AuthService {
     if (bio != null) fields['bio'] = bio;
     if (location != null) fields['location'] = location;
 
+    final hasImage = imageBytes != null || imagePath != null;
+
     final result = await ApiService.postMultipart(
       '/api/user/profile',
       fields: fields,
       filePath: imagePath,
-      fileField: imagePath != null ? 'profile_image' : null,
+      fileField: hasImage ? 'profile_image' : null,
+      fileBytes: imageBytes,
+      fileName: imageFileName,
       auth: true,
     );
 

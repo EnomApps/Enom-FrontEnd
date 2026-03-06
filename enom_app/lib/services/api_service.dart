@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -104,6 +105,8 @@ class ApiService {
     required Map<String, String> fields,
     String? filePath,
     String? fileField,
+    Uint8List? fileBytes,
+    String? fileName,
     bool auth = false,
   }) async {
     String? token;
@@ -123,7 +126,13 @@ class ApiService {
 
     request.fields.addAll(fields);
 
-    if (filePath != null && fileField != null) {
+    if (fileField != null && fileBytes != null && fileName != null) {
+      request.files.add(http.MultipartFile.fromBytes(
+        fileField,
+        fileBytes,
+        filename: fileName,
+      ));
+    } else if (filePath != null && fileField != null) {
       request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
     }
 
