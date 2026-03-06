@@ -61,15 +61,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _fetchProfile() async {
     setState(() => _isLoading = true);
-    final result = await AuthService.getProfile();
-    if (mounted && result.success && result.user != null) {
-      setState(() {
-        _user = result.user;
-        _isLoading = false;
-      });
-      _initControllers();
-    } else if (mounted) {
-      setState(() => _isLoading = false);
+    try {
+      final result = await AuthService.getProfile();
+      if (mounted && result.success && result.user != null) {
+        setState(() {
+          _user = result.user;
+          _isLoading = false;
+        });
+        _initControllers();
+      } else if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

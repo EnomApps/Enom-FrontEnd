@@ -74,9 +74,16 @@ class ApiService {
       body: json.encode(body),
     );
 
+    dynamic decoded;
+    try {
+      decoded = json.decode(response.body);
+    } catch (_) {
+      decoded = {'message': 'Server error. Please try again later.'};
+    }
+
     return {
       'statusCode': response.statusCode,
-      'body': json.decode(response.body),
+      'body': decoded,
     };
   }
 
@@ -94,9 +101,16 @@ class ApiService {
       headers: _headers(token: token),
     );
 
+    dynamic decoded;
+    try {
+      decoded = json.decode(response.body);
+    } catch (_) {
+      decoded = {'message': 'Server error. Please try again later.'};
+    }
+
     return {
       'statusCode': response.statusCode,
-      'body': json.decode(response.body),
+      'body': decoded,
     };
   }
 
@@ -139,9 +153,16 @@ class ApiService {
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
 
+    dynamic decoded;
+    try {
+      decoded = json.decode(response.body);
+    } catch (_) {
+      decoded = {'message': 'Server error. Please try again later.'};
+    }
+
     return {
       'statusCode': response.statusCode,
-      'body': json.decode(response.body),
+      'body': decoded,
     };
   }
 }

@@ -11,7 +11,9 @@
       "Bash(flutter doctor)",
       "Bash(flutter build apk --release)",
       "Bash(flutter build web)",
-      "Bash(flutter run -d android)"
+      "Bash(flutter run -d android)",
+      "Bash(flutter build apk)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://api.enom.ai/api/auth/login -X POST -H \"Content-Type: application/json\" -H \"Accept: application/json\" -d '{\"\"email\"\":\"\"test@test.com\"\",\"\"password\"\":\"\"test\"\"}')"
     ]
   }
 }
