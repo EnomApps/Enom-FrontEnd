@@ -28,10 +28,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Uint8List? _pickedImageBytes;
 
   late TextEditingController _nameController;
+  late TextEditingController _phoneController;
   late TextEditingController _bioController;
   late TextEditingController _locationController;
   String? _selectedGender;
   DateTime? _selectedDob;
+  String _selectedCountryCode = '+1';
 
   @override
   void initState() {
@@ -57,6 +59,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _selectedGender = _user?['gender'] as String?;
     final dobStr = _user?['dob'] as String?;
     _selectedDob = dobStr != null ? DateTime.tryParse(dobStr) : null;
+
+    // Parse phone: extract country code and number
+    final rawPhone = _user?['phone'] as String? ?? '';
+    if (rawPhone.startsWith('+')) {
+      // Try to split country code from number
+      final match = RegExp(r'^(\+\d{1,4})(.*)$').firstMatch(rawPhone);
+      if (match != null) {
+        _selectedCountryCode = match.group(1)!;
+        _phoneController = TextEditingController(text: match.group(2)?.trim() ?? '');
+      } else {
+        _selectedCountryCode = '+1';
+        _phoneController = TextEditingController(text: rawPhone);
+      }
+    } else {
+      _selectedCountryCode = '+1';
+      _phoneController = TextEditingController(text: rawPhone);
+    }
   }
 
   Future<void> _fetchProfile() async {
@@ -133,6 +152,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final result = await AuthService.updateProfile(
       name: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null,
+      phone: _phoneController.text.trim().isNotEmpty
+          ? '$_selectedCountryCode${_phoneController.text.trim()}'
+          : null,
       gender: _selectedGender,
       dob: _selectedDob != null
           ? '${_selectedDob!.year}-${_selectedDob!.month.toString().padLeft(2, '0')}-${_selectedDob!.day.toString().padLeft(2, '0')}'
@@ -175,6 +197,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _phoneController.dispose();
     _bioController.dispose();
     _locationController.dispose();
     super.dispose();
@@ -190,6 +213,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Column(
@@ -200,8 +226,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (!_isEditing) ...[
             Text(
               _user?['name'] as String? ?? '',
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: textColor,
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
@@ -210,11 +236,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Text(
               _user?['email'] as String? ?? '',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
+                color: textColor.withValues(alpha: 0.5),
                 fontSize: 14,
               ),
             ),
             const SizedBox(height: 28),
+            _buildInfoCard(Icons.phone_outlined, l10n.translate('phone'), _user?['phone'] as String?),
             _buildInfoCard(Icons.person_outline, l10n.translate('gender'), _genderDisplay(l10n)),
             _buildInfoCard(Icons.cake_outlined, l10n.translate('date_of_birth'), _dobDisplay()),
             _buildInfoCard(Icons.info_outline, l10n.translate('bio'), _user?['bio'] as String?),
@@ -247,6 +274,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               icon: Icons.person_outline,
             ),
             const SizedBox(height: 16),
+            _buildPhoneField(l10n),
+            const SizedBox(height: 16),
             _buildGenderDropdown(l10n),
             const SizedBox(height: 16),
             _buildDateField(l10n),
@@ -272,8 +301,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: OutlinedButton(
                       onPressed: _isSaving ? null : _cancelEditing,
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                        foregroundColor: textColor,
+                        side: BorderSide(color: textColor.withValues(alpha: 0.2)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
                       child: Text(l10n.translate('cancel'), style: const TextStyle(fontSize: 16)),
@@ -399,14 +428,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildInfoCard(IconData icon, String label, String? value) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
+        ),
       ),
       child: Row(
         children: [
@@ -419,7 +452,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text(
                   label,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.4),
+                    color: textColor.withValues(alpha: 0.4),
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -429,8 +462,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   value != null && value.isNotEmpty ? value : '—',
                   style: TextStyle(
                     color: value != null && value.isNotEmpty
-                        ? Colors.white
-                        : Colors.white.withValues(alpha: 0.2),
+                        ? textColor
+                        : textColor.withValues(alpha: 0.2),
                     fontSize: 15,
                   ),
                 ),
@@ -448,23 +481,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required IconData icon,
     int maxLines = 1,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
     return TextField(
       controller: controller,
       maxLines: maxLines,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: textColor),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+        labelStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
         prefixIcon: Icon(icon, color: const Color(0xFFD4AF37).withValues(alpha: 0.7)),
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.05),
+        fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.08),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          borderSide: BorderSide(color: textColor.withValues(alpha: 0.1)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          borderSide: BorderSide(color: textColor.withValues(alpha: 0.1)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -474,24 +509,132 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  static const List<String> _countryCodes = [
+    '+1', '+7', '+20', '+27', '+30', '+31', '+32', '+33', '+34', '+36',
+    '+39', '+40', '+41', '+43', '+44', '+45', '+46', '+47', '+48', '+49',
+    '+51', '+52', '+53', '+54', '+55', '+56', '+57', '+58', '+60', '+61',
+    '+62', '+63', '+64', '+65', '+66', '+81', '+82', '+84', '+86', '+90',
+    '+91', '+92', '+93', '+94', '+95', '+98', '+212', '+213', '+216',
+    '+218', '+220', '+221', '+222', '+223', '+224', '+225', '+226', '+227',
+    '+228', '+229', '+230', '+231', '+232', '+233', '+234', '+235', '+236',
+    '+237', '+238', '+239', '+240', '+241', '+242', '+243', '+244', '+245',
+    '+246', '+247', '+248', '+249', '+250', '+251', '+252', '+253', '+254',
+    '+255', '+256', '+257', '+258', '+260', '+261', '+262', '+263', '+264',
+    '+265', '+266', '+267', '+268', '+269', '+290', '+291', '+297', '+298',
+    '+299', '+350', '+351', '+352', '+353', '+354', '+355', '+356', '+357',
+    '+358', '+359', '+370', '+371', '+372', '+373', '+374', '+375', '+376',
+    '+377', '+378', '+380', '+381', '+382', '+383', '+385', '+386', '+387',
+    '+389', '+420', '+421', '+423', '+500', '+501', '+502', '+503', '+504',
+    '+505', '+506', '+507', '+508', '+509', '+590', '+591', '+592', '+593',
+    '+594', '+595', '+596', '+597', '+598', '+599', '+670', '+672', '+673',
+    '+674', '+675', '+676', '+677', '+678', '+679', '+680', '+681', '+682',
+    '+683', '+685', '+686', '+687', '+688', '+689', '+690', '+691', '+692',
+    '+850', '+852', '+853', '+855', '+856', '+880', '+886', '+960', '+961',
+    '+962', '+963', '+964', '+965', '+966', '+967', '+968', '+970', '+971',
+    '+972', '+973', '+974', '+975', '+976', '+977', '+992', '+993', '+994',
+    '+995', '+996', '+998',
+  ];
+
+  Widget _buildPhoneField(AppLocalizations l10n) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final fillColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.08);
+    final borderColor = textColor.withValues(alpha: 0.1);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Country code dropdown
+        SizedBox(
+          width: 100,
+          child: DropdownButtonFormField<String>(
+            value: _countryCodes.contains(_selectedCountryCode) ? _selectedCountryCode : '+1',
+            dropdownColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+            style: TextStyle(color: textColor, fontSize: 14),
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: l10n.translate('phone'),
+              labelStyle: TextStyle(color: textColor.withValues(alpha: 0.4), fontSize: 12),
+              prefixIcon: Icon(Icons.public, color: const Color(0xFFD4AF37).withValues(alpha: 0.7), size: 20),
+              filled: true,
+              fillColor: fillColor,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFD4AF37)),
+              ),
+            ),
+            items: _countryCodes.map((code) {
+              return DropdownMenuItem(value: code, child: Text(code));
+            }).toList(),
+            onChanged: (val) {
+              if (val != null) setState(() => _selectedCountryCode = val);
+            },
+          ),
+        ),
+        const SizedBox(width: 10),
+        // Phone number field
+        Expanded(
+          child: TextField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            style: TextStyle(color: textColor),
+            decoration: InputDecoration(
+              labelText: l10n.translate('phone'),
+              labelStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
+              prefixIcon: Icon(Icons.phone_outlined, color: const Color(0xFFD4AF37).withValues(alpha: 0.7)),
+              filled: true,
+              fillColor: fillColor,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFD4AF37)),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildGenderDropdown(AppLocalizations l10n) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final fillColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.08);
+    final borderColor = textColor.withValues(alpha: 0.1);
+
     return DropdownButtonFormField<String>(
       value: _selectedGender,
-      dropdownColor: const Color(0xFF1A1A1A),
-      style: const TextStyle(color: Colors.white),
+      dropdownColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+      style: TextStyle(color: textColor),
       decoration: InputDecoration(
         labelText: l10n.translate('gender'),
-        labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+        labelStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
         prefixIcon: Icon(Icons.wc_outlined, color: const Color(0xFFD4AF37).withValues(alpha: 0.7)),
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.05),
+        fillColor: fillColor,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          borderSide: BorderSide(color: borderColor),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          borderSide: BorderSide(color: borderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -508,11 +651,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildDateField(AppLocalizations l10n) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final fillColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.08);
+    final borderColor = textColor.withValues(alpha: 0.1);
+
     return GestureDetector(
       onTap: _pickDate,
       child: AbsorbPointer(
         child: TextField(
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: textColor),
           controller: TextEditingController(
             text: _selectedDob != null
                 ? '${_selectedDob!.year}-${_selectedDob!.month.toString().padLeft(2, '0')}-${_selectedDob!.day.toString().padLeft(2, '0')}'
@@ -520,18 +668,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           decoration: InputDecoration(
             labelText: l10n.translate('date_of_birth'),
-            labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+            labelStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
             prefixIcon: Icon(Icons.cake_outlined, color: const Color(0xFFD4AF37).withValues(alpha: 0.7)),
-            suffixIcon: Icon(Icons.calendar_today, color: Colors.white.withValues(alpha: 0.3), size: 20),
+            suffixIcon: Icon(Icons.calendar_today, color: textColor.withValues(alpha: 0.3), size: 20),
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.05),
+            fillColor: fillColor,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+              borderSide: BorderSide(color: borderColor),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+              borderSide: BorderSide(color: borderColor),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

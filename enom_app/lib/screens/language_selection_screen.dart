@@ -40,9 +40,11 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
   }
 
   List<LanguageModel> get _filteredLanguages {
-    if (_searchQuery.isEmpty) return LanguageModel.supportedLanguages;
+    final sorted = List<LanguageModel>.from(LanguageModel.supportedLanguages)
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    if (_searchQuery.isEmpty) return sorted;
     final query = _searchQuery.toLowerCase();
-    return LanguageModel.supportedLanguages.where((lang) {
+    return sorted.where((lang) {
       return lang.name.toLowerCase().contains(query) ||
           lang.nativeName.toLowerCase().contains(query) ||
           lang.code.toLowerCase().contains(query);
@@ -93,7 +95,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
               const SizedBox(height: 40),
               // Logo
               Image.asset(
-                'assets/images/enom_logo.jpeg',
+                'assets/images/enom_logo.gif',
                 width: 80,
                 height: 80,
               ),

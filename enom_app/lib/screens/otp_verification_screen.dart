@@ -121,7 +121,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               // Logo
               Center(
                 child: Image.asset(
-                  'assets/images/enom_logo.jpeg',
+                  'assets/images/enom_logo.gif',
                   width: 80,
                   height: 80,
                 ),

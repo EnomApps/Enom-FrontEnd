@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import 'welcome_screen.dart';
 import 'profile_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -48,16 +49,21 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? Colors.black : const Color(0xFFF5F5F5);
+    final appBarColor = isDark ? Colors.black : Colors.white;
+    final navBarBg = isDark ? const Color(0xFF0A0A0A) : Colors.white;
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: appBarColor,
         elevation: 0,
         automaticallyImplyLeading: false,
         title: Row(
           children: [
             Image.asset(
-              'assets/images/enom_logo.jpeg',
+              'assets/images/enom_logo.gif',
               width: 36,
               height: 36,
             ),
@@ -81,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Color(0xFFD4AF37)),
-            color: const Color(0xFF1A1A1A),
+            color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
             onSelected: (value) {
               if (value == 'logout') {
                 _handleLogout();
@@ -96,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(width: 8),
                     Text(
                       l10n.translate('logout'),
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                     ),
                   ],
                 ),
@@ -112,7 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
           : _buildBody(l10n),
       bottomNavigationBar: Theme(
         data: Theme.of(context).copyWith(
-          canvasColor: const Color(0xFF0A0A0A),
+          canvasColor: navBarBg,
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
@@ -122,8 +128,10 @@ class _HomeScreenState extends State<HomeScreen> {
             });
           },
           selectedItemColor: const Color(0xFFD4AF37),
-          unselectedItemColor: Colors.white.withValues(alpha: 0.4),
-          backgroundColor: const Color(0xFF0A0A0A),
+          unselectedItemColor: isDark
+              ? Colors.white.withValues(alpha: 0.4)
+              : Colors.black.withValues(alpha: 0.4),
+          backgroundColor: navBarBg,
           type: BottomNavigationBarType.fixed,
           items: [
             BottomNavigationBarItem(
@@ -168,6 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHomeTab(AppLocalizations l10n) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final userName = _user?['name'] as String? ?? '';
     final greeting = userName.isNotEmpty
         ? '${l10n.translate('welcome_back')}\n$userName'
@@ -181,8 +190,8 @@ class _HomeScreenState extends State<HomeScreen> {
           // Welcome message
           Text(
             greeting,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: isDark ? Colors.white : Colors.black87,
               fontSize: 28,
               fontWeight: FontWeight.bold,
             ),
@@ -249,11 +258,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildQuickAction(IconData icon, String label) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
+        ),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -262,8 +283,8 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 12),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: isDark ? Colors.white : Colors.black87,
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -274,6 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildExploreTab(AppLocalizations l10n) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -283,7 +305,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 16),
           Text(
             l10n.translate('explore'),
-            style: const TextStyle(color: Colors.white, fontSize: 20),
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 20),
           ),
         ],
       ),
@@ -298,19 +320,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildSettingsTab(AppLocalizations l10n) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.settings_outlined,
-              size: 64, color: const Color(0xFFD4AF37).withValues(alpha: 0.5)),
-          const SizedBox(height: 16),
-          Text(
-            l10n.translate('settings'),
-            style: const TextStyle(color: Colors.white, fontSize: 20),
-          ),
-        ],
-      ),
-    );
+    return const SettingsScreen();
   }
 }

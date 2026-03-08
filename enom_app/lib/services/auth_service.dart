@@ -217,6 +217,7 @@ class AuthService {
   /// Update user profile (multipart for image upload).
   static Future<({bool success, String message, Map<String, dynamic>? user})> updateProfile({
     String? name,
+    String? phone,
     String? gender,
     String? dob,
     String? bio,
@@ -227,6 +228,7 @@ class AuthService {
   }) async {
     final fields = <String, String>{};
     if (name != null) fields['name'] = name;
+    if (phone != null) fields['phone'] = phone;
     if (gender != null) fields['gender'] = gender;
     if (dob != null) fields['dob'] = dob;
     if (bio != null) fields['bio'] = bio;

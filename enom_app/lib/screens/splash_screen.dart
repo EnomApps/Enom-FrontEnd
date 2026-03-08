@@ -120,7 +120,7 @@ class _SplashScreenState extends State<SplashScreen>
             : FadeTransition(
                 opacity: _fadeAnimation..addListener(() {}),
                 child: Image.asset(
-                  'assets/images/enom_logo.jpeg',
+                  'assets/images/enom_logo.gif',
                   width: 200,
                   height: 200,
                 ),

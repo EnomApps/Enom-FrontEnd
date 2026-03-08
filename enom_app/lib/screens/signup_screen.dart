@@ -15,20 +15,15 @@ class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
   bool _isLoading = false;
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -103,7 +98,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 // Logo centered
                 Center(
                   child: Image.asset(
-                    'assets/images/enom_logo.jpeg',
+                    'assets/images/enom_logo.gif',
                     width: 70,
                     height: 70,
                   ),
@@ -153,24 +148,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     if (value == null || value.isEmpty) {
                       return l10n.translate('enter_email');
                     }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-                // Phone
-                _buildLabel(l10n.translate('phone')),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: _inputDecoration(
-                    l10n.translate('enter_phone'),
-                    Icons.phone_outlined,
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return l10n.translate('enter_phone');
+                    final emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$');
+                    if (!emailRegex.hasMatch(value.trim())) {
+                      return l10n.translate('invalid_email');
                     }
                     return null;
                   },
@@ -207,42 +187,6 @@ class _SignupScreenState extends State<SignupScreen> {
                     }
                     if (value.length < 6) {
                       return 'Password must be at least 6 characters';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-                // Confirm Password
-                _buildLabel(l10n.translate('confirm_password')),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: _obscureConfirmPassword,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: _inputDecoration(
-                    l10n.translate('enter_confirm_password'),
-                    Icons.lock_outline,
-                  ).copyWith(
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        color: Colors.white.withValues(alpha: 0.5),
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscureConfirmPassword = !_obscureConfirmPassword;
-                        });
-                      },
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return l10n.translate('enter_confirm_password');
-                    }
-                    if (value != _passwordController.text) {
-                      return 'Passwords do not match';
                     }
                     return null;
                   },

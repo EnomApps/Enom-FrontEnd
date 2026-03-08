@@ -96,7 +96,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 // Logo
                 Center(
                   child: Image.asset(
-                    'assets/images/enom_logo.jpeg',
+                    'assets/images/enom_logo.gif',
                     width: 80,
                     height: 80,
                   ),

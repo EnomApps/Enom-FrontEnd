@@ -120,7 +120,7 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
               // Logo
               Center(
                 child: Image.asset(
-                  'assets/images/enom_logo.jpeg',
+                  'assets/images/enom_logo.gif',
                   width: 80,
                   height: 80,
                 ),

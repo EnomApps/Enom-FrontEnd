@@ -43,7 +43,7 @@
   "send_otp": "Send OTP",
   "back_to_login": "Back to Login",
   "reset_password": "Reset Password",
-  "reset_password_desc": "Enter the OTP sent to your email and set a new password.",
+  "reset_password_desc": "Create a new password for your account.",
   "new_password": "New Password",
   "enter_new_password": "Enter your new password",
   "confirm_new_password": "Confirm New Password",
@@ -72,5 +72,14 @@
   "female": "Female",
   "other_gender": "Other",
   "profile_updated": "Profile updated successfully.",
-  "change_photo": "Change Photo"
+  "change_photo": "Change Photo",
+  "appearance": "Appearance",
+  "theme_mode": "Theme Mode",
+  "system_default": "System Default",
+  "light_mode": "Light Mode",
+  "dark_mode": "Dark Mode",
+  "language": "Language",
+  "account": "Account",
+  "about": "About",
+  "invalid_email": "Please enter a valid email address"
 }

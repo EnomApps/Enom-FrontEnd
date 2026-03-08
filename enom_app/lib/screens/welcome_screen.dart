@@ -68,7 +68,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       const SizedBox(height: 40),
                       // Logo
                       Image.asset(
-                        'assets/images/enom_logo.jpeg',
+                        'assets/images/enom_logo.gif',
                         width: logoSize,
                         height: logoSize,
                       ),

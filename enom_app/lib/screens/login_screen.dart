@@ -103,7 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Logo centered
                 Center(
                   child: Image.asset(
-                    'assets/images/enom_logo.jpeg',
+                    'assets/images/enom_logo.gif',
                     width: 80,
                     height: 80,
                   ),
@@ -142,6 +142,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return l10n.translate('enter_email');
+                    }
+                    final emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$');
+                    if (!emailRegex.hasMatch(value.trim())) {
+                      return l10n.translate('invalid_email');
                     }
                     return null;
                   },

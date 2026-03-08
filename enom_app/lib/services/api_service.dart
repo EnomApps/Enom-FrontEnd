@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://api.enom.ai';
+  static const String baseUrl = 'http://47.129.5.68';
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'user_data';
 
