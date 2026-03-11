@@ -217,22 +217,40 @@ class AuthService {
   /// Update user profile (multipart for image upload).
   static Future<({bool success, String message, Map<String, dynamic>? user})> updateProfile({
     String? name,
-    String? phone,
+    String? username,
     String? gender,
     String? dob,
     String? bio,
     String? location,
+    String? profession,
+    String? country,
+    String? city,
+    String? region,
+    String? contentPreferences,
+    String? socialPersonality,
+    String? languages,
+    String? privacySetting,
+    String? interestIds,
     String? imagePath,
     Uint8List? imageBytes,
     String? imageFileName,
   }) async {
     final fields = <String, String>{};
     if (name != null) fields['name'] = name;
-    if (phone != null) fields['phone'] = phone;
+    if (username != null) fields['username'] = username;
     if (gender != null) fields['gender'] = gender;
     if (dob != null) fields['dob'] = dob;
     if (bio != null) fields['bio'] = bio;
     if (location != null) fields['location'] = location;
+    if (profession != null) fields['profession'] = profession;
+    if (country != null) fields['country'] = country;
+    if (city != null) fields['city'] = city;
+    if (region != null) fields['region'] = region;
+    if (contentPreferences != null) fields['content_preferences'] = contentPreferences;
+    if (socialPersonality != null) fields['social_personality'] = socialPersonality;
+    if (languages != null) fields['languages'] = languages;
+    if (privacySetting != null) fields['privacy_setting'] = privacySetting;
+    if (interestIds != null) fields['interest_ids'] = interestIds;
 
     final hasImage = imageBytes != null || imagePath != null;
 
@@ -276,5 +294,20 @@ class AuthService {
     }
 
     return (success: false, user: null as Map<String, dynamic>?);
+  }
+
+  /// Get all available interests.
+  static Future<({bool success, List<Map<String, dynamic>> interests})> getInterests() async {
+    final result = await ApiService.get('/api/interests');
+    final statusCode = result['statusCode'] as int;
+    final body = result['body'] as Map<String, dynamic>;
+
+    if (statusCode == 200) {
+      final raw = body['interests'] as List<dynamic>? ?? [];
+      final interests = raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      return (success: true, interests: interests);
+    }
+
+    return (success: false, interests: <Map<String, dynamic>>[]);
   }
 }

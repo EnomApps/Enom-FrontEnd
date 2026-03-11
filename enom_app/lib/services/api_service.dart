@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' show MediaType;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
@@ -141,10 +142,18 @@ class ApiService {
     request.fields.addAll(fields);
 
     if (fileField != null && fileBytes != null && fileName != null) {
+      final ext = fileName.split('.').last.toLowerCase();
+      final mimeType = switch (ext) {
+        'png' => MediaType('image', 'png'),
+        'gif' => MediaType('image', 'gif'),
+        'webp' => MediaType('image', 'webp'),
+        _ => MediaType('image', 'jpeg'),
+      };
       request.files.add(http.MultipartFile.fromBytes(
         fileField,
         fileBytes,
         filename: fileName,
+        contentType: mimeType,
       ));
     } else if (filePath != null && fileField != null) {
       request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
@@ -152,6 +161,10 @@ class ApiService {
 
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
+
+    // Debug: log response for troubleshooting
+    // ignore: avoid_print
+    print('[API] postMultipart $endpoint => ${response.statusCode}: ${response.body}');
 
     dynamic decoded;
     try {

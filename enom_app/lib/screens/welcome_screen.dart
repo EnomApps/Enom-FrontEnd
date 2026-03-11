@@ -1,5 +1,5 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
-import '../l10n/app_localizations.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
 
@@ -11,170 +11,138 @@ class WelcomeScreen extends StatefulWidget {
 }
 
 class _WelcomeScreenState extends State<WelcomeScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+    with TickerProviderStateMixin {
+  late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+  late AnimationController _particleController;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _fadeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 1000),
     );
     _fadeAnimation = CurvedAnimation(
-      parent: _controller,
+      parent: _fadeController,
       curve: Curves.easeIn,
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    ));
-    _controller.forward();
+    _fadeController.forward();
+
+    _particleController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _fadeController.dispose();
+    _particleController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final size = MediaQuery.of(context).size;
-    // Constrain logo size for large screens (web/desktop)
-    final logoSize = size.width * 0.45 > 200 ? 200.0 : size.width * 0.45;
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SlideTransition(
-            position: _slideAnimation,
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 40),
-                      // Logo
-                      Image.asset(
-                        'assets/images/enom_logo.gif',
-                        width: logoSize,
-                        height: logoSize,
-                      ),
-                      const SizedBox(height: 32),
-                      // Welcome text
-                      Text(
-                        l10n.translate('welcome_to'),
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.8),
-                          fontSize: 20,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'ENOM',
-                        style: TextStyle(
-                          color: Color(0xFFD4AF37),
-                          fontSize: 48,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 8,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        l10n.translate('tagline'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.5),
-                          fontSize: 14,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 60),
-                      // Login button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const LoginScreen(),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFD4AF37),
-                            foregroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            elevation: 0,
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Background image
+            Image.asset(
+              'assets/images/bg_welcome.jpeg',
+              fit: BoxFit.cover,
+              width: size.width,
+              height: size.height,
+            ),
+
+            // Particle overlay
+            AnimatedBuilder(
+              animation: _particleController,
+              builder: (context, child) {
+                return CustomPaint(
+                  painter: _ParticlePainter(_particleController.value),
+                  size: size,
+                );
+              },
+            ),
+
+            // Tappable button areas positioned over the orbs
+            Positioned(
+              bottom: size.height * 0.06,
+              left: 0,
+              right: 0,
+              height: size.height * 0.28,
+              child: Row(
+                children: [
+                  // Login orb tap area (left side, larger)
+                  Expanded(
+                    flex: 5,
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
                           ),
-                          child: Text(
-                            l10n.translate('login'),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      // Signup button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: OutlinedButton(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const SignupScreen(),
-                              ),
-                            );
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFD4AF37),
-                            side: const BorderSide(
-                              color: Color(0xFFD4AF37),
-                              width: 2,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: Text(
-                            l10n.translate('signup'),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 40),
-                    ],
+                        );
+                      },
+                      behavior: HitTestBehavior.opaque,
+                      child: const SizedBox.expand(),
+                    ),
                   ),
-                ),
+                  // Sign Up orb tap area (right side)
+                  Expanded(
+                    flex: 5,
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SignupScreen(),
+                          ),
+                        );
+                      },
+                      behavior: HitTestBehavior.opaque,
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
+}
+
+class _ParticlePainter extends CustomPainter {
+  final double progress;
+  final Random _random = Random(42);
+
+  _ParticlePainter(this.progress);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    for (int i = 0; i < 30; i++) {
+      final seed = _random.nextDouble();
+      final x = _random.nextDouble() * size.width;
+      final baseY = _random.nextDouble() * size.height;
+      final y = (baseY - progress * size.height * 0.3 * seed) % size.height;
+      final radius = 0.5 + _random.nextDouble() * 1.5;
+      final alpha = (0.2 + 0.6 * sin((progress * 2 * pi) + seed * 2 * pi)).clamp(0.0, 1.0);
+
+      paint.color = const Color(0xFFD4AF37).withValues(alpha: alpha);
+      canvas.drawCircle(Offset(x, y), radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ParticlePainter oldDelegate) => true;
 }
