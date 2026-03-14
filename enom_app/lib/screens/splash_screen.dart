@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 import 'language_selection_screen.dart';
 import 'home_screen.dart';
 
@@ -104,7 +105,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppTheme.darkBg,
       body: Center(
         child: _videoInitialized && _videoController != null
             ? SizedBox.expand(
@@ -119,11 +120,7 @@ class _SplashScreenState extends State<SplashScreen>
               )
             : FadeTransition(
                 opacity: _fadeAnimation..addListener(() {}),
-                child: Image.asset(
-                  'assets/images/enom_logo.gif',
-                  width: 200,
-                  height: 200,
-                ),
+                child: AppTheme.logo(context, size: 200),
               ),
       ),
     );

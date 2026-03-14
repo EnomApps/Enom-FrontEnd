@@ -2,10 +2,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../theme/app_theme.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Map<String, dynamic>? user;
@@ -213,13 +215,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       firstDate: DateTime(1920),
       lastDate: now,
       builder: (context, child) {
+        final g = AppTheme.goldColor(context);
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Color(0xFFD4AF37),
-              onPrimary: Colors.black,
-              surface: Color(0xFF121212),
-              onSurface: Colors.white,
+            colorScheme: ColorScheme(
+              brightness: AppTheme.isDark(context) ? Brightness.dark : Brightness.light,
+              primary: g,
+              onPrimary: AppTheme.isDark(context) ? Colors.black : Colors.white,
+              surface: AppTheme.bg(context),
+              onSurface: AppTheme.text1(context),
+              secondary: g,
+              onSecondary: AppTheme.isDark(context) ? Colors.black : Colors.white,
+              error: Colors.redAccent,
+              onError: Colors.white,
             ),
           ),
           child: child!,
@@ -275,26 +283,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _pickedImageBytes = null;
         });
         widget.onUserUpdated();
-        _showSnackBar(result.message, isError: false);
+        AppTheme.showSnackBar(context, result.message, isError: false);
       } else {
-        _showSnackBar(result.message, isError: true);
+        AppTheme.showSnackBar(context, result.message, isError: true);
       }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      _showSnackBar('Network error: $e', isError: true);
+      AppTheme.showSnackBar(context, 'Network error: $e', isError: true);
     }
-  }
-
-  void _showSnackBar(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.redAccent : const Color(0xFFD4AF37),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
   }
 
   @override
@@ -314,13 +311,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     if (_isLoading && _user == null) {
-      return const Center(
-        child: CircularProgressIndicator(color: Color(0xFFD4AF37)),
+      return Center(
+        child: CircularProgressIndicator(color: AppTheme.goldColor(context)),
       );
     }
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -332,20 +326,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (!_isEditing) ...[
             Text(
               _user?['name'] as String? ?? '',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style: AppTheme.heading(context, size: 18),
             ),
             if ((_user?['username'] as String?)?.isNotEmpty == true) ...[
               const SizedBox(height: 2),
               Text(
                 '@${_user!['username']}',
-                style: TextStyle(
-                  color: const Color(0xFFD4AF37),
+                style: GoogleFonts.cormorantGaramond(
+                  color: AppTheme.goldColor(context),
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
+                  fontStyle: FontStyle.italic,
                 ),
               ),
             ],
@@ -353,11 +344,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Text(
               _user?['email'] as String? ?? '',
               style: TextStyle(
-                color: textColor.withValues(alpha: 0.5),
+                color: AppTheme.text2(context),
                 fontSize: 14,
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 20),
+            _buildStatsRow(),
+            const SizedBox(height: 20),
+            AppTheme.goldDivider(context),
+            const SizedBox(height: 20),
+            _buildMenuRow(Icons.analytics_outlined, 'Mood Analytics', onTap: () {}),
+            _buildMenuRow(Icons.notifications_outlined, 'Notifications', onTap: () {}),
+            _buildMenuRow(Icons.shield_outlined, 'Privacy & Security', onTap: () {}),
+            _buildPremiumRow(),
+            AppTheme.goldDivider(context),
+            const SizedBox(height: 20),
             _buildInfoCard(Icons.alternate_email, l10n.translate('username'), _user?['username'] as String?),
             _buildInfoCard(Icons.person_outline, l10n.translate('gender'), _genderDisplay(l10n)),
             _buildInfoCard(Icons.cake_outlined, l10n.translate('date_of_birth'), _dobDisplay()),
@@ -383,12 +384,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   l10n.translate('edit_profile'),
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD4AF37),
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  elevation: 0,
-                ),
+                style: AppTheme.primaryButton(context),
               ),
             ),
           ],
@@ -491,11 +487,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     height: 52,
                     child: OutlinedButton(
                       onPressed: _isSaving ? null : _cancelEditing,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: textColor,
-                        side: BorderSide(color: textColor.withValues(alpha: 0.2)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
+                      style: AppTheme.outlineButton(context),
                       child: Text(l10n.translate('cancel'), style: const TextStyle(fontSize: 16)),
                     ),
                   ),
@@ -506,19 +498,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     height: 52,
                     child: ElevatedButton(
                       onPressed: _isSaving ? null : _saveProfile,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD4AF37),
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        elevation: 0,
-                      ),
+                      style: AppTheme.primaryButton(context),
                       child: _isSaving
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 22,
                               height: 22,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.black,
+                                color: AppTheme.toggleBg(context),
                               ),
                             )
                           : Text(l10n.translate('save'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
@@ -543,6 +530,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final hasNetworkImage = profileImageUrl != null && profileImageUrl.isNotEmpty;
     final hasPicked = _pickedImageBytes != null;
 
+    final goldC = AppTheme.goldColor(context);
+    final goldF = AppTheme.goldFill(context);
+
     Widget imageWidget;
     if (hasPicked) {
       imageWidget = Image.memory(
@@ -563,11 +553,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           return Container(
             width: 104,
             height: 104,
-            color: const Color(0xFF121212),
-            child: const Center(
+            color: AppTheme.bg2(context),
+            child: Center(
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: Color(0xFFD4AF37),
+                color: goldC,
               ),
             ),
           );
@@ -576,8 +566,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           return Container(
             width: 104,
             height: 104,
-            color: const Color(0xFF121212),
-            child: const Icon(Icons.person, size: 52, color: Color(0xFFD4AF37)),
+            color: AppTheme.bg2(context),
+            child: Icon(Icons.person, size: 52, color: goldC),
           );
         },
       );
@@ -585,22 +575,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
       imageWidget = Container(
         width: 104,
         height: 104,
-        color: const Color(0xFF121212),
-        child: const Icon(Icons.person, size: 52, color: Color(0xFFD4AF37)),
+        color: AppTheme.bg2(context),
+        child: Icon(Icons.person, size: 52, color: goldC),
       );
     }
 
     return Stack(
       children: [
         Container(
-          width: 110,
-          height: 110,
+          width: 114,
+          height: 114,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: const Color(0xFFD4AF37).withValues(alpha: 0.2),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [goldC, goldC.withValues(alpha: 0.5)],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: goldF,
+                blurRadius: 24,
+                spreadRadius: 6,
+              ),
+            ],
           ),
           padding: const EdgeInsets.all(3),
-          child: ClipOval(child: imageWidget),
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppTheme.bg(context),
+            ),
+            padding: const EdgeInsets.all(2),
+            child: ClipOval(child: imageWidget),
+          ),
         ),
         if (_isEditing)
           Positioned(
@@ -610,11 +618,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onTap: _pickImage,
               child: Container(
                 padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFD4AF37),
+                decoration: BoxDecoration(
+                  color: goldC,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.camera_alt, size: 20, color: Colors.black),
+                child: Icon(Icons.camera_alt, size: 20, color: AppTheme.toggleBg(context)),
               ),
             ),
           ),
@@ -622,23 +630,98 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildStatsRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _buildStatItem('0', 'Entries'),
+        _buildStatDivider(),
+        _buildStatItem('0', 'Streak'),
+        _buildStatDivider(),
+        _buildStatItem('0', 'Friends'),
+      ],
+    );
+  }
+
+  Widget _buildStatItem(String value, String label) {
+    return Column(
+      children: [
+        Text(value, style: AppTheme.heading(context, size: 16)),
+        const SizedBox(height: 2),
+        Text(label, style: AppTheme.label(context)),
+      ],
+    );
+  }
+
+  Widget _buildStatDivider() {
+    return Container(
+      width: 1,
+      height: 28,
+      color: AppTheme.cardBorder(context),
+    );
+  }
+
+  Widget _buildMenuRow(IconData icon, String title, {VoidCallback? onTap}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: AppTheme.cardDecoration(context),
+      child: ListTile(
+        leading: Icon(icon, color: AppTheme.goldColor(context), size: 22),
+        title: Text(
+          title,
+          style: TextStyle(color: AppTheme.text1(context), fontSize: 14),
+        ),
+        trailing: Icon(Icons.chevron_right, color: AppTheme.text2(context), size: 20),
+        onTap: onTap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      ),
+    );
+  }
+
+  Widget _buildPremiumRow() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16, top: 4),
+      decoration: AppTheme.cardDecoration(context),
+      child: ListTile(
+        leading: Icon(Icons.workspace_premium, color: AppTheme.goldColor(context), size: 22),
+        title: Text(
+          'ENOM Premium',
+          style: TextStyle(color: AppTheme.text1(context), fontSize: 14),
+        ),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppTheme.goldFill(context),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.goldColor(context).withValues(alpha: 0.3)),
+          ),
+          child: Text(
+            'UPGRADE',
+            style: GoogleFonts.dmSans(
+              color: AppTheme.goldColor(context),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+            ),
+          ),
+        ),
+        onTap: () {},
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      ),
+    );
+  }
+
   Widget _buildInfoCard(IconData icon, String label, String? value) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
-        ),
-      ),
+      decoration: AppTheme.cardDecoration(context),
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xFFD4AF37), size: 22),
+          Icon(icon, color: AppTheme.goldColor(context), size: 22),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -646,19 +729,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    color: textColor.withValues(alpha: 0.4),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: AppTheme.label(context, size: 12),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   value != null && value.isNotEmpty ? value : '—',
                   style: TextStyle(
                     color: value != null && value.isNotEmpty
-                        ? textColor
-                        : textColor.withValues(alpha: 0.2),
+                        ? AppTheme.text1(context)
+                        : AppTheme.text2(context),
                     fontSize: 15,
                   ),
                 ),
@@ -671,39 +750,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildChipsCard(IconData icon, String label, List<String> items) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
-        ),
-      ),
+      decoration: AppTheme.cardDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: const Color(0xFFD4AF37), size: 22),
+              Icon(icon, color: AppTheme.goldColor(context), size: 22),
               const SizedBox(width: 14),
               Text(
                 label,
-                style: TextStyle(
-                  color: textColor.withValues(alpha: 0.4),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: AppTheme.label(context, size: 12),
               ),
             ],
           ),
           const SizedBox(height: 8),
           if (items.isEmpty)
-            Text('—', style: TextStyle(color: textColor.withValues(alpha: 0.2), fontSize: 15))
+            Text('—', style: TextStyle(color: AppTheme.text2(context), fontSize: 15))
           else
             Wrap(
               spacing: 8,
@@ -711,13 +778,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: items.map((item) => Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFD4AF37).withValues(alpha: 0.15),
+                  color: AppTheme.goldFill(context),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.3)),
+                  border: Border.all(color: AppTheme.goldColor(context).withValues(alpha: 0.3)),
                 ),
                 child: Text(
                   item,
-                  style: TextStyle(color: textColor, fontSize: 13),
+                  style: TextStyle(color: AppTheme.text1(context), fontSize: 13),
                 ),
               )).toList(),
             ),
@@ -732,31 +799,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required IconData icon,
     int maxLines = 1,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
     return TextField(
       controller: controller,
       maxLines: maxLines,
-      style: TextStyle(color: textColor),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
-        prefixIcon: Icon(icon, color: const Color(0xFFD4AF37).withValues(alpha: 0.7)),
-        filled: true,
-        fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.08),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: textColor.withValues(alpha: 0.1)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: textColor.withValues(alpha: 0.1)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFD4AF37)),
-        ),
-      ),
+      style: TextStyle(color: AppTheme.text1(context)),
+      decoration: AppTheme.inputDecoration(context, hint: label, prefixIcon: icon),
     );
   }
 
@@ -767,34 +814,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required List<String> items,
     required ValueChanged<String?> onChanged,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final fillColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.08);
-    final borderColor = textColor.withValues(alpha: 0.1);
-
     return DropdownButtonFormField<String>(
       value: items.contains(value) ? value : null,
-      dropdownColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-      style: TextStyle(color: textColor),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
-        prefixIcon: Icon(icon, color: const Color(0xFFD4AF37).withValues(alpha: 0.7)),
-        filled: true,
-        fillColor: fillColor,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: borderColor),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: borderColor),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFD4AF37)),
-        ),
-      ),
+      dropdownColor: AppTheme.isDark(context) ? AppTheme.darkBg2 : Colors.white,
+      style: TextStyle(color: AppTheme.text1(context)),
+      decoration: AppTheme.inputDecoration(context, hint: label, prefixIcon: icon),
       items: items.map((item) {
         return DropdownMenuItem(value: item, child: Text(item));
       }).toList(),
@@ -813,40 +837,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildDateField(AppLocalizations l10n) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final fillColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.08);
-    final borderColor = textColor.withValues(alpha: 0.1);
-
     return GestureDetector(
       onTap: _pickDate,
       child: AbsorbPointer(
         child: TextField(
-          style: TextStyle(color: textColor),
+          style: TextStyle(color: AppTheme.text1(context)),
           controller: TextEditingController(
             text: _selectedDob != null
                 ? '${_selectedDob!.year}-${_selectedDob!.month.toString().padLeft(2, '0')}-${_selectedDob!.day.toString().padLeft(2, '0')}'
                 : '',
           ),
-          decoration: InputDecoration(
-            labelText: l10n.translate('date_of_birth'),
-            labelStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
-            prefixIcon: Icon(Icons.cake_outlined, color: const Color(0xFFD4AF37).withValues(alpha: 0.7)),
-            suffixIcon: Icon(Icons.calendar_today, color: textColor.withValues(alpha: 0.3), size: 20),
-            filled: true,
-            fillColor: fillColor,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: borderColor),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: borderColor),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFD4AF37)),
-            ),
+          decoration: AppTheme.inputDecoration(
+            context,
+            hint: l10n.translate('date_of_birth'),
+            prefixIcon: Icons.cake_outlined,
+            suffixIcon: Icon(Icons.calendar_today, color: AppTheme.text2(context), size: 20),
           ),
         ),
       ),
@@ -860,29 +865,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required List<String> selected,
     required ValueChanged<List<String>> onChanged,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final fillColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.08);
-    final borderColor = textColor.withValues(alpha: 0.1);
+    final goldC = AppTheme.goldColor(context);
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: fillColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
+        color: AppTheme.inputBg(context),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: AppTheme.inputBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: const Color(0xFFD4AF37).withValues(alpha: 0.7), size: 22),
+              Icon(icon, color: goldC.withValues(alpha: 0.7), size: 22),
               const SizedBox(width: 10),
               Text(
                 label,
-                style: TextStyle(color: textColor.withValues(alpha: 0.4), fontSize: 14),
+                style: TextStyle(color: AppTheme.text2(context), fontSize: 14),
               ),
             ],
           ),
@@ -896,18 +898,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 label: Text(
                   option,
                   style: TextStyle(
-                    color: isSelected ? Colors.black : textColor,
+                    color: isSelected ? AppTheme.toggleBg(context) : AppTheme.text1(context),
                     fontSize: 13,
                   ),
                 ),
                 selected: isSelected,
-                selectedColor: const Color(0xFFD4AF37),
-                backgroundColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.withValues(alpha: 0.12),
-                checkmarkColor: Colors.black,
+                selectedColor: goldC,
+                backgroundColor: AppTheme.cardBg(context),
+                checkmarkColor: AppTheme.toggleBg(context),
                 side: BorderSide(
                   color: isSelected
-                      ? const Color(0xFFD4AF37)
-                      : textColor.withValues(alpha: 0.15),
+                      ? goldC
+                      : AppTheme.cardBorder(context),
                 ),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 onSelected: (val) {
@@ -928,29 +930,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildInterestsSelector() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final fillColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.08);
-    final borderColor = textColor.withValues(alpha: 0.1);
+    final goldC = AppTheme.goldColor(context);
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: fillColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
+        color: AppTheme.inputBg(context),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: AppTheme.inputBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.interests_outlined, color: const Color(0xFFD4AF37).withValues(alpha: 0.7), size: 22),
+              Icon(Icons.interests_outlined, color: goldC.withValues(alpha: 0.7), size: 22),
               const SizedBox(width: 10),
               Text(
                 'Interests (max 10)',
-                style: TextStyle(color: textColor.withValues(alpha: 0.4), fontSize: 14),
+                style: TextStyle(color: AppTheme.text2(context), fontSize: 14),
               ),
             ],
           ),
@@ -966,18 +965,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 label: Text(
                   name,
                   style: TextStyle(
-                    color: isSelected ? Colors.black : textColor,
+                    color: isSelected ? AppTheme.toggleBg(context) : AppTheme.text1(context),
                     fontSize: 13,
                   ),
                 ),
                 selected: isSelected,
-                selectedColor: const Color(0xFFD4AF37),
-                backgroundColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.withValues(alpha: 0.12),
-                checkmarkColor: Colors.black,
+                selectedColor: goldC,
+                backgroundColor: AppTheme.cardBg(context),
+                checkmarkColor: AppTheme.toggleBg(context),
                 side: BorderSide(
                   color: isSelected
-                      ? const Color(0xFFD4AF37)
-                      : textColor.withValues(alpha: 0.15),
+                      ? goldC
+                      : AppTheme.cardBorder(context),
                 ),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 onSelected: (val) {
@@ -986,7 +985,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       if (_selectedInterestIds.length < 10) {
                         _selectedInterestIds.add(id);
                       } else {
-                        _showSnackBar('Maximum 10 interests allowed', isError: true);
+                        AppTheme.showSnackBar(context, 'Maximum 10 interests allowed', isError: true);
                       }
                     } else {
                       _selectedInterestIds.remove(id);

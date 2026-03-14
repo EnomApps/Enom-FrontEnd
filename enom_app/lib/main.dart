@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'l10n/app_localizations.dart';
 import 'models/language_model.dart';
 import 'screens/splash_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -71,6 +73,12 @@ class _EnomAppState extends State<EnomApp> {
             _themeMode = ThemeMode.system;
         }
       });
+    } else {
+      // No saved preference — follow device mode
+      if (mounted) {
+        setState(() => _themeMode = ThemeMode.system);
+      }
+      await prefs.setString(_themePrefKey, 'system');
     }
   }
 
@@ -102,8 +110,6 @@ class _EnomAppState extends State<EnomApp> {
   Widget build(BuildContext context) {
     final isRTL = AppLocalizations.isRTL(_locale.languageCode);
 
-    const goldColor = Color(0xFFD4AF37);
-
     return MaterialApp(
       title: 'ENOM',
       debugShowCheckedModeBanner: false,
@@ -115,7 +121,6 @@ class _EnomAppState extends State<EnomApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      // RTL support: override directionality for RTL languages
       builder: (context, child) {
         if (isRTL) {
           return Directionality(
@@ -126,46 +131,101 @@ class _EnomAppState extends State<EnomApp> {
         return child!;
       },
       themeMode: _themeMode,
-      // Dark theme
+
+      // ── Dark Theme ──
       darkTheme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.black,
-        primaryColor: goldColor,
-        colorScheme: const ColorScheme.dark(
-          primary: goldColor,
-          secondary: goldColor,
-          surface: Color(0xFF121212),
+        scaffoldBackgroundColor: AppTheme.darkBg,
+        primaryColor: AppTheme.gold,
+        colorScheme: ColorScheme.dark(
+          primary: AppTheme.gold,
+          secondary: AppTheme.gold,
+          surface: AppTheme.darkBg2,
+          onSurface: AppTheme.darkText1,
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.black,
+          backgroundColor: Colors.transparent,
           elevation: 0,
-          iconTheme: IconThemeData(color: goldColor),
-          titleTextStyle: TextStyle(color: goldColor),
+          iconTheme: IconThemeData(color: AppTheme.gold),
+          titleTextStyle: TextStyle(color: AppTheme.gold),
         ),
-        cardColor: const Color(0xFF1A1A1A),
-        dividerColor: Colors.white12,
-        fontFamily: 'Roboto',
+        cardColor: AppTheme.darkBg2,
+        dividerColor: AppTheme.gold.withValues(alpha: 0.1),
+        textTheme: GoogleFonts.dmSansTextTheme(
+          ThemeData.dark().textTheme,
+        ).apply(bodyColor: AppTheme.darkText1, displayColor: AppTheme.goldPale),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: AppTheme.darkInputBg,
+          hintStyle: TextStyle(color: AppTheme.darkText2),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(13),
+            borderSide: BorderSide(color: AppTheme.darkInputBorder),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(13),
+            borderSide: BorderSide(color: AppTheme.darkInputBorder),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(13),
+            borderSide: const BorderSide(color: AppTheme.gold),
+          ),
+        ),
+        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+          backgroundColor: AppTheme.darkNavBg,
+          selectedItemColor: AppTheme.gold,
+          unselectedItemColor: AppTheme.darkText2,
+          type: BottomNavigationBarType.fixed,
+          elevation: 0,
+        ),
       ),
-      // Light theme
+
+      // ── Light Theme ──
       theme: ThemeData(
         brightness: Brightness.light,
-        scaffoldBackgroundColor: const Color(0xFFF5F5F5),
-        primaryColor: goldColor,
-        colorScheme: const ColorScheme.light(
-          primary: goldColor,
-          secondary: goldColor,
-          surface: Colors.white,
-          onSurface: Color(0xFF1A1A1A),
+        scaffoldBackgroundColor: AppTheme.lightBg,
+        primaryColor: AppTheme.lightGold,
+        colorScheme: ColorScheme.light(
+          primary: AppTheme.lightGold,
+          secondary: AppTheme.lightGold,
+          surface: AppTheme.lightBg2,
+          onSurface: AppTheme.lightText1,
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
+          backgroundColor: Colors.transparent,
           elevation: 0,
-          iconTheme: IconThemeData(color: goldColor),
-          titleTextStyle: TextStyle(color: goldColor),
+          iconTheme: IconThemeData(color: AppTheme.lightGold),
+          titleTextStyle: TextStyle(color: AppTheme.lightGold),
         ),
-        cardColor: Colors.white,
-        dividerColor: Colors.black12,
-        fontFamily: 'Roboto',
+        cardColor: AppTheme.lightBg2,
+        dividerColor: AppTheme.lightGold.withValues(alpha: 0.1),
+        textTheme: GoogleFonts.dmSansTextTheme(
+          ThemeData.light().textTheme,
+        ).apply(bodyColor: AppTheme.lightText1, displayColor: AppTheme.lightText1),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: AppTheme.lightInputBg,
+          hintStyle: TextStyle(color: AppTheme.lightText2),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(13),
+            borderSide: BorderSide(color: AppTheme.lightInputBorder),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(13),
+            borderSide: BorderSide(color: AppTheme.lightInputBorder),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(13),
+            borderSide: const BorderSide(color: AppTheme.lightGold),
+          ),
+        ),
+        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+          backgroundColor: AppTheme.lightNavBg,
+          selectedItemColor: AppTheme.lightGold,
+          unselectedItemColor: AppTheme.lightText2,
+          type: BottomNavigationBarType.fixed,
+          elevation: 0,
+        ),
       ),
       home: const SplashScreen(),
     );

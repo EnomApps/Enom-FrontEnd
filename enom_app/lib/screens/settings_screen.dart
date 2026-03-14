@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../main.dart';
+import '../theme/app_theme.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -8,7 +9,6 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentThemeMode = EnomApp.getThemeMode(context);
 
     return SingleChildScrollView(
@@ -18,54 +18,29 @@ class SettingsScreen extends StatelessWidget {
         children: [
           const SizedBox(height: 8),
           // Appearance section
-          _buildSectionTitle(l10n.translate('appearance'), isDark),
+          _buildSectionTitle(context, l10n.translate('appearance')),
           const SizedBox(height: 12),
-          _buildThemeCard(context, l10n, isDark, currentThemeMode),
+          _buildThemeCard(context, l10n, currentThemeMode),
           const SizedBox(height: 32),
         ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title, bool isDark) {
+  Widget _buildSectionTitle(BuildContext context, String title) {
     return Text(
       title,
-      style: TextStyle(
-        color: const Color(0xFFD4AF37),
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.5,
-      ),
+      style: AppTheme.heading(context, size: 16),
     );
   }
 
   Widget _buildThemeCard(
     BuildContext context,
     AppLocalizations l10n,
-    bool isDark,
     ThemeMode currentMode,
   ) {
     return Container(
-      decoration: BoxDecoration(
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.05)
-            : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.08)
-              : Colors.black.withValues(alpha: 0.08),
-        ),
-        boxShadow: isDark
-            ? null
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-      ),
+      decoration: AppTheme.cardDecoration(context),
       child: Column(
         children: [
           _buildThemeOption(
@@ -73,35 +48,28 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.brightness_auto,
             title: l10n.translate('system_default'),
             isSelected: currentMode == ThemeMode.system,
-            isDark: isDark,
             onTap: () => EnomApp.setThemeMode(context, ThemeMode.system),
           ),
           Divider(
             height: 1,
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.06)
-                : Colors.black.withValues(alpha: 0.06),
+            color: AppTheme.cardBorder(context),
           ),
           _buildThemeOption(
             context: context,
             icon: Icons.light_mode,
             title: l10n.translate('light_mode'),
             isSelected: currentMode == ThemeMode.light,
-            isDark: isDark,
             onTap: () => EnomApp.setThemeMode(context, ThemeMode.light),
           ),
           Divider(
             height: 1,
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.06)
-                : Colors.black.withValues(alpha: 0.06),
+            color: AppTheme.cardBorder(context),
           ),
           _buildThemeOption(
             context: context,
             icon: Icons.dark_mode,
             title: l10n.translate('dark_mode'),
             isSelected: currentMode == ThemeMode.dark,
-            isDark: isDark,
             onTap: () => EnomApp.setThemeMode(context, ThemeMode.dark),
           ),
         ],
@@ -114,7 +82,6 @@ class SettingsScreen extends StatelessWidget {
     required IconData icon,
     required String title,
     required bool isSelected,
-    required bool isDark,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -127,10 +94,8 @@ class SettingsScreen extends StatelessWidget {
             Icon(
               icon,
               color: isSelected
-                  ? const Color(0xFFD4AF37)
-                  : isDark
-                      ? Colors.white.withValues(alpha: 0.5)
-                      : Colors.black.withValues(alpha: 0.5),
+                  ? AppTheme.goldColor(context)
+                  : AppTheme.text2(context),
               size: 24,
             ),
             const SizedBox(width: 14),
@@ -138,16 +103,16 @@ class SettingsScreen extends StatelessWidget {
               child: Text(
                 title,
                 style: TextStyle(
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: AppTheme.text1(context),
                   fontSize: 15,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
             ),
             if (isSelected)
-              const Icon(
+              Icon(
                 Icons.check_circle,
-                color: Color(0xFFD4AF37),
+                color: AppTheme.goldColor(context),
                 size: 22,
               ),
           ],
