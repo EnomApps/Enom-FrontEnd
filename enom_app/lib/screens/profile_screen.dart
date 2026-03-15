@@ -816,7 +816,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }) {
     return DropdownButtonFormField<String>(
       value: items.contains(value) ? value : null,
-      dropdownColor: AppTheme.isDark(context) ? AppTheme.darkBg2 : Colors.white,
+      dropdownColor: AppTheme.isDark(context) ? const Color(0xFF111111) : Colors.white,
       style: TextStyle(color: AppTheme.text1(context)),
       decoration: AppTheme.inputDecoration(context, hint: label, prefixIcon: icon),
       items: items.map((item) {

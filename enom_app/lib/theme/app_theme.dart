@@ -14,31 +14,31 @@ class AppTheme {
   static const Color goldPale = Color(0xFFE6CC80);
 
   // ── Dark Theme Colors ──
-  static const Color darkBg = Color(0xFF0A0A0A);
-  static const Color darkBg2 = Color(0xFF111111);
-  static const Color darkNavBg = Color(0xEB0A0A0A); // 92% opacity
-  static Color darkCardBg = Colors.white.withValues(alpha: 0.02);
-  static Color darkCardBorder = gold.withValues(alpha: 0.1);
-  static Color darkInputBg = Colors.white.withValues(alpha: 0.03);
-  static Color darkInputBorder = gold.withValues(alpha: 0.2);
+  static const Color darkBg = Color(0xFF000000);
+  static const Color darkBg2 = Color(0xFF0A0A0A);
+  static const Color darkNavBg = Color(0xEB000000); // 92% opacity
+  static Color darkCardBg = Colors.white.withValues(alpha: 0.04);
+  static Color darkCardBorder = gold.withValues(alpha: 0.15);
+  static Color darkInputBg = Colors.white.withValues(alpha: 0.05);
+  static Color darkInputBorder = gold.withValues(alpha: 0.3);
   static const Color darkText1 = Color(0xFFE6CC80);
-  static Color darkText2 = gold.withValues(alpha: 0.5);
-  static Color darkGoldFill = gold.withValues(alpha: 0.08);
+  static Color darkText2 = gold.withValues(alpha: 0.55);
+  static Color darkGoldFill = gold.withValues(alpha: 0.10);
 
   // ── Light Theme Colors ──
-  static const Color lightBg = Color(0xFFFAF6EE);
-  static const Color lightBg2 = Color(0xFFF3EDD9);
-  static const Color lightNavBg = Color(0xF0FAF6EE); // 94% opacity
-  static const Color lightGold = Color(0xFF9A7B1A);
-  static const Color lightGoldLight = Color(0xFFC9A227);
-  static const Color lightGoldDark = Color(0xFF7A5F10);
-  static Color lightCardBg = const Color(0xFFB48C28).withValues(alpha: 0.04);
-  static Color lightCardBorder = const Color(0xFFA07814).withValues(alpha: 0.12);
-  static Color lightInputBg = Colors.white.withValues(alpha: 0.7);
-  static Color lightInputBorder = const Color(0xFFA07814).withValues(alpha: 0.2);
-  static const Color lightText1 = Color(0xFF3D2E08);
-  static Color lightText2 = const Color(0xFF503C0A).withValues(alpha: 0.5);
-  static Color lightGoldFill = const Color(0xFFA07814).withValues(alpha: 0.06);
+  static const Color lightBg = Color(0xFFF5ECD4);
+  static const Color lightBg2 = Color(0xFFEBE0C8);
+  static const Color lightNavBg = Color(0xF0F5ECD4); // 94% opacity
+  static const Color lightGold = Color(0xFF8C6D14);
+  static const Color lightGoldLight = Color(0xFFBFA02A);
+  static const Color lightGoldDark = Color(0xFF6B5210);
+  static Color lightCardBg = Colors.white.withValues(alpha: 0.6);
+  static Color lightCardBorder = const Color(0xFFA07814).withValues(alpha: 0.25);
+  static Color lightInputBg = Colors.white.withValues(alpha: 0.85);
+  static Color lightInputBorder = const Color(0xFFA07814).withValues(alpha: 0.35);
+  static const Color lightText1 = Color(0xFF2C1F04);
+  static Color lightText2 = const Color(0xFF503C0A).withValues(alpha: 0.6);
+  static Color lightGoldFill = const Color(0xFFA07814).withValues(alpha: 0.08);
 
   // ── Helpers ──
   static bool isDark(BuildContext context) =>
@@ -268,11 +268,11 @@ class GradientBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = AppTheme.isDark(context);
     final glow1 = dark
-        ? AppTheme.gold.withValues(alpha: 0.06)
-        : const Color(0xFFB49632).withValues(alpha: 0.06);
+        ? AppTheme.gold.withValues(alpha: 0.10)
+        : const Color(0xFFB49632).withValues(alpha: 0.08);
     final glow2 = dark
-        ? AppTheme.gold.withValues(alpha: 0.03)
-        : const Color(0xFFB49632).withValues(alpha: 0.03);
+        ? AppTheme.gold.withValues(alpha: 0.05)
+        : const Color(0xFFB49632).withValues(alpha: 0.05);
 
     Alignment a1, a2;
     switch (variant) {
@@ -341,9 +341,9 @@ class GoldParticlePainter extends CustomPainter {
       final x = _random.nextDouble() * size.width;
       final baseY = _random.nextDouble() * size.height;
       final y = (baseY - progress * size.height * 0.3 * seed) % size.height;
-      final radius = 0.5 + _random.nextDouble() * 1.5;
+      final radius = 0.5 + _random.nextDouble() * 2.5;
       final alpha =
-          (0.2 + 0.6 * sin((progress * 2 * pi) + seed * 2 * pi)).clamp(0.0, 1.0);
+          (0.3 + 0.7 * sin((progress * 2 * pi) + seed * 2 * pi)).clamp(0.0, 1.0);
 
       paint.color = AppTheme.gold.withValues(alpha: alpha);
       canvas.drawCircle(Offset(x, y), radius, paint);

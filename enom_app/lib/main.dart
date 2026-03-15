@@ -150,7 +150,7 @@ class _EnomAppState extends State<EnomApp> {
           titleTextStyle: TextStyle(color: AppTheme.gold),
         ),
         cardColor: AppTheme.darkBg2,
-        dividerColor: AppTheme.gold.withValues(alpha: 0.1),
+        dividerColor: AppTheme.gold.withValues(alpha: 0.15),
         textTheme: GoogleFonts.dmSansTextTheme(
           ThemeData.dark().textTheme,
         ).apply(bodyColor: AppTheme.darkText1, displayColor: AppTheme.goldPale),
@@ -198,7 +198,7 @@ class _EnomAppState extends State<EnomApp> {
           titleTextStyle: TextStyle(color: AppTheme.lightGold),
         ),
         cardColor: AppTheme.lightBg2,
-        dividerColor: AppTheme.lightGold.withValues(alpha: 0.1),
+        dividerColor: AppTheme.lightGold.withValues(alpha: 0.15),
         textTheme: GoogleFonts.dmSansTextTheme(
           ThemeData.light().textTheme,
         ).apply(bodyColor: AppTheme.lightText1, displayColor: AppTheme.lightText1),

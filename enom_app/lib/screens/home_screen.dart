@@ -83,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert, color: AppTheme.goldColor(context)),
             color: AppTheme.isDark(context)
-                ? const Color(0xFF1A1A1A)
+                ? const Color(0xFF111111)
                 : Colors.white,
             onSelected: (value) {
               if (value == 'logout') {
@@ -388,7 +388,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         Text(
                           'ENOM',
                           style: GoogleFonts.playfairDisplay(
-                            color: Colors.white,
+                            color: AppTheme.isDark(context)
+                                ? Colors.black
+                                : Colors.white,
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 4,
@@ -398,7 +400,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         Text(
                           l10n.translate('tagline'),
                           style: GoogleFonts.dmSans(
-                            color: Colors.white.withValues(alpha: 0.8),
+                            color: AppTheme.isDark(context)
+                                ? Colors.black.withValues(alpha: 0.7)
+                                : Colors.white.withValues(alpha: 0.8),
                             fontSize: 14,
                           ),
                         ),
