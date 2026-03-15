@@ -104,24 +104,31 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final circleSize = screenSize.shortestSide * 0.75;
+
     return Scaffold(
-      backgroundColor: AppTheme.darkBg,
+      backgroundColor: Colors.black,
       body: Center(
-        child: _videoInitialized && _videoController != null
-            ? SizedBox.expand(
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  child: SizedBox(
-                    width: _videoController!.value.size.width,
-                    height: _videoController!.value.size.height,
-                    child: VideoPlayer(_videoController!),
+        child: ClipOval(
+          child: SizedBox(
+            width: circleSize,
+            height: circleSize,
+            child: _videoInitialized && _videoController != null
+                ? FittedBox(
+                    fit: BoxFit.cover,
+                    child: SizedBox(
+                      width: _videoController!.value.size.width,
+                      height: _videoController!.value.size.height,
+                      child: VideoPlayer(_videoController!),
+                    ),
+                  )
+                : FadeTransition(
+                    opacity: _fadeAnimation..addListener(() {}),
+                    child: AppTheme.logo(context, size: 200),
                   ),
-                ),
-              )
-            : FadeTransition(
-                opacity: _fadeAnimation..addListener(() {}),
-                child: AppTheme.logo(context, size: 200),
-              ),
+          ),
+        ),
       ),
     );
   }
