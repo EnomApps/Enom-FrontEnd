@@ -50,7 +50,6 @@ class _LoginScreenState extends State<LoginScreen> {
           (route) => false,
         );
       } else if (result.statusCode == 403) {
-        // Email not verified — go to OTP screen
         AppTheme.showSnackBar(context, result.message, isError: true);
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -75,42 +74,49 @@ class _LoginScreenState extends State<LoginScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: AppTheme.bg(context),
+      extendBodyBehindAppBar: true,
       appBar: AppTheme.appBar(context),
       body: Stack(
+        fit: StackFit.expand,
         children: [
-          const GradientBackground(variant: 3),
-          const StarField(starCount: 8),
+          const EnomScreenBackground(gradientVariant: 3, particleCount: 15),
+
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 28),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 20),
-                    // Logo centered
-                    Center(
-                      child: AppTheme.logo(context, size: 80),
-                    ),
-                    const SizedBox(height: 32),
-                    // Title
+
+                    // Header section
                     Text(
-                      l10n.translate('login'),
-                      style: AppTheme.heading(context, size: 32),
+                      'WELCOME BACK',
+                      style: AppTheme.subheading(context, size: 11),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Text(
-                      l10n.translate('welcome_back'),
-                      style: AppTheme.subheading(context, size: 16),
+                      'Login to ENOM',
+                      style: AppTheme.heading(context, size: 36),
                     ),
-                    const SizedBox(height: 16),
-                    Center(child: AppTheme.goldDivider(context)),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Track your mood & reconnect\nwith your community',
+                      style: GoogleFonts.jost(
+                        color: AppTheme.text2(context),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w300,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    AppTheme.goldDivider(context),
+                    const SizedBox(height: 28),
+
                     // Email field
-                    _buildLabel(l10n.translate('email')),
-                    const SizedBox(height: 8),
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -131,10 +137,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
+
                     // Password field
-                    _buildLabel(l10n.translate('password')),
-                    const SizedBox(height: 8),
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
@@ -164,7 +169,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 4),
+
                     // Forgot password
                     Align(
                       alignment: Alignment.centerRight,
@@ -178,77 +184,56 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                         child: Text(
                           l10n.translate('forgot_password'),
-                          style: AppTheme.body(context, size: 14).copyWith(
+                          style: GoogleFonts.jost(
                             color: AppTheme.goldColor(context),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 32),
-                    // Login button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _handleLogin,
-                        style: AppTheme.primaryButton(context),
-                        child: _isLoading
-                            ? SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  color: AppTheme.toggleBg(context),
-                                  strokeWidth: 2.5,
-                                ),
-                              )
-                            : Text(
-                                l10n.translate('login'),
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    // Divider
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Divider(
-                            color: AppTheme.cardBorder(context),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            l10n.translate('or_continue_with'),
-                            style: AppTheme.body(context, size: 12).copyWith(
-                              color: AppTheme.text2(context),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Divider(
-                            color: AppTheme.cardBorder(context),
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 12),
+
+                    // Login button (gold gradient pill)
+                    AppTheme.goldCTAButton(
+                      label: l10n.translate('login'),
+                      onPressed: _isLoading ? null : _handleLogin,
+                      isLoading: _isLoading,
                     ),
                     const SizedBox(height: 24),
+
+                    // Or divider
+                    AppTheme.orDivider(context, l10n.translate('or_continue_with')),
+                    const SizedBox(height: 24),
+
                     // Social login buttons
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _socialButton(Icons.g_mobiledata, 'G'),
-                        const SizedBox(width: 16),
-                        _socialButton(Icons.apple, ''),
-                        const SizedBox(width: 16),
-                        _socialButton(Icons.facebook, ''),
+                        AppTheme.socialButton(
+                          context,
+                          icon: Text(
+                            'G',
+                            style: GoogleFonts.jost(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.goldColor(context),
+                              fontSize: 20,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        AppTheme.socialButton(
+                          context,
+                          icon: Icon(
+                            Icons.apple,
+                            color: AppTheme.text2(context),
+                            size: 24,
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
+
                     // Sign up link
                     Center(
                       child: Row(
@@ -256,8 +241,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         children: [
                           Text(
                             l10n.translate('no_account'),
-                            style: AppTheme.body(context, size: 14).copyWith(
+                            style: GoogleFonts.jost(
                               color: AppTheme.text2(context),
+                              fontSize: 14,
                             ),
                           ),
                           GestureDetector(
@@ -269,9 +255,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               );
                             },
                             child: Text(
-                              l10n.translate('signup'),
-                              style: AppTheme.body(context, size: 14, weight: FontWeight.bold).copyWith(
+                              ' ${l10n.translate('signup')}',
+                              style: GoogleFonts.jost(
                                 color: AppTheme.goldColor(context),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
@@ -285,33 +273,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: AppTheme.body(context, size: 14, weight: FontWeight.w500),
-    );
-  }
-
-  Widget _socialButton(IconData icon, String text) {
-    return Container(
-      width: 60,
-      height: 60,
-      decoration: BoxDecoration(
-        color: AppTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.cardBorder(context)),
-      ),
-      child: IconButton(
-        onPressed: () {},
-        icon: Icon(
-          icon,
-          color: AppTheme.text1(context),
-          size: 28,
-        ),
       ),
     );
   }

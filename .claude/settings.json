@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp \"c:/Users/JOSEPH/Downloads/ENOM_Flutter_Handoff_1/enom-handoff/assets/backgrounds/\"* \"c:/Users/JOSEPH/Documents/GitHub/Enom-FrontEnd/enom_app/assets/backgrounds/\")",
+      "Bash(cp \"c:/Users/JOSEPH/Downloads/ENOM_Flutter_Handoff_1/enom-handoff/assets/bubbles/\"* \"c:/Users/JOSEPH/Documents/GitHub/Enom-FrontEnd/enom_app/assets/bubbles/\")",
+      "Bash(cp \"c:/Users/JOSEPH/Downloads/ENOM_Flutter_Handoff_1/enom-handoff/assets/icons/\"* \"c:/Users/JOSEPH/Documents/GitHub/Enom-FrontEnd/enom_app/assets/icons/\")",
+      "Bash(cp \"c:/Users/JOSEPH/Downloads/ENOM_Flutter_Handoff_1/enom-handoff/assets/logo/\"* \"c:/Users/JOSEPH/Documents/GitHub/Enom-FrontEnd/enom_app/assets/logo/\")",
+      "Bash(adb -s 10BE3T2CX7000CK install -r \"c:/Users/JOSEPH/Documents/GitHub/Enom-FrontEnd/enom_app/build/app/outputs/flutter-apk/app-release.apk\")",
+      "Bash(sort -k5 -h -r)",
+      "Bash(du -sh \"c:/Users/JOSEPH/Documents/GitHub/Enom-FrontEnd/enom_app/assets/\"*/)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\JOSEPH\\Documents\\GitHub\\Enom-FrontEnd\\enom_app\\assets"
+    ]
+  }
+}

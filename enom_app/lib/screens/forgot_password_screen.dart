@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../l10n/app_localizations.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
@@ -38,7 +39,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
       AppTheme.showSnackBar(context, result.message);
 
-      // Navigate to OTP verification screen for password reset
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => ForgotPasswordOtpScreen(
@@ -58,26 +58,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
+      backgroundColor: AppTheme.bg(context),
       extendBodyBehindAppBar: true,
       appBar: AppTheme.appBar(context),
       body: Stack(
+        fit: StackFit.expand,
         children: [
-          const GradientBackground(variant: 2),
+          const EnomScreenBackground(gradientVariant: 2, particleCount: 15),
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 28),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 20),
-                    // Logo
-                    Center(
-                      child: AppTheme.logo(context, size: 80),
-                    ),
+                    Center(child: AppTheme.logo(context, size: 80)),
                     const SizedBox(height: 32),
-                    // Title
                     Text(
                       l10n.translate('forgot_password_title'),
                       style: AppTheme.heading(context, size: 28),
@@ -85,20 +83,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     const SizedBox(height: 12),
                     Text(
                       l10n.translate('forgot_password_desc'),
-                      style: AppTheme.body(context, size: 15).copyWith(
+                      style: GoogleFonts.jost(
                         color: AppTheme.text2(context),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w300,
                         height: 1.5,
                       ),
                     ),
                     const SizedBox(height: 40),
                     // Email field
-                    Text(
-                      l10n.translate('email'),
-                      style: AppTheme.body(context, size: 14, weight: FontWeight.w500).copyWith(
-                        color: AppTheme.text1(context),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -120,36 +113,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       },
                     ),
                     const SizedBox(height: 40),
-                    // Send OTP button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _handleSendOtp,
-                        style: AppTheme.primaryButton(context),
-                        child: _isLoading
-                            ? SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  color: AppTheme.toggleBg(context),
-                                  strokeWidth: 2.5,
-                                ),
-                              )
-                            : Text(
-                                l10n.translate('send_otp'),
-                              ),
-                      ),
+                    AppTheme.goldCTAButton(
+                      label: l10n.translate('send_otp'),
+                      onPressed: _isLoading ? null : _handleSendOtp,
+                      isLoading: _isLoading,
                     ),
                     const SizedBox(height: 24),
-                    // Back to login
                     Center(
                       child: GestureDetector(
                         onTap: () => Navigator.of(context).pop(),
                         child: Text(
                           l10n.translate('back_to_login'),
-                          style: AppTheme.body(context, size: 14, weight: FontWeight.bold).copyWith(
+                          style: GoogleFonts.jost(
                             color: AppTheme.goldColor(context),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),

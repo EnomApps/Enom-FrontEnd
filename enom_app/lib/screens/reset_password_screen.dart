@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../l10n/app_localizations.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
@@ -67,26 +68,24 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
+      backgroundColor: AppTheme.bg(context),
       extendBodyBehindAppBar: true,
       appBar: AppTheme.appBar(context),
       body: Stack(
+        fit: StackFit.expand,
         children: [
-          const GradientBackground(variant: 3),
+          const EnomScreenBackground(gradientVariant: 3, particleCount: 15),
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 28),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 20),
-                    // Logo
-                    Center(
-                      child: AppTheme.logo(context, size: 80),
-                    ),
+                    Center(child: AppTheme.logo(context, size: 80)),
                     const SizedBox(height: 32),
-                    // Title
                     Text(
                       l10n.translate('reset_password'),
                       style: AppTheme.heading(context, size: 28),
@@ -94,20 +93,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     const SizedBox(height: 12),
                     Text(
                       l10n.translate('reset_password_desc'),
-                      style: AppTheme.body(context, size: 15).copyWith(
+                      style: GoogleFonts.jost(
                         color: AppTheme.text2(context),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w300,
                         height: 1.5,
                       ),
                     ),
                     const SizedBox(height: 32),
                     // New Password
-                    Text(
-                      l10n.translate('new_password'),
-                      style: AppTheme.body(context, size: 14, weight: FontWeight.w500).copyWith(
-                        color: AppTheme.text1(context),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
@@ -124,9 +118,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                             color: AppTheme.text2(context),
                           ),
                           onPressed: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
+                            setState(() => _obscurePassword = !_obscurePassword);
                           },
                         ),
                       ),
@@ -140,15 +132,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 20),
-                    // Confirm New Password
-                    Text(
-                      l10n.translate('confirm_new_password'),
-                      style: AppTheme.body(context, size: 14, weight: FontWeight.w500).copyWith(
-                        color: AppTheme.text1(context),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16),
+                    // Confirm Password
                     TextFormField(
                       controller: _confirmPasswordController,
                       obscureText: _obscureConfirmPassword,
@@ -165,9 +150,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                             color: AppTheme.text2(context),
                           ),
                           onPressed: () {
-                            setState(() {
-                              _obscureConfirmPassword = !_obscureConfirmPassword;
-                            });
+                            setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
                           },
                         ),
                       ),
@@ -182,29 +165,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       },
                     ),
                     const SizedBox(height: 36),
-                    // Reset button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _handleReset,
-                        style: AppTheme.primaryButton(context),
-                        child: _isLoading
-                            ? SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  color: AppTheme.toggleBg(context),
-                                  strokeWidth: 2.5,
-                                ),
-                              )
-                            : Text(
-                                l10n.translate('reset'),
-                              ),
-                      ),
+                    AppTheme.goldCTAButton(
+                      label: l10n.translate('reset'),
+                      onPressed: _isLoading ? null : _handleReset,
+                      isLoading: _isLoading,
                     ),
                     const SizedBox(height: 24),
-                    // Back to login
                     Center(
                       child: GestureDetector(
                         onTap: () {
@@ -216,8 +182,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         },
                         child: Text(
                           l10n.translate('back_to_login'),
-                          style: AppTheme.body(context, size: 14, weight: FontWeight.bold).copyWith(
+                          style: GoogleFonts.jost(
                             color: AppTheme.goldColor(context),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),

@@ -1,44 +1,75 @@
 import 'dart:math';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Design tokens matching the ENOM prototype design system.
-/// Provides theme-aware colors, text styles, and reusable widget builders.
+/// Design tokens matching the ENOM Liquid Glass prototype.
+/// Colors, typography, glassmorphism components, and gold dust background.
 class AppTheme {
   AppTheme._();
 
-  // ── Gold Palette ──
-  static const Color gold = Color(0xFFD4AF37);
-  static const Color goldLight = Color(0xFFF0D860);
-  static const Color goldDark = Color(0xFFA67C00);
-  static const Color goldPale = Color(0xFFE6CC80);
+  // ── Gold Palette (from prototype) ──
+  static const Color gold1 = Color(0xFFC9A84C); // Primary gold
+  static const Color gold2 = Color(0xFFE8C96D); // Gradient mid
+  static const Color gold3 = Color(0xFFF5DFA0); // Gradient highlight
+  static const Color gold4 = Color(0xFFB8922E); // Deep gold
+
+  // Legacy aliases
+  static const Color gold = gold1;
+  static const Color goldLight = gold2;
+  static const Color goldDark = gold4;
+  static const Color goldPale = gold3;
+
+  // ── Gold Gradients ──
+  static const LinearGradient goldGradient = LinearGradient(
+    begin: Alignment(-0.5, -1),
+    end: Alignment(0.5, 1),
+    colors: [gold1, gold2, gold3, gold1],
+  );
+
+  static const LinearGradient goldGradient2 = LinearGradient(
+    begin: Alignment(-0.6, -1),
+    end: Alignment(0.6, 1),
+    colors: [gold4, gold2, gold3, gold1],
+  );
 
   // ── Dark Theme Colors ──
-  static const Color darkBg = Color(0xFF000000);
-  static const Color darkBg2 = Color(0xFF0A0A0A);
-  static const Color darkNavBg = Color(0xEB000000); // 92% opacity
+  static const Color darkBg = Color(0xFF0A0A0A);
+  static const Color darkBg2 = Color(0xFF111111);
+  static const Color darkNavBg = Color(0xD90F0F0F); // rgba(15,15,15,0.85)
+  static const Color darkTextPrimary = Color(0xFFF5F0E8);
+  static Color darkTextSecondary = const Color(0xFFF5F0E8).withValues(alpha: 0.60);
+  static Color darkTextMuted = const Color(0xFFF5F0E8).withValues(alpha: 0.35);
+  static Color darkGlass = Colors.white.withValues(alpha: 0.06);
+  static Color darkGlassBorder = Colors.white.withValues(alpha: 0.08);
+  static Color darkGlassHighlight = Colors.white.withValues(alpha: 0.12);
+  static Color darkMoodCardBg = const Color.fromRGBO(20, 18, 14, 0.70);
   static Color darkCardBg = Colors.white.withValues(alpha: 0.04);
-  static Color darkCardBorder = gold.withValues(alpha: 0.15);
-  static Color darkInputBg = Colors.white.withValues(alpha: 0.05);
-  static Color darkInputBorder = gold.withValues(alpha: 0.3);
-  static const Color darkText1 = Color(0xFFE6CC80);
-  static Color darkText2 = gold.withValues(alpha: 0.55);
-  static Color darkGoldFill = gold.withValues(alpha: 0.10);
+  static Color darkCardBorder = Colors.white.withValues(alpha: 0.08);
+  static Color darkInputBg = Colors.white.withValues(alpha: 0.06);
+  static Color darkInputBorder = Colors.white.withValues(alpha: 0.08);
 
   // ── Light Theme Colors ──
-  static const Color lightBg = Color(0xFFF5ECD4);
-  static const Color lightBg2 = Color(0xFFEBE0C8);
-  static const Color lightNavBg = Color(0xF0F5ECD4); // 94% opacity
+  static const Color lightBg = Color(0xFFF8F4EE);
+  static const Color lightBg2 = Color(0xFFF0EBE2);
+  static const Color lightNavBg = Color(0xD9F8F4EE); // rgba(248,244,238,0.85)
   static const Color lightGold = Color(0xFF8C6D14);
+  static const Color lightTextPrimary = Color(0xFF1A1612);
+  static Color lightTextSecondary = const Color(0xFF1A1612).withValues(alpha: 0.55);
+  static Color lightTextMuted = const Color(0xFF1A1612).withValues(alpha: 0.30);
+  static Color lightGlass = Colors.white.withValues(alpha: 0.50);
+  static Color lightGlassBorder = const Color.fromRGBO(180, 160, 120, 0.20);
+  static Color lightGlassHighlight = Colors.white.withValues(alpha: 0.80);
+  static Color lightMoodCardBg = const Color.fromRGBO(255, 252, 245, 0.70);
+  static Color lightCardBg = Colors.white.withValues(alpha: 0.65);
+  static Color lightCardBorder = const Color.fromRGBO(180, 160, 120, 0.20);
+  static Color lightInputBg = Colors.white.withValues(alpha: 0.50);
+  static Color lightInputBorder = const Color.fromRGBO(180, 160, 120, 0.20);
+
+  // Legacy aliases for compatibility
   static const Color lightGoldLight = Color(0xFFBFA02A);
   static const Color lightGoldDark = Color(0xFF6B5210);
-  static Color lightCardBg = Colors.white.withValues(alpha: 0.6);
-  static Color lightCardBorder = const Color(0xFFA07814).withValues(alpha: 0.25);
-  static Color lightInputBg = Colors.white.withValues(alpha: 0.85);
-  static Color lightInputBorder = const Color(0xFFA07814).withValues(alpha: 0.35);
-  static const Color lightText1 = Color(0xFF2C1F04);
-  static Color lightText2 = const Color(0xFF503C0A).withValues(alpha: 0.6);
-  static Color lightGoldFill = const Color(0xFFA07814).withValues(alpha: 0.08);
+  static const Color darkText1 = Color(0xFFF5F0E8);
 
   // ── Helpers ──
   static bool isDark(BuildContext context) =>
@@ -51,46 +82,67 @@ class AppTheme {
   static Color inputBg(BuildContext context) => isDark(context) ? darkInputBg : lightInputBg;
   static Color inputBorder(BuildContext context) => isDark(context) ? darkInputBorder : lightInputBorder;
   static Color navBg(BuildContext context) => isDark(context) ? darkNavBg : lightNavBg;
-  static Color text1(BuildContext context) => isDark(context) ? darkText1 : lightText1;
-  static Color text2(BuildContext context) => isDark(context) ? darkText2 : lightText2;
-  static Color goldColor(BuildContext context) => isDark(context) ? gold : lightGold;
-  static Color goldFill(BuildContext context) => isDark(context) ? darkGoldFill : lightGoldFill;
+  static Color text1(BuildContext context) => isDark(context) ? darkTextPrimary : lightTextPrimary;
+  static Color text2(BuildContext context) => isDark(context) ? darkTextSecondary : lightTextSecondary;
+  static Color textMuted(BuildContext context) => isDark(context) ? darkTextMuted : lightTextMuted;
+  static Color goldColor(BuildContext context) => isDark(context) ? gold1 : lightGold;
+  static Color goldFill(BuildContext context) => isDark(context)
+      ? gold1.withValues(alpha: 0.10)
+      : lightGold.withValues(alpha: 0.08);
   static Color toggleBg(BuildContext context) => isDark(context) ? darkBg : Colors.white;
+  static Color glassBg(BuildContext context) => isDark(context) ? darkGlass : lightGlass;
+  static Color glassBorder(BuildContext context) => isDark(context) ? darkGlassBorder : lightGlassBorder;
+  static Color glassHighlight(BuildContext context) => isDark(context) ? darkGlassHighlight : lightGlassHighlight;
+  static Color moodCardBg(BuildContext context) => isDark(context) ? darkMoodCardBg : lightMoodCardBg;
 
-  // ── Text Styles ──
-  static TextStyle heading(BuildContext context, {double size = 24}) =>
-      GoogleFonts.playfairDisplay(
-        color: goldColor(context),
+  // ── Text Styles (Cormorant Garamond for display, Jost for UI) ──
+  static TextStyle heading(BuildContext context, {double size = 36}) =>
+      GoogleFonts.cormorantGaramond(
+        color: text1(context),
         fontSize: size,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w400,
         letterSpacing: 1,
       );
 
   static TextStyle subheading(BuildContext context, {double size = 14}) =>
-      GoogleFonts.cormorantGaramond(
-        color: text2(context),
+      GoogleFonts.jost(
+        color: textMuted(context),
         fontSize: size,
-        fontWeight: FontWeight.w400,
-        fontStyle: FontStyle.italic,
-        letterSpacing: 2,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 4,
       );
 
-  static TextStyle body(BuildContext context, {double size = 13, FontWeight weight = FontWeight.w400}) =>
-      GoogleFonts.dmSans(
+  static TextStyle body(BuildContext context, {double size = 15, FontWeight weight = FontWeight.w400}) =>
+      GoogleFonts.jost(
         color: text1(context),
         fontSize: size,
         fontWeight: weight,
       );
 
   static TextStyle label(BuildContext context, {double size = 10}) =>
-      GoogleFonts.cormorantGaramond(
-        color: text2(context),
+      GoogleFonts.jost(
+        color: textMuted(context),
         fontSize: size,
-        fontWeight: FontWeight.w500,
+        fontWeight: FontWeight.w400,
+        letterSpacing: 4,
+      );
+
+  static TextStyle ctaText(BuildContext context) =>
+      GoogleFonts.cormorantGaramond(
+        color: const Color(0xFF1A1612),
+        fontSize: 19,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 1,
+      );
+
+  static TextStyle navLabel(BuildContext context) =>
+      GoogleFonts.jost(
+        fontSize: 9,
+        fontWeight: FontWeight.w400,
         letterSpacing: 2,
       );
 
-  // ── Input Decoration ──
+  // ── Glass Input Field (matching prototype 5.2) ──
   static InputDecoration inputDecoration(
     BuildContext context, {
     required String hint,
@@ -99,51 +151,108 @@ class AppTheme {
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: GoogleFonts.dmSans(color: text2(context), fontSize: 12),
+      hintStyle: GoogleFonts.jost(
+        color: textMuted(context),
+        fontSize: 15,
+        fontWeight: FontWeight.w300,
+      ),
       prefixIcon: prefixIcon != null
-          ? Icon(prefixIcon, color: goldColor(context).withValues(alpha:0.7))
+          ? Icon(prefixIcon, color: goldColor(context).withValues(alpha: 0.7))
           : null,
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: inputBg(context),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      fillColor: glassBg(context),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
-        borderSide: BorderSide(color: inputBorder(context)),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: glassBorder(context)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
-        borderSide: BorderSide(color: inputBorder(context)),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: glassBorder(context)),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
-        borderSide: BorderSide(color: goldColor(context)),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: gold1.withValues(alpha: 0.4)),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(16),
         borderSide: const BorderSide(color: Colors.redAccent),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(16),
         borderSide: const BorderSide(color: Colors.redAccent),
       ),
     );
   }
 
-  // ── Primary Button Style ──
+  // ── Gold CTA Button (matching prototype 5.3 - pill shape) ──
   static ButtonStyle primaryButton(BuildContext context) {
-    final g = goldColor(context);
     return ElevatedButton.styleFrom(
-      backgroundColor: g,
-      foregroundColor: toggleBg(context),
-      disabledBackgroundColor: g.withValues(alpha:0.5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: goldColor(context),
+      foregroundColor: const Color(0xFF1A1612),
+      disabledBackgroundColor: goldColor(context).withValues(alpha: 0.5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
       elevation: 0,
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      textStyle: GoogleFonts.dmSans(
-        fontSize: 13,
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      textStyle: GoogleFonts.cormorantGaramond(
+        fontSize: 19,
         fontWeight: FontWeight.w600,
-        letterSpacing: 2,
+        letterSpacing: 1,
+      ),
+    );
+  }
+
+  // ── Gold Gradient CTA Button Widget ──
+  static Widget goldCTAButton({
+    required String label,
+    required VoidCallback? onPressed,
+    bool isLoading = false,
+    double height = 56,
+  }) {
+    return Container(
+      width: double.infinity,
+      height: height,
+      decoration: BoxDecoration(
+        gradient: onPressed != null ? goldGradient2 : null,
+        color: onPressed == null ? gold1.withValues(alpha: 0.5) : null,
+        borderRadius: BorderRadius.circular(50),
+        boxShadow: onPressed != null
+            ? [
+                BoxShadow(
+                  color: gold1.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isLoading ? null : onPressed,
+          borderRadius: BorderRadius.circular(50),
+          child: Center(
+            child: isLoading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF1A1612),
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : Text(
+                    label,
+                    style: GoogleFonts.cormorantGaramond(
+                      color: const Color(0xFF1A1612),
+                      fontSize: 19,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1,
+                    ),
+                  ),
+          ),
+        ),
       ),
     );
   }
@@ -154,22 +263,59 @@ class AppTheme {
     return OutlinedButton.styleFrom(
       foregroundColor: g,
       side: BorderSide(color: g, width: 1.5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
       padding: const EdgeInsets.symmetric(vertical: 14),
-      textStyle: GoogleFonts.dmSans(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 2,
+      textStyle: GoogleFonts.jost(
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 1,
       ),
     );
   }
 
-  // ── Card Decoration ──
+  // ── Glass Card Decoration (matching prototype 5.1) ──
   static BoxDecoration cardDecoration(BuildContext context) {
     return BoxDecoration(
       color: cardBg(context),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: cardBorder(context)),
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: glassBorder(context)),
+      boxShadow: [
+        BoxShadow(
+          color: isDark(context)
+              ? Colors.black.withValues(alpha: 0.4)
+              : const Color.fromRGBO(160, 140, 100, 0.12),
+          blurRadius: 32,
+          offset: const Offset(0, 8),
+        ),
+      ],
+    );
+  }
+
+  // ── Mood/Glass Card with backdrop blur ──
+  static Widget glassCard(BuildContext context, {required Widget child, EdgeInsets? padding}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          padding: padding ?? const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: moodCardBg(context),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: glassBorder(context)),
+            boxShadow: [
+              BoxShadow(
+                color: isDark(context)
+                    ? Colors.black.withValues(alpha: 0.4)
+                    : const Color.fromRGBO(160, 140, 100, 0.12),
+                blurRadius: 32,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
     );
   }
 
@@ -187,13 +333,12 @@ class AppTheme {
   // ── Divider ──
   static Widget goldDivider(BuildContext context) {
     return Container(
-      width: 50,
       height: 1,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
             Colors.transparent,
-            goldColor(context).withValues(alpha:0.6),
+            glassBorder(context),
             Colors.transparent,
           ],
         ),
@@ -215,7 +360,7 @@ class AppTheme {
         ),
         boxShadow: [
           BoxShadow(
-            color: gold.withValues(alpha: 0.15),
+            color: gold1.withValues(alpha: 0.15),
             blurRadius: size * 0.3,
             spreadRadius: 1,
           ),
@@ -236,7 +381,7 @@ class AppTheme {
   static void showSnackBar(BuildContext context, String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: GoogleFonts.dmSans()),
+        content: Text(message, style: GoogleFonts.jost()),
         backgroundColor: isError ? Colors.redAccent : goldColor(context),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -250,11 +395,226 @@ class AppTheme {
     return BottomNavigationBarThemeData(
       backgroundColor: navBg(context),
       selectedItemColor: goldColor(context),
-      unselectedItemColor: text2(context),
+      unselectedItemColor: textMuted(context),
       type: BottomNavigationBarType.fixed,
       elevation: 0,
-      selectedLabelStyle: GoogleFonts.dmSans(fontSize: 10, letterSpacing: 1),
-      unselectedLabelStyle: GoogleFonts.dmSans(fontSize: 10, letterSpacing: 1),
+      selectedLabelStyle: GoogleFonts.jost(fontSize: 9, letterSpacing: 2),
+      unselectedLabelStyle: GoogleFonts.jost(fontSize: 9, letterSpacing: 2),
+    );
+  }
+
+  // ── Or Divider ──
+  static Widget orDivider(BuildContext context, String text) {
+    return Row(
+      children: [
+        Expanded(child: goldDivider(context)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Text(
+            text,
+            style: GoogleFonts.jost(
+              fontSize: 13,
+              color: textMuted(context),
+              fontWeight: FontWeight.w300,
+            ),
+          ),
+        ),
+        Expanded(child: goldDivider(context)),
+      ],
+    );
+  }
+
+  // ── Social Login Button ──
+  static Widget socialButton(BuildContext context, {required Widget icon, VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: glassBg(context),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: glassBorder(context)),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark(context)
+                      ? Colors.black.withValues(alpha: 0.4)
+                      : const Color.fromRGBO(160, 140, 100, 0.12),
+                  blurRadius: 32,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Center(child: icon),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Gold dust background using pre-rendered PNG assets.
+/// Provides a minimalized gold dust effect on all screens.
+class GoldDustBackground extends StatelessWidget {
+  final bool minimalized;
+  const GoldDustBackground({super.key, this.minimalized = true});
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = AppTheme.isDark(context);
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Opacity(
+          opacity: minimalized ? 0.5 : 1.0,
+          child: Image.asset(
+            dark
+                ? 'assets/backgrounds/bg_gold_dust_dark.png'
+                : 'assets/backgrounds/bg_gold_dust_light.png',
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-screen background combining gold dust image, gradient glows,
+/// and animated gold particles. Use this as the first child of a Stack
+/// in every screen for the complete ENOM background effect.
+class EnomScreenBackground extends StatefulWidget {
+  final int gradientVariant;
+  final int particleCount;
+  final bool showParticles;
+
+  const EnomScreenBackground({
+    super.key,
+    this.gradientVariant = 1,
+    this.particleCount = 20,
+    this.showParticles = true,
+  });
+
+  @override
+  State<EnomScreenBackground> createState() => _EnomScreenBackgroundState();
+}
+
+class _EnomScreenBackgroundState extends State<EnomScreenBackground>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _particleController;
+
+  @override
+  void initState() {
+    super.initState();
+    _particleController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _particleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = AppTheme.isDark(context);
+    final screenSize = MediaQuery.of(context).size;
+
+    // Gradient glow positions
+    Alignment a1, a2;
+    switch (widget.gradientVariant) {
+      case 1:
+        a1 = const Alignment(0.0, -0.6);
+        a2 = const Alignment(0.6, 0.6);
+        break;
+      case 2:
+        a1 = const Alignment(-0.4, -1.0);
+        a2 = const Alignment(0.4, 1.0);
+        break;
+      case 3:
+        a1 = const Alignment(-0.6, -0.2);
+        a2 = const Alignment(0.8, 0.4);
+        break;
+      case 4:
+        a1 = const Alignment(0.0, 0.8);
+        a2 = const Alignment(0.0, -0.8);
+        break;
+      default:
+        a1 = const Alignment(0.0, -0.3);
+        a2 = const Alignment(0.0, 1.0);
+        break;
+    }
+
+    final glow1 = dark
+        ? AppTheme.gold1.withValues(alpha: 0.10)
+        : const Color(0xFFB49632).withValues(alpha: 0.08);
+    final glow2 = dark
+        ? AppTheme.gold1.withValues(alpha: 0.05)
+        : const Color(0xFFB49632).withValues(alpha: 0.05);
+
+    return SizedBox.expand(
+      child: IgnorePointer(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // 1. Full-screen gold dust PNG
+            Opacity(
+              opacity: 0.5,
+              child: Image.asset(
+                dark
+                    ? 'assets/backgrounds/bg_gold_dust_dark.png'
+                    : 'assets/backgrounds/bg_gold_dust_light.png',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+            ),
+
+            // 2. Radial gradient glows
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: a1,
+                  radius: 0.8,
+                  colors: [glow1, Colors.transparent],
+                ),
+              ),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: a2,
+                    radius: 0.7,
+                    colors: [glow2, Colors.transparent],
+                  ),
+                ),
+              ),
+            ),
+
+            // 3. Animated gold particles
+            if (widget.showParticles)
+              AnimatedBuilder(
+                animation: _particleController,
+                builder: (context, _) {
+                  return CustomPaint(
+                    painter: GoldParticlePainter(
+                      _particleController.value,
+                      count: widget.particleCount,
+                      seed: widget.gradientVariant * 17,
+                    ),
+                    size: screenSize,
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -268,10 +628,10 @@ class GradientBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = AppTheme.isDark(context);
     final glow1 = dark
-        ? AppTheme.gold.withValues(alpha: 0.10)
+        ? AppTheme.gold1.withValues(alpha: 0.10)
         : const Color(0xFFB49632).withValues(alpha: 0.08);
     final glow2 = dark
-        ? AppTheme.gold.withValues(alpha: 0.05)
+        ? AppTheme.gold1.withValues(alpha: 0.05)
         : const Color(0xFFB49632).withValues(alpha: 0.05);
 
     Alignment a1, a2;
@@ -323,7 +683,7 @@ class GradientBackground extends StatelessWidget {
   }
 }
 
-/// Floating gold particles painter (used in welcome, login, signup screens).
+/// Floating gold particles painter (minimalized for secondary screens).
 class GoldParticlePainter extends CustomPainter {
   final double progress;
   final int count;
@@ -345,7 +705,7 @@ class GoldParticlePainter extends CustomPainter {
       final alpha =
           (0.3 + 0.7 * sin((progress * 2 * pi) + seed * 2 * pi)).clamp(0.0, 1.0);
 
-      paint.color = AppTheme.gold.withValues(alpha: alpha);
+      paint.color = AppTheme.gold1.withValues(alpha: alpha);
       canvas.drawCircle(Offset(x, y), radius, paint);
     }
   }
@@ -393,8 +753,8 @@ class _StarFieldState extends State<StarField> with SingleTickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     final starColor = AppTheme.isDark(context)
-        ? AppTheme.gold
-        : AppTheme.gold.withValues(alpha: 0.5);
+        ? AppTheme.gold1
+        : AppTheme.gold1.withValues(alpha: 0.5);
 
     return AnimatedBuilder(
       animation: _controller,

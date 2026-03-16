@@ -316,8 +316,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    return Stack(
+      children: [
+        const EnomScreenBackground(gradientVariant: 2, particleCount: 10),
+        SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Column(
         children: [
           const SizedBox(height: 8),
@@ -518,6 +521,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 32),
         ],
       ),
+    ),
+      ],
     );
   }
 

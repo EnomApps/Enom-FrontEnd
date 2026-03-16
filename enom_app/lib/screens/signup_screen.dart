@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../l10n/app_localizations.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
@@ -44,7 +45,6 @@ class _SignupScreenState extends State<SignupScreen> {
       setState(() => _isLoading = false);
 
       if (result.success) {
-        // Navigate to OTP verification
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => OtpVerificationScreen(
@@ -70,42 +70,38 @@ class _SignupScreenState extends State<SignupScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.bg(context),
+      extendBodyBehindAppBar: true,
       appBar: AppTheme.appBar(context),
       body: Stack(
+        fit: StackFit.expand,
         children: [
-          const GradientBackground(variant: 2),
+          const EnomScreenBackground(gradientVariant: 2, particleCount: 15),
+
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 28),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 10),
-                    // Logo centered
-                    Center(
-                      child: AppTheme.logo(context, size: 70),
-                    ),
-                    const SizedBox(height: 24),
-                    // Subtitle label
+                    const SizedBox(height: 20),
+
+                    // Header
                     Text(
                       'CREATE ACCOUNT',
-                      style: AppTheme.label(context),
+                      style: AppTheme.subheading(context, size: 11),
                     ),
-                    const SizedBox(height: 8),
-                    // Title
+                    const SizedBox(height: 6),
                     Text(
-                      l10n.translate('create_account'),
-                      style: AppTheme.heading(context, size: 22),
+                      'Join ENOM',
+                      style: AppTheme.heading(context, size: 36),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 20),
+                    AppTheme.goldDivider(context),
+                    const SizedBox(height: 28),
+
                     // Full Name
-                    Text(
-                      l10n.translate('full_name'),
-                      style: AppTheme.body(context),
-                    ),
-                    const SizedBox(height: 8),
                     TextFormField(
                       controller: _nameController,
                       style: AppTheme.body(context),
@@ -121,13 +117,9 @@ class _SignupScreenState extends State<SignupScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
+
                     // Email
-                    Text(
-                      l10n.translate('email'),
-                      style: AppTheme.body(context),
-                    ),
-                    const SizedBox(height: 8),
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -148,13 +140,9 @@ class _SignupScreenState extends State<SignupScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
+
                     // Password
-                    Text(
-                      l10n.translate('password'),
-                      style: AppTheme.body(context),
-                    ),
-                    const SizedBox(height: 8),
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
@@ -171,9 +159,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             color: AppTheme.text2(context),
                           ),
                           onPressed: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
+                            setState(() => _obscurePassword = !_obscurePassword);
                           },
                         ),
                       ),
@@ -187,32 +173,48 @@ class _SignupScreenState extends State<SignupScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 32),
-                    // Signup button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _handleSignup,
-                        style: AppTheme.primaryButton(context),
-                        child: _isLoading
-                            ? SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  color: AppTheme.toggleBg(context),
-                                  strokeWidth: 2.5,
-                                ),
-                              )
-                            : Text(
-                                l10n.translate('signup'),
-                              ),
-                      ),
+                    const SizedBox(height: 24),
+
+                    // Create Account button
+                    AppTheme.goldCTAButton(
+                      label: l10n.translate('signup'),
+                      onPressed: _isLoading ? null : _handleSignup,
+                      isLoading: _isLoading,
                     ),
                     const SizedBox(height: 24),
-                    // Gold divider
-                    Center(child: AppTheme.goldDivider(context)),
+
+                    // Or divider
+                    AppTheme.orDivider(context, l10n.translate('or_continue_with')),
                     const SizedBox(height: 24),
+
+                    // Social buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        AppTheme.socialButton(
+                          context,
+                          icon: Text(
+                            'G',
+                            style: GoogleFonts.jost(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.goldColor(context),
+                              fontSize: 20,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        AppTheme.socialButton(
+                          context,
+                          icon: Icon(
+                            Icons.apple,
+                            color: AppTheme.text2(context),
+                            size: 24,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
+
                     // Login link
                     Center(
                       child: Row(
@@ -220,8 +222,9 @@ class _SignupScreenState extends State<SignupScreen> {
                         children: [
                           Text(
                             l10n.translate('have_account'),
-                            style: AppTheme.body(context).copyWith(
+                            style: GoogleFonts.jost(
                               color: AppTheme.text2(context),
+                              fontSize: 14,
                             ),
                           ),
                           GestureDetector(
@@ -233,9 +236,11 @@ class _SignupScreenState extends State<SignupScreen> {
                               );
                             },
                             child: Text(
-                              l10n.translate('login'),
-                              style: AppTheme.body(context, weight: FontWeight.bold).copyWith(
+                              ' ${l10n.translate('login')}',
+                              style: GoogleFonts.jost(
                                 color: AppTheme.goldColor(context),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),

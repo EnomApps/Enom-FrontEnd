@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../l10n/app_localizations.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
@@ -95,22 +96,22 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
+      backgroundColor: AppTheme.bg(context),
       extendBodyBehindAppBar: true,
       appBar: AppTheme.appBar(context),
       body: Stack(
+        fit: StackFit.expand,
         children: [
-          const GradientBackground(variant: 2),
+          const EnomScreenBackground(gradientVariant: 2, particleCount: 15),
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 28),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 20),
                   // Logo
-                  Center(
-                    child: AppTheme.logo(context, size: 80),
-                  ),
+                  Center(child: AppTheme.logo(context, size: 80)),
                   const SizedBox(height: 32),
                   // Title
                   Text(
@@ -120,8 +121,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   const SizedBox(height: 12),
                   Text(
                     '${l10n.translate('verify_email_desc')}\n${widget.email}',
-                    style: AppTheme.body(context, size: 15).copyWith(
+                    style: GoogleFonts.jost(
                       color: AppTheme.text2(context),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w300,
                       height: 1.5,
                     ),
                   ),
@@ -139,8 +142,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           keyboardType: TextInputType.number,
                           textAlign: TextAlign.center,
                           maxLength: 1,
-                          style: AppTheme.body(context, size: 22, weight: FontWeight.bold).copyWith(
+                          style: GoogleFonts.jost(
                             color: AppTheme.text1(context),
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
                           ),
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly,
@@ -148,22 +153,23 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           decoration: InputDecoration(
                             counterText: '',
                             filled: true,
-                            fillColor: AppTheme.inputBg(context),
+                            fillColor: AppTheme.glassBg(context),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
                               borderSide: BorderSide(
-                                color: AppTheme.inputBorder(context),
+                                color: AppTheme.glassBorder(context),
                               ),
                             ),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
                               borderSide: BorderSide(
-                                color: AppTheme.inputBorder(context),
+                                color: AppTheme.glassBorder(context),
                               ),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: AppTheme.goldColor(context)),
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(
+                                  color: AppTheme.gold1.withValues(alpha: 0.4)),
                             ),
                           ),
                           onChanged: (value) {
@@ -172,7 +178,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                             } else if (value.isEmpty && index > 0) {
                               _focusNodes[index - 1].requestFocus();
                             }
-                            // Auto-submit when all 6 digits entered
                             if (_otpCode.length == 6) {
                               _handleVerify();
                             }
@@ -183,25 +188,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   ),
                   const SizedBox(height: 40),
                   // Verify button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleVerify,
-                      style: AppTheme.primaryButton(context),
-                      child: _isLoading
-                          ? SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                color: AppTheme.toggleBg(context),
-                                strokeWidth: 2.5,
-                              ),
-                            )
-                          : Text(
-                              l10n.translate('verify'),
-                            ),
-                    ),
+                  AppTheme.goldCTAButton(
+                    label: l10n.translate('verify'),
+                    onPressed: _isLoading ? null : _handleVerify,
+                    isLoading: _isLoading,
                   ),
                   const SizedBox(height: 32),
                   // Resend OTP
@@ -211,8 +201,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       children: [
                         Text(
                           l10n.translate('didnt_receive_code'),
-                          style: AppTheme.body(context, size: 14).copyWith(
+                          style: GoogleFonts.jost(
                             color: AppTheme.text2(context),
+                            fontSize: 14,
                           ),
                         ),
                         GestureDetector(
@@ -227,9 +218,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                                   ),
                                 )
                               : Text(
-                                  l10n.translate('resend_otp'),
-                                  style: AppTheme.body(context, size: 14, weight: FontWeight.bold).copyWith(
+                                  ' ${l10n.translate('resend_otp')}',
+                                  style: GoogleFonts.jost(
                                     color: AppTheme.goldColor(context),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                         ),

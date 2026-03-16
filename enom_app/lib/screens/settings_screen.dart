@@ -11,26 +11,30 @@ class SettingsScreen extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final currentThemeMode = EnomApp.getThemeMode(context);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 8),
-          // Appearance section
-          _buildSectionTitle(context, l10n.translate('appearance')),
-          const SizedBox(height: 12),
-          _buildThemeCard(context, l10n, currentThemeMode),
-          const SizedBox(height: 32),
-        ],
-      ),
+    return Stack(
+      children: [
+        const EnomScreenBackground(gradientVariant: 2, particleCount: 10),
+        SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 8),
+              _buildSectionTitle(context, l10n.translate('appearance')),
+              const SizedBox(height: 12),
+              _buildThemeCard(context, l10n, currentThemeMode),
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildSectionTitle(BuildContext context, String title) {
     return Text(
-      title,
-      style: AppTheme.heading(context, size: 16),
+      title.toUpperCase(),
+      style: AppTheme.label(context, size: 10),
     );
   }
 

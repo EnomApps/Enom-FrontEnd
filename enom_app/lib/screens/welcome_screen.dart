@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
@@ -16,27 +17,22 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-  late AnimationController _particleController;
   late AnimationController _bobController;
   late Animation<double> _bobAnimation;
+  late AnimationController _orbController;
 
   @override
   void initState() {
     super.initState();
     _fadeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 1200),
     );
     _fadeAnimation = CurvedAnimation(
       parent: _fadeController,
-      curve: Curves.easeIn,
+      curve: Curves.easeOut,
     );
     _fadeController.forward();
-
-    _particleController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
-    )..repeat();
 
     _bobController = AnimationController(
       vsync: this,
@@ -46,20 +42,25 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       parent: _bobController,
       curve: Curves.easeInOut,
     );
+
+    _orbController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat();
   }
 
   @override
   void dispose() {
     _fadeController.dispose();
-    _particleController.dispose();
     _bobController.dispose();
+    _orbController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final goldC = AppTheme.goldColor(context);
+    final dark = AppTheme.isDark(context);
 
     return Scaffold(
       backgroundColor: AppTheme.bg(context),
@@ -68,19 +69,68 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Gradient background overlay
-            const GradientBackground(variant: 1),
+            // Full background with gold dust + gradient + particles
+            const EnomScreenBackground(gradientVariant: 1, particleCount: 30),
 
-            // Star field
-            const StarField(),
-
-            // Particle overlay — dense gold dust
+            // Floating orbs
             AnimatedBuilder(
-              animation: _particleController,
-              builder: (context, child) {
-                return CustomPaint(
-                  painter: GoldParticlePainter(_particleController.value, count: 120),
-                  size: size,
+              animation: _orbController,
+              builder: (context, _) {
+                final t = _orbController.value;
+                return Stack(
+                  children: [
+                    Positioned(
+                      top: size.height * 0.1 + sin(t * 2 * pi) * 20,
+                      left: -size.width * 0.2 + cos(t * 2 * pi) * 30,
+                      child: Container(
+                        width: 300,
+                        height: 300,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              AppTheme.gold1.withValues(alpha: dark ? 0.15 : 0.10),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: size.height * 0.15 + sin((t + 0.375) * 2 * pi) * 15,
+                      right: -size.width * 0.15 + cos((t + 0.375) * 2 * pi) * 20,
+                      child: Container(
+                        width: 250,
+                        height: 250,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              AppTheme.gold2.withValues(alpha: dark ? 0.10 : 0.08),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: size.height * 0.5 + sin((t + 0.625) * 2 * pi) * 10,
+                      left: size.width * 0.4 + cos((t + 0.625) * 2 * pi) * 15,
+                      child: Container(
+                        width: 180,
+                        height: 180,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              AppTheme.gold3.withValues(alpha: dark ? 0.08 : 0.06),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
@@ -92,20 +142,20 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   const Spacer(flex: 2),
 
                   // E logo circle
-                  AppTheme.logo(context, size: 56),
-                  const SizedBox(height: 20),
+                  AppTheme.logo(context, size: 64),
+                  const SizedBox(height: 16),
 
                   // ENOM logo text
                   Text(
                     'ENOM',
-                    style: GoogleFonts.playfairDisplay(
-                      color: goldC,
-                      fontSize: 48,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 12,
+                    style: GoogleFonts.cormorantGaramond(
+                      color: AppTheme.text1(context),
+                      fontSize: 42,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: 16,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
 
                   // Tagline
                   Padding(
@@ -113,20 +163,19 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     child: Text(
                       'Track your mood & connect\nwith like-minded people',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.cormorantGaramond(
+                      style: GoogleFonts.jost(
                         color: AppTheme.text2(context),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w400,
-                        fontStyle: FontStyle.italic,
-                        letterSpacing: 2,
-                        height: 1.5,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w300,
+                        letterSpacing: 0.3,
+                        height: 1.6,
                       ),
                     ),
                   ),
 
                   const Spacer(flex: 3),
 
-                  // Diagonal bubble buttons
+                  // Glass orb buttons
                   AnimatedBuilder(
                     animation: _bobAnimation,
                     builder: (context, child) {
@@ -141,23 +190,21 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       height: 180,
                       child: CustomPaint(
                         painter: _ConnectorLinePainter(
-                          color: goldC,
-                          // Sign Up center: left area, lower
-                          // Login center: right area, upper
+                          color: AppTheme.goldColor(context),
                           startOffset: Offset(size.width * 0.28, 130),
                           endOffset: Offset(size.width * 0.68, 60),
                         ),
                         child: Stack(
                           clipBehavior: Clip.none,
                           children: [
-                            // Sign Up bubble — bottom-left
+                            // Sign Up glass orb — bottom-left
                             Positioned(
-                              left: size.width * 0.28 - 55,
-                              top: 130 - 55,
-                              child: _BubbleButton(
+                              left: size.width * 0.28 - 60,
+                              top: 130 - 60,
+                              child: _GlassOrbButton(
                                 label: 'Sign Up',
-                                diameter: 110,
-                                goldColor: goldC,
+                                diameter: 120,
+                                isGold: false,
                                 onTap: () {
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
@@ -167,14 +214,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                 },
                               ),
                             ),
-                            // Login bubble — top-right (larger)
+                            // Login gold orb — top-right
                             Positioned(
-                              left: size.width * 0.68 - 62.5,
-                              top: 60 - 62.5,
-                              child: _BubbleButton(
+                              left: size.width * 0.68 - 60,
+                              top: 60 - 60,
+                              child: _GlassOrbButton(
                                 label: 'Login',
-                                diameter: 125,
-                                goldColor: goldC,
+                                diameter: 120,
+                                isGold: true,
                                 onTap: () {
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
@@ -215,10 +262,8 @@ class _ConnectorLinePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Control point for the curve — offset to create the bend
     final midX = (startOffset.dx + endOffset.dx) / 2;
     final midY = (startOffset.dy + endOffset.dy) / 2;
-    // Bend downward and to the right for a natural arc
     final controlPoint = Offset(midX + 20, midY + 40);
 
     final path = Path()
@@ -248,17 +293,17 @@ class _ConnectorLinePainter extends CustomPainter {
       oldDelegate.startOffset != startOffset || oldDelegate.endOffset != endOffset;
 }
 
-/// Solid gold sphere bubble button for the welcome screen.
-class _BubbleButton extends StatelessWidget {
+/// Glass orb button matching the prototype's liquid glass style.
+class _GlassOrbButton extends StatelessWidget {
   final String label;
   final double diameter;
-  final Color goldColor;
+  final bool isGold;
   final VoidCallback onTap;
 
-  const _BubbleButton({
+  const _GlassOrbButton({
     required this.label,
     required this.diameter,
-    required this.goldColor,
+    required this.isGold,
     required this.onTap,
   });
 
@@ -266,64 +311,83 @@ class _BubbleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: diameter,
-        height: diameter,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppTheme.goldLight,
-              goldColor,
-              AppTheme.goldDark,
-            ],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: goldColor.withValues(alpha: 0.35),
-              blurRadius: 24,
-              spreadRadius: 2,
+      child: ClipOval(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            width: diameter,
+            height: diameter,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: isGold
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppTheme.gold1.withValues(alpha: 0.6),
+                        AppTheme.gold2.withValues(alpha: 0.4),
+                        AppTheme.gold3.withValues(alpha: 0.5),
+                      ],
+                    )
+                  : LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withValues(alpha: 0.12),
+                        Colors.white.withValues(alpha: 0.04),
+                      ],
+                    ),
+              border: Border.all(
+                color: isGold
+                    ? AppTheme.gold3.withValues(alpha: 0.3)
+                    : Colors.white.withValues(alpha: 0.12),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: isGold
+                      ? AppTheme.gold1.withValues(alpha: 0.3)
+                      : Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 32,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Specular highlight
-            Positioned(
-              top: diameter * 0.12,
-              left: diameter * 0.2,
-              child: Container(
-                width: diameter * 0.35,
-                height: diameter * 0.18,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(diameter),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.35),
-                      Colors.white.withValues(alpha: 0.0),
-                    ],
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Specular highlight (inner light reflection)
+                Positioned(
+                  top: diameter * 0.06,
+                  left: diameter * 0.15,
+                  child: Container(
+                    width: diameter * 0.7,
+                    height: diameter * 0.35,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(diameter),
+                      gradient: RadialGradient(
+                        center: Alignment.topCenter,
+                        colors: [
+                          Colors.white.withValues(alpha: isGold ? 0.35 : 0.20),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                // Label
+                Text(
+                  label,
+                  style: GoogleFonts.cormorantGaramond(
+                    color: isGold
+                        ? const Color(0xFF1A1612)
+                        : AppTheme.text1(context),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
-            // Label
-            Text(
-              label,
-              style: GoogleFonts.playfairDisplay(
-                color: AppTheme.isDark(context)
-                    ? AppTheme.darkBg
-                    : AppTheme.lightBg,
-                fontSize: diameter > 115 ? 17 : 15,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 2,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

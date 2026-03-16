@@ -88,9 +88,11 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
     final filteredLanguages = _filteredLanguages;
 
     return Scaffold(
+      backgroundColor: AppTheme.bg(context),
       body: Stack(
+        fit: StackFit.expand,
         children: [
-          const GradientBackground(variant: 2),
+          const EnomScreenBackground(gradientVariant: 2, particleCount: 15),
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnimation,
@@ -108,49 +110,63 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                   const SizedBox(height: 8),
                   Text(
                     'Choose your preferred language',
-                    style: AppTheme.subheading(context),
+                    style: GoogleFonts.jost(
+                      color: AppTheme.text2(context),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w300,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   // Search bar
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: TextField(
                       onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value;
-                        });
+                        setState(() => _searchQuery = value);
                       },
-                      style: AppTheme.body(context).copyWith(
-                        color: AppTheme.text1(context),
-                      ),
+                      style: AppTheme.body(context),
                       decoration: InputDecoration(
                         hintText: 'Search language...',
-                        hintStyle: GoogleFonts.dmSans(
-                          color: AppTheme.text2(context),
-                          fontSize: 13,
+                        hintStyle: GoogleFonts.jost(
+                          color: AppTheme.textMuted(context),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w300,
                         ),
                         prefixIcon: Icon(Icons.search,
-                            color: AppTheme.text2(context)),
+                            color: AppTheme.textMuted(context)),
                         filled: true,
-                        fillColor: AppTheme.inputBg(context),
+                        fillColor: AppTheme.glassBg(context),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(
+                              color: AppTheme.glassBorder(context)),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(
+                              color: AppTheme.glassBorder(context)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(
+                              color: AppTheme.gold1.withValues(alpha: 0.4)),
+                        ),
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 14),
                       ),
                     ),
                   ),
                   const SizedBox(height: 12),
                   // Language count
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         '${filteredLanguages.length} languages available',
-                        style: AppTheme.body(context, size: 12).copyWith(
-                          color: AppTheme.text2(context),
+                        style: GoogleFonts.jost(
+                          color: AppTheme.textMuted(context),
+                          fontSize: 12,
                         ),
                       ),
                     ),
@@ -159,7 +175,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                   // Language list
                   Expanded(
                     child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
                       itemCount: filteredLanguages.length,
                       itemBuilder: (context, index) {
                         final lang = filteredLanguages[index];
@@ -171,35 +187,38 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                             color: Colors.transparent,
                             child: InkWell(
                               onTap: () {
-                                setState(() {
-                                  _selectedLanguage = lang.code;
-                                });
+                                setState(() =>
+                                    _selectedLanguage = lang.code);
                               },
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
                               child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
+                                duration:
+                                    const Duration(milliseconds: 200),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 20,
                                   vertical: 16,
                                 ),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? AppTheme.goldColor(context)
-                                          .withValues(alpha: 0.15)
-                                      : AppTheme.cardBg(context),
-                                  borderRadius: BorderRadius.circular(12),
+                                      ? AppTheme.gold1
+                                          .withValues(alpha: 0.08)
+                                      : AppTheme.glassBg(context),
+                                  borderRadius:
+                                      BorderRadius.circular(16),
                                   border: Border.all(
                                     color: isSelected
-                                        ? AppTheme.goldColor(context)
-                                        : AppTheme.cardBorder(context),
-                                    width: isSelected ? 2 : 1,
+                                        ? AppTheme.gold1
+                                            .withValues(alpha: 0.5)
+                                        : AppTheme.glassBorder(context),
+                                    width: isSelected ? 1.5 : 1,
                                   ),
                                 ),
                                 child: Row(
                                   children: [
                                     Text(
                                       lang.flag,
-                                      style: const TextStyle(fontSize: 24),
+                                      style:
+                                          const TextStyle(fontSize: 24),
                                     ),
                                     const SizedBox(width: 16),
                                     Expanded(
@@ -209,17 +228,25 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                                         children: [
                                           Text(
                                             lang.nativeName,
-                                            style: AppTheme.body(context, size: 16, weight: isSelected ? FontWeight.w600 : FontWeight.normal).copyWith(
+                                            style: GoogleFonts.jost(
                                               color: isSelected
-                                                  ? AppTheme.goldColor(context)
-                                                  : AppTheme.text1(context),
+                                                  ? AppTheme.goldColor(
+                                                      context)
+                                                  : AppTheme.text1(
+                                                      context),
+                                              fontSize: 16,
+                                              fontWeight: isSelected
+                                                  ? FontWeight.w600
+                                                  : FontWeight.w400,
                                             ),
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
                                             lang.name,
-                                            style: AppTheme.body(context, size: 12).copyWith(
-                                              color: AppTheme.text2(context),
+                                            style: GoogleFonts.jost(
+                                              color: AppTheme.text2(
+                                                  context),
+                                              fontSize: 12,
                                             ),
                                           ),
                                         ],
@@ -227,18 +254,26 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                                     ),
                                     if (lang.isRTL)
                                       Padding(
-                                        padding: const EdgeInsets.only(right: 8),
+                                        padding: const EdgeInsets.only(
+                                            right: 8),
                                         child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 6, vertical: 2),
+                                          padding:
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 6,
+                                                  vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: AppTheme.cardBg(context),
-                                            borderRadius: BorderRadius.circular(4),
+                                            color: AppTheme.glassBg(
+                                                context),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
                                           ),
                                           child: Text(
                                             'RTL',
-                                            style: AppTheme.body(context, size: 10, weight: FontWeight.bold).copyWith(
-                                              color: AppTheme.text2(context),
+                                            style: GoogleFonts.jost(
+                                              color: AppTheme.textMuted(
+                                                  context),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
                                         ),
@@ -246,7 +281,8 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                                     if (isSelected)
                                       Icon(
                                         Icons.check_circle,
-                                        color: AppTheme.goldColor(context),
+                                        color:
+                                            AppTheme.goldColor(context),
                                         size: 24,
                                       ),
                                   ],
@@ -260,17 +296,10 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                   ),
                   // Continue button
                   Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: _saveLanguageAndContinue,
-                        style: AppTheme.primaryButton(context),
-                        child: const Text(
-                          'Continue',
-                        ),
-                      ),
+                    padding: const EdgeInsets.all(24),
+                    child: AppTheme.goldCTAButton(
+                      label: 'Continue',
+                      onPressed: _saveLanguageAndContinue,
                     ),
                   ),
                 ],

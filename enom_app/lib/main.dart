@@ -151,30 +151,30 @@ class _EnomAppState extends State<EnomApp> {
         ),
         cardColor: AppTheme.darkBg2,
         dividerColor: AppTheme.gold.withValues(alpha: 0.15),
-        textTheme: GoogleFonts.dmSansTextTheme(
+        textTheme: GoogleFonts.jostTextTheme(
           ThemeData.dark().textTheme,
         ).apply(bodyColor: AppTheme.darkText1, displayColor: AppTheme.goldPale),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: AppTheme.darkInputBg,
-          hintStyle: TextStyle(color: AppTheme.darkText2),
+          hintStyle: TextStyle(color: AppTheme.darkTextSecondary),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(color: AppTheme.darkInputBorder),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(color: AppTheme.darkInputBorder),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(16),
             borderSide: const BorderSide(color: AppTheme.gold),
           ),
         ),
         bottomNavigationBarTheme: BottomNavigationBarThemeData(
           backgroundColor: AppTheme.darkNavBg,
           selectedItemColor: AppTheme.gold,
-          unselectedItemColor: AppTheme.darkText2,
+          unselectedItemColor: AppTheme.darkTextSecondary,
           type: BottomNavigationBarType.fixed,
           elevation: 0,
         ),
@@ -189,7 +189,7 @@ class _EnomAppState extends State<EnomApp> {
           primary: AppTheme.lightGold,
           secondary: AppTheme.lightGold,
           surface: AppTheme.lightBg2,
-          onSurface: AppTheme.lightText1,
+          onSurface: AppTheme.lightTextPrimary,
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.transparent,
@@ -199,30 +199,30 @@ class _EnomAppState extends State<EnomApp> {
         ),
         cardColor: AppTheme.lightBg2,
         dividerColor: AppTheme.lightGold.withValues(alpha: 0.15),
-        textTheme: GoogleFonts.dmSansTextTheme(
+        textTheme: GoogleFonts.jostTextTheme(
           ThemeData.light().textTheme,
-        ).apply(bodyColor: AppTheme.lightText1, displayColor: AppTheme.lightText1),
+        ).apply(bodyColor: AppTheme.lightTextPrimary, displayColor: AppTheme.lightTextPrimary),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: AppTheme.lightInputBg,
-          hintStyle: TextStyle(color: AppTheme.lightText2),
+          hintStyle: TextStyle(color: AppTheme.lightTextSecondary),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(color: AppTheme.lightInputBorder),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(color: AppTheme.lightInputBorder),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(16),
             borderSide: const BorderSide(color: AppTheme.lightGold),
           ),
         ),
         bottomNavigationBarTheme: BottomNavigationBarThemeData(
           backgroundColor: AppTheme.lightNavBg,
           selectedItemColor: AppTheme.lightGold,
-          unselectedItemColor: AppTheme.lightText2,
+          unselectedItemColor: AppTheme.lightTextSecondary,
           type: BottomNavigationBarType.fixed,
           elevation: 0,
         ),

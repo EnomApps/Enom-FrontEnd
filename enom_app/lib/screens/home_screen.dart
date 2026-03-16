@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -23,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   Map<String, dynamic>? _user;
   bool _isLoggingOut = false;
+  String _selectedMood = 'Happy';
 
   // Mood detection
   MoodDetectionService? _moodService;
@@ -51,7 +53,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _moodError = null;
     });
 
-    // Request camera permission
     final status = await Permission.camera.request();
     if (!status.isGranted) {
       if (mounted) {
@@ -76,7 +77,6 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    // Listen to mood results
     _moodService!.moodStream.listen((result) {
       if (mounted) {
         setState(() => _currentMood = result);
@@ -134,15 +134,37 @@ class _HomeScreenState extends State<HomeScreen> {
         automaticallyImplyLeading: false,
         title: Row(
           children: [
-            AppTheme.logo(context, size: 36),
-            const SizedBox(width: 12),
+            // Mini logo mark
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppTheme.goldColor(context),
+                  width: 1.5,
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  'E',
+                  style: GoogleFonts.cormorantGaramond(
+                    color: AppTheme.goldColor(context),
+                    fontSize: 16,
+                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
             Text(
               'ENOM',
-              style: GoogleFonts.playfairDisplay(
-                color: AppTheme.goldColor(context),
+              style: GoogleFonts.cormorantGaramond(
+                color: AppTheme.text1(context),
                 fontSize: 22,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 4,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 6,
               ),
             ),
           ],
@@ -150,18 +172,16 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.notifications_outlined,
-                color: AppTheme.goldColor(context)),
+                color: AppTheme.text2(context)),
             onPressed: () {},
           ),
           PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert, color: AppTheme.goldColor(context)),
+            icon: Icon(Icons.more_vert, color: AppTheme.text2(context)),
             color: AppTheme.isDark(context)
                 ? const Color(0xFF111111)
                 : Colors.white,
             onSelected: (value) {
-              if (value == 'logout') {
-                _handleLogout();
-              }
+              if (value == 'logout') _handleLogout();
             },
             itemBuilder: (context) => [
               PopupMenuItem(
@@ -188,55 +208,57 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: AppTheme.goldColor(context)),
             )
           : _buildBody(l10n),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.navBg(context),
-          border: Border(
-            top: BorderSide(color: AppTheme.cardBorder(context), width: 0.5),
-          ),
-        ),
-        child: Theme(
-          data: Theme.of(context).copyWith(
-            canvasColor: AppTheme.navBg(context),
-          ),
-          child: BottomNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            },
-            selectedItemColor: AppTheme.goldColor(context),
-            unselectedItemColor: AppTheme.text2(context),
-            backgroundColor: Colors.transparent,
-            type: BottomNavigationBarType.fixed,
-            elevation: 0,
-            selectedLabelStyle:
-                GoogleFonts.dmSans(fontSize: 10, letterSpacing: 1),
-            unselectedLabelStyle:
-                GoogleFonts.dmSans(fontSize: 10, letterSpacing: 1),
-            items: [
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.home_outlined),
-                activeIcon: const Icon(Icons.home),
-                label: l10n.translate('home'),
+      bottomNavigationBar: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppTheme.navBg(context),
+              border: Border(
+                top: BorderSide(
+                    color: AppTheme.glassBorder(context), width: 0.5),
               ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.emoji_emotions_outlined),
-                activeIcon: const Icon(Icons.emoji_emotions),
-                label: l10n.translate('mood'),
+            ),
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                canvasColor: Colors.transparent,
               ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.people_outline),
-                activeIcon: const Icon(Icons.people),
-                label: l10n.translate('connect'),
+              child: BottomNavigationBar(
+                currentIndex: _currentIndex,
+                onTap: (index) => setState(() => _currentIndex = index),
+                selectedItemColor: AppTheme.goldColor(context),
+                unselectedItemColor: AppTheme.textMuted(context),
+                backgroundColor: Colors.transparent,
+                type: BottomNavigationBarType.fixed,
+                elevation: 0,
+                selectedLabelStyle:
+                    GoogleFonts.jost(fontSize: 9, letterSpacing: 2),
+                unselectedLabelStyle:
+                    GoogleFonts.jost(fontSize: 9, letterSpacing: 2),
+                items: [
+                  BottomNavigationBarItem(
+                    icon: const Icon(Icons.home_outlined),
+                    activeIcon: const Icon(Icons.home),
+                    label: l10n.translate('home').toUpperCase(),
+                  ),
+                  BottomNavigationBarItem(
+                    icon: const Icon(Icons.emoji_emotions_outlined),
+                    activeIcon: const Icon(Icons.emoji_emotions),
+                    label: l10n.translate('mood').toUpperCase(),
+                  ),
+                  BottomNavigationBarItem(
+                    icon: const Icon(Icons.people_outline),
+                    activeIcon: const Icon(Icons.people),
+                    label: l10n.translate('connect').toUpperCase(),
+                  ),
+                  BottomNavigationBarItem(
+                    icon: const Icon(Icons.person_outline),
+                    activeIcon: const Icon(Icons.person),
+                    label: l10n.translate('profile').toUpperCase(),
+                  ),
+                ],
               ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.person_outline),
-                activeIcon: const Icon(Icons.person),
-                label: l10n.translate('profile'),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -260,39 +282,47 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHomeTab(AppLocalizations l10n) {
     final userName = _user?['name'] as String? ?? '';
+    final moodScore = _currentMood.score;
+    final moodProgress = moodScore / 100.0;
 
     return Stack(
       children: [
-        const GradientBackground(variant: 4),
+        const EnomScreenBackground(gradientVariant: 4, particleCount: 15),
+
         SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 90),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 8),
-                // Greeting row with avatar
+                // Greeting bar
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'GOOD EVENING',
-                            style: AppTheme.label(context, size: 11)
-                                .copyWith(letterSpacing: 3),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'GOOD EVENING',
+                          style: GoogleFonts.jost(
+                            color: AppTheme.goldColor(context),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: 3,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            userName.isNotEmpty
-                                ? '$userName \u2728'
-                                : l10n.translate('welcome_back'),
-                            style: AppTheme.heading(context, size: 18),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          userName.isNotEmpty
+                              ? '$userName \u2728'
+                              : l10n.translate('welcome_back'),
+                          style: GoogleFonts.cormorantGaramond(
+                            color: AppTheme.text1(context),
+                            fontSize: 26,
+                            fontWeight: FontWeight.w400,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                     Container(
                       width: 44,
@@ -303,171 +333,41 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: AppTheme.goldColor(context),
                           width: 1.5,
                         ),
-                        color: AppTheme.goldFill(context),
+                        color: AppTheme.glassBg(context),
                       ),
                       child: Center(
                         child: Text(
                           userName.isNotEmpty
                               ? userName[0].toUpperCase()
                               : 'U',
-                          style: GoogleFonts.playfairDisplay(
+                          style: GoogleFonts.jost(
                             color: AppTheme.goldColor(context),
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 24),
 
-                // AI Mood Detection Card
-                _buildMoodDetectionCard(),
-                const SizedBox(height: 20),
+                // Mood Score Card (glassmorphic)
+                _buildMoodScoreCard(moodScore, moodProgress),
+                const SizedBox(height: 24),
 
-                // Quick Mood Emoji Row
+                // How are you feeling?
                 Text(
                   'HOW ARE YOU FEELING?',
-                  style: AppTheme.label(context, size: 10)
-                      .copyWith(letterSpacing: 3),
+                  style: AppTheme.label(context, size: 10),
                 ),
-                const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildMoodChip('\u{1F60A}', 'Happy'),
-                      const SizedBox(width: 10),
-                      _buildMoodChip('\u{1F60C}', 'Calm'),
-                      const SizedBox(width: 10),
-                      _buildMoodChip('\u{1F622}', 'Sad'),
-                      const SizedBox(width: 10),
-                      _buildMoodChip('\u{1F621}', 'Angry'),
-                      const SizedBox(width: 10),
-                      _buildMoodChip('\u{1F970}', 'Loved'),
-                    ],
-                  ),
-                ),
+                const SizedBox(height: 16),
+                _buildMoodPills(),
                 const SizedBox(height: 24),
 
-                // Weekly Bar Chart Card
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: AppTheme.cardDecoration(context),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'WEEKLY OVERVIEW',
-                        style: AppTheme.label(context, size: 10)
-                            .copyWith(letterSpacing: 3),
-                      ),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        height: 120,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            _buildBar('M', 0.6),
-                            _buildBar('T', 0.8),
-                            _buildBar('W', 0.5),
-                            _buildBar('T', 0.9),
-                            _buildBar('F', 0.7),
-                            _buildBar('S', 0.4),
-                            _buildBar('S', 0.75),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                // Weekly Overview Card (glassmorphic)
+                _buildWeeklyCard(),
                 const SizedBox(height: 24),
-
-                // Featured card
-                Container(
-                  width: double.infinity,
-                  height: 180,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    gradient: LinearGradient(
-                      colors: [
-                        AppTheme.goldColor(context),
-                        AppTheme.goldColor(context).withValues(alpha: 0.7),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color:
-                            AppTheme.goldColor(context).withValues(alpha: 0.2),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          'ENOM',
-                          style: GoogleFonts.playfairDisplay(
-                            color: AppTheme.isDark(context)
-                                ? Colors.black
-                                : Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 4,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          l10n.translate('tagline'),
-                          style: GoogleFonts.dmSans(
-                            color: AppTheme.isDark(context)
-                                ? Colors.black.withValues(alpha: 0.7)
-                                : Colors.white.withValues(alpha: 0.8),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // Quick actions grid
-                Text(
-                  'QUICK ACTIONS',
-                  style: AppTheme.label(context, size: 10)
-                      .copyWith(letterSpacing: 3),
-                ),
-                const SizedBox(height: 14),
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1.3,
-                  children: [
-                    _buildQuickAction(
-                        Icons.shopping_bag_outlined, l10n.translate('shop')),
-                    _buildQuickAction(
-                        Icons.favorite_outline, l10n.translate('wishlist')),
-                    _buildQuickAction(
-                        Icons.local_offer_outlined, l10n.translate('offers')),
-                    _buildQuickAction(
-                        Icons.history, l10n.translate('history')),
-                  ],
-                ),
-                const SizedBox(height: 20),
               ],
             ),
           ),
@@ -476,65 +376,146 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildMoodDetectionCard() {
+  Widget _buildMoodScoreCard(int moodScore, double moodProgress) {
     final goldC = AppTheme.goldColor(context);
-    final moodScore = _currentMood.score;
-    final moodProgress = moodScore / 100.0;
 
-    return Container(
-      width: double.infinity,
-      decoration: AppTheme.cardDecoration(context),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'AI MOOD SCANNER',
-                  style: AppTheme.label(context, size: 10)
-                      .copyWith(letterSpacing: 3),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+          decoration: BoxDecoration(
+            color: AppTheme.moodCardBg(context),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppTheme.glassBorder(context)),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.isDark(context)
+                    ? Colors.black.withValues(alpha: 0.4)
+                    : const Color.fromRGBO(160, 140, 100, 0.12),
+                blurRadius: 32,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Top edge highlight
+              Container(
+                height: 1,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      AppTheme.glassHighlight(context),
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
+              ),
+
+              Text(
+                'YOUR MOOD SCORE',
+                style: AppTheme.label(context, size: 10),
+              ),
+              const SizedBox(height: 20),
+
+              // Mood ring
+              SizedBox(
+                width: 140,
+                height: 140,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CustomPaint(
+                      size: const Size(140, 140),
+                      painter: _MoodRingPainter(
+                        progress: moodProgress,
+                        goldColors: [AppTheme.gold4, AppTheme.gold2, AppTheme.gold1],
+                        trackColor: AppTheme.glassBg(context),
+                      ),
+                    ),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '$moodScore',
+                          style: GoogleFonts.cormorantGaramond(
+                            color: AppTheme.text1(context),
+                            fontSize: 48,
+                            fontWeight: FontWeight.w300,
+                            height: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _currentMood.mood == 'No Face'
+                              ? 'Tap Scan'
+                              : 'Feeling Good',
+                          style: GoogleFonts.jost(
+                            color: AppTheme.goldColor(context),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Gold line
+              Container(
+                width: 40,
+                height: 2,
+                decoration: BoxDecoration(
+                  gradient: AppTheme.goldGradient,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+
+              // Scan button
+              if (!_isMoodScanActive) ...[
+                const SizedBox(height: 16),
                 GestureDetector(
-                  onTap: _isMoodScanActive ? _stopMoodScan : _startMoodScan,
+                  onTap: _isMoodInitializing ? null : _startMoodScan,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
+                        horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: _isMoodScanActive
-                          ? Colors.redAccent.withValues(alpha: 0.15)
-                          : AppTheme.goldFill(context),
+                      color: AppTheme.goldFill(context),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: _isMoodScanActive
-                            ? Colors.redAccent.withValues(alpha: 0.4)
-                            : goldC.withValues(alpha: 0.3),
+                        color: goldC.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          _isMoodScanActive
-                              ? Icons.stop_rounded
-                              : Icons.face_retouching_natural,
-                          size: 16,
-                          color: _isMoodScanActive
-                              ? Colors.redAccent
-                              : goldC,
-                        ),
+                        if (_isMoodInitializing)
+                          SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              color: goldC,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        else
+                          Icon(Icons.face_retouching_natural,
+                              size: 16, color: goldC),
                         const SizedBox(width: 6),
                         Text(
-                          _isMoodScanActive ? 'Stop' : 'Scan',
-                          style: GoogleFonts.dmSans(
+                          _isMoodInitializing ? 'Starting...' : 'AI Scan',
+                          style: GoogleFonts.jost(
                             fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: _isMoodScanActive
-                                ? Colors.redAccent
-                                : goldC,
+                            fontWeight: FontWeight.w500,
+                            color: goldC,
                           ),
                         ),
                       ],
@@ -542,258 +523,232 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 16),
 
-          // Camera preview + mood result
-          if (_isMoodInitializing)
-            Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                children: [
-                  CircularProgressIndicator(color: goldC, strokeWidth: 2),
-                  const SizedBox(height: 12),
-                  Text('Initializing camera...',
-                      style: AppTheme.body(context, size: 12)),
-                ],
-              ),
-            )
-          else if (_moodError != null)
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  Icon(Icons.error_outline,
-                      color: Colors.redAccent, size: 40),
-                  const SizedBox(height: 8),
-                  Text(_moodError!,
-                      style: AppTheme.body(context, size: 13)
-                          .copyWith(color: Colors.redAccent)),
-                  const SizedBox(height: 12),
-                  GestureDetector(
-                    onTap: _startMoodScan,
-                    child: Text('Retry',
-                        style: AppTheme.body(context,
-                                size: 14, weight: FontWeight.bold)
-                            .copyWith(color: goldC)),
-                  ),
-                ],
-              ),
-            )
-          else if (_isMoodScanActive &&
-              _moodService?.cameraController != null &&
-              _moodService!.cameraController!.value.isInitialized)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  // Camera preview circle
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: goldC, width: 2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: goldC.withValues(alpha: 0.2),
-                          blurRadius: 12,
-                          spreadRadius: 2,
+              // Camera preview when scanning
+              if (_isMoodScanActive &&
+                  _moodService?.cameraController != null &&
+                  _moodService!.cameraController!.value.isInitialized) ...[
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: goldC, width: 1.5),
+                      ),
+                      child: ClipOval(
+                        child: Transform.scale(
+                          scaleX: -1,
+                          child: CameraPreview(
+                              _moodService!.cameraController!),
                         ),
-                      ],
-                    ),
-                    child: ClipOval(
-                      child: Transform.scale(
-                        scaleX: -1, // Mirror front camera
-                        child: CameraPreview(
-                            _moodService!.cameraController!),
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    Text(_currentMood.emoji,
+                        style: const TextStyle(fontSize: 24)),
+                    const SizedBox(width: 8),
+                    Text(
+                      _currentMood.mood,
+                      style: GoogleFonts.jost(
+                        color: AppTheme.text1(context),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: _stopMoodScan,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Stop',
+                          style: GoogleFonts.jost(
+                            fontSize: 11,
+                            color: Colors.redAccent,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              if (_moodError != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _moodError!,
+                  style: GoogleFonts.jost(
+                    color: Colors.redAccent,
+                    fontSize: 12,
                   ),
-                  const SizedBox(width: 20),
-                  // Mood result
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _currentMood.emoji,
-                          style: const TextStyle(fontSize: 36),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _currentMood.mood,
-                          style: AppTheme.heading(context, size: 20),
-                        ),
-                        const SizedBox(height: 8),
-                        // Score bar
-                        Row(
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMoodPills() {
+    final moods = [
+      ('\u{1F60A}', 'Happy'),
+      ('\u{1F60C}', 'Calm'),
+      ('\u{1F622}', 'Sad'),
+      ('\u{1F621}', 'Angry'),
+      ('\u{1F970}', 'Loved'),
+    ];
+
+    return Row(
+      children: moods.map((m) {
+        final isActive = _selectedMood == m.$2;
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedMood = m.$2),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: EdgeInsets.only(
+                  right: m.$2 != 'Loved' ? 10 : 0),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: isActive
+                    ? AppTheme.gold1.withValues(alpha: 0.08)
+                    : AppTheme.glassBg(context),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isActive
+                      ? AppTheme.gold1.withValues(alpha: 0.5)
+                      : AppTheme.glassBorder(context),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Text(m.$1, style: const TextStyle(fontSize: 26)),
+                  const SizedBox(height: 8),
+                  Text(
+                    m.$2,
+                    style: GoogleFonts.jost(
+                      color: AppTheme.text2(context),
+                      fontSize: 10,
+                      letterSpacing: 1,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildWeeklyCard() {
+    final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final heights = [0.85, 0.92, 0.45, 0.60, 0.30, 0.78, 0.88];
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: AppTheme.moodCardBg(context),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppTheme.glassBorder(context)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'WEEKLY OVERVIEW',
+                style: AppTheme.label(context, size: 10),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 120,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: List.generate(7, (i) {
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: i < 6 ? 4 : 0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: LinearProgressIndicator(
-                                  value: moodProgress,
-                                  minHeight: 6,
-                                  backgroundColor:
-                                      AppTheme.cardBorder(context),
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                      goldC),
+                            Flexible(
+                              child: FractionallySizedBox(
+                                heightFactor: heights[i],
+                                child: Container(
+                                  width: 32,
+                                  decoration: BoxDecoration(
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(6),
+                                      topRight: Radius.circular(6),
+                                      bottomLeft: Radius.circular(2),
+                                      bottomRight: Radius.circular(2),
+                                    ),
+                                    gradient: AppTheme.goldGradient2,
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      // Top highlight
+                                      Container(
+                                        height: double.infinity,
+                                        decoration: BoxDecoration(
+                                          borderRadius: const BorderRadius.only(
+                                            topLeft: Radius.circular(6),
+                                            topRight: Radius.circular(6),
+                                          ),
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.center,
+                                            colors: [
+                                              Colors.white.withValues(alpha: 0.25),
+                                              Colors.transparent,
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(height: 8),
                             Text(
-                              '$moodScore',
-                              style: AppTheme.body(context,
-                                  size: 14, weight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _currentMood.confidence > 0
-                              ? '${(_currentMood.confidence * 100).round()}% confidence'
-                              : 'Point camera at your face',
-                          style: AppTheme.label(context, size: 10),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            // Idle state — prompt to scan
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-              child: Row(
-                children: [
-                  // Mood ring with static score
-                  SizedBox(
-                    width: 100,
-                    height: 100,
-                    child: CustomPaint(
-                      painter: _MoodRingPainter(
-                        progress: moodProgress,
-                        color: goldC,
-                        trackColor: AppTheme.cardBorder(context),
-                      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              _currentMood.mood == 'No Face'
-                                  ? '—'
-                                  : '$moodScore',
-                              style: AppTheme.heading(context, size: 28),
-                            ),
-                            Text(
-                              _currentMood.mood == 'No Face'
-                                  ? 'Tap Scan'
-                                  : _currentMood.mood,
-                              style: AppTheme.label(context, size: 9)
-                                  .copyWith(letterSpacing: 1),
+                              days[i],
+                              style: GoogleFonts.jost(
+                                color: AppTheme.textMuted(context),
+                                fontSize: 10,
+                                letterSpacing: 2,
+                                fontWeight: FontWeight.w400,
+                              ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Detect Your Mood',
-                          style: AppTheme.body(context,
-                              size: 15, weight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Use AI face scanning to analyze your facial expression and detect your mood in real time.',
-                          style: AppTheme.body(context, size: 12).copyWith(
-                            color: AppTheme.text2(context),
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                    );
+                  }),
+                ),
               ),
-            ),
-          const SizedBox(height: 16),
-          AppTheme.goldDivider(context),
-          const SizedBox(height: 12),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMoodChip(String emoji, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: AppTheme.cardDecoration(context),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 24)),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: AppTheme.label(context, size: 9).copyWith(letterSpacing: 1),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBar(String day, double height) {
-    final gold = AppTheme.goldColor(context);
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Container(
-          width: 22,
-          height: 90 * height,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
-            gradient: LinearGradient(
-              begin: Alignment.bottomCenter,
-              end: Alignment.topCenter,
-              colors: [
-                gold,
-                gold.withValues(alpha: 0.4),
-              ],
-            ),
+            ],
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          day,
-          style: AppTheme.label(context, size: 10).copyWith(letterSpacing: 0),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickAction(IconData icon, String label) {
-    return Container(
-      decoration: AppTheme.cardDecoration(context),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: AppTheme.goldColor(context), size: 32),
-          const SizedBox(height: 12),
-          Text(
-            label,
-            style: AppTheme.body(context, size: 14, weight: FontWeight.w500),
-          ),
-        ],
       ),
     );
   }
@@ -801,7 +756,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildExploreTab(AppLocalizations l10n) {
     return Stack(
       children: [
-        const GradientBackground(variant: 4),
+        const EnomScreenBackground(gradientVariant: 4, particleCount: 15),
         SafeArea(
           child: Center(
             child: Column(
@@ -844,15 +799,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/// Circular ring painter for mood score
+/// Mood ring painter with gold gradient
 class _MoodRingPainter extends CustomPainter {
   final double progress;
-  final Color color;
+  final List<Color> goldColors;
   final Color trackColor;
 
   _MoodRingPainter({
     required this.progress,
-    required this.color,
+    required this.goldColors,
     required this.trackColor,
   });
 
@@ -865,26 +820,33 @@ class _MoodRingPainter extends CustomPainter {
     final trackPaint = Paint()
       ..color = trackColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 6
-      ..strokeCap = StrokeCap.round;
+      ..strokeWidth = 6;
     canvas.drawCircle(center, radius, trackPaint);
 
-    // Progress arc
-    final progressPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 6
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -pi / 2,
-      2 * pi * progress,
-      false,
-      progressPaint,
-    );
+    // Progress arc with gradient
+    if (progress > 0) {
+      final rect = Rect.fromCircle(center: center, radius: radius);
+      final gradient = SweepGradient(
+        startAngle: -pi / 2,
+        endAngle: -pi / 2 + 2 * pi * progress,
+        colors: goldColors,
+      );
+      final progressPaint = Paint()
+        ..shader = gradient.createShader(rect)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 6
+        ..strokeCap = StrokeCap.round;
+      canvas.drawArc(
+        rect,
+        -pi / 2,
+        2 * pi * progress,
+        false,
+        progressPaint,
+      );
+    }
   }
 
   @override
   bool shouldRepaint(covariant _MoodRingPainter oldDelegate) =>
-      oldDelegate.progress != progress || oldDelegate.color != color;
+      oldDelegate.progress != progress;
 }
