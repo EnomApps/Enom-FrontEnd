@@ -1,9 +1,12 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:camera/camera.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../l10n/app_localizations.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../services/mood_detection_service.dart';
 import '../theme/app_theme.dart';
 import 'welcome_screen.dart';
 import 'profile_screen.dart';
@@ -21,6 +24,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _user;
   bool _isLoggingOut = false;
 
+  // Mood detection
+  MoodDetectionService? _moodService;
+  MoodResult _currentMood = MoodResult.none;
+  bool _isMoodScanActive = false;
+  bool _isMoodInitializing = false;
+  String? _moodError;
+
   @override
   void initState() {
     super.initState();
@@ -34,9 +44,65 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _startMoodScan() async {
+    if (_isMoodInitializing) return;
+    setState(() {
+      _isMoodInitializing = true;
+      _moodError = null;
+    });
+
+    // Request camera permission
+    final status = await Permission.camera.request();
+    if (!status.isGranted) {
+      if (mounted) {
+        setState(() {
+          _moodError = 'Camera permission denied';
+          _isMoodInitializing = false;
+        });
+      }
+      return;
+    }
+
+    _moodService = MoodDetectionService();
+    final ok = await _moodService!.initialize();
+
+    if (!mounted) return;
+
+    if (!ok) {
+      setState(() {
+        _moodError = 'Could not initialize camera';
+        _isMoodInitializing = false;
+      });
+      return;
+    }
+
+    // Listen to mood results
+    _moodService!.moodStream.listen((result) {
+      if (mounted) {
+        setState(() => _currentMood = result);
+      }
+    });
+
+    _moodService!.startDetection();
+
+    setState(() {
+      _isMoodScanActive = true;
+      _isMoodInitializing = false;
+    });
+  }
+
+  Future<void> _stopMoodScan() async {
+    _moodService?.stopDetection();
+    await _moodService?.dispose();
+    _moodService = null;
+    if (mounted) {
+      setState(() => _isMoodScanActive = false);
+    }
+  }
+
   Future<void> _handleLogout() async {
     setState(() => _isLoggingOut = true);
-
+    await _stopMoodScan();
     await AuthService.logout();
 
     if (!mounted) return;
@@ -46,6 +112,13 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(builder: (_) => const WelcomeScreen()),
       (route) => false,
     );
+  }
+
+  @override
+  void dispose() {
+    _moodService?.stopDetection();
+    _moodService?.dispose();
+    super.dispose();
   }
 
   @override
@@ -249,51 +322,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 28),
 
-                // Mood Score Card
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: AppTheme.cardDecoration(context),
-                  child: Column(
-                    children: [
-                      Text(
-                        'YOUR MOOD SCORE',
-                        style: AppTheme.label(context, size: 10)
-                            .copyWith(letterSpacing: 3),
-                      ),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: 100,
-                        height: 100,
-                        child: CustomPaint(
-                          painter: _MoodRingPainter(
-                            progress: 0.78,
-                            color: AppTheme.goldColor(context),
-                            trackColor: AppTheme.cardBorder(context),
-                          ),
-                          child: Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '78',
-                                  style: AppTheme.heading(context, size: 28),
-                                ),
-                                Text(
-                                  'Feeling Good',
-                                  style: AppTheme.label(context, size: 9)
-                                      .copyWith(letterSpacing: 1),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      AppTheme.goldDivider(context),
-                    ],
-                  ),
-                ),
+                // AI Mood Detection Card
+                _buildMoodDetectionCard(),
                 const SizedBox(height: 20),
 
                 // Quick Mood Emoji Row
@@ -443,6 +473,264 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildMoodDetectionCard() {
+    final goldC = AppTheme.goldColor(context);
+    final moodScore = _currentMood.score;
+    final moodProgress = moodScore / 100.0;
+
+    return Container(
+      width: double.infinity,
+      decoration: AppTheme.cardDecoration(context),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'AI MOOD SCANNER',
+                  style: AppTheme.label(context, size: 10)
+                      .copyWith(letterSpacing: 3),
+                ),
+                GestureDetector(
+                  onTap: _isMoodScanActive ? _stopMoodScan : _startMoodScan,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _isMoodScanActive
+                          ? Colors.redAccent.withValues(alpha: 0.15)
+                          : AppTheme.goldFill(context),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _isMoodScanActive
+                            ? Colors.redAccent.withValues(alpha: 0.4)
+                            : goldC.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _isMoodScanActive
+                              ? Icons.stop_rounded
+                              : Icons.face_retouching_natural,
+                          size: 16,
+                          color: _isMoodScanActive
+                              ? Colors.redAccent
+                              : goldC,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _isMoodScanActive ? 'Stop' : 'Scan',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _isMoodScanActive
+                                ? Colors.redAccent
+                                : goldC,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Camera preview + mood result
+          if (_isMoodInitializing)
+            Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                children: [
+                  CircularProgressIndicator(color: goldC, strokeWidth: 2),
+                  const SizedBox(height: 12),
+                  Text('Initializing camera...',
+                      style: AppTheme.body(context, size: 12)),
+                ],
+              ),
+            )
+          else if (_moodError != null)
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Icon(Icons.error_outline,
+                      color: Colors.redAccent, size: 40),
+                  const SizedBox(height: 8),
+                  Text(_moodError!,
+                      style: AppTheme.body(context, size: 13)
+                          .copyWith(color: Colors.redAccent)),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: _startMoodScan,
+                    child: Text('Retry',
+                        style: AppTheme.body(context,
+                                size: 14, weight: FontWeight.bold)
+                            .copyWith(color: goldC)),
+                  ),
+                ],
+              ),
+            )
+          else if (_isMoodScanActive &&
+              _moodService?.cameraController != null &&
+              _moodService!.cameraController!.value.isInitialized)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  // Camera preview circle
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: goldC, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: goldC.withValues(alpha: 0.2),
+                          blurRadius: 12,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: ClipOval(
+                      child: Transform.scale(
+                        scaleX: -1, // Mirror front camera
+                        child: CameraPreview(
+                            _moodService!.cameraController!),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  // Mood result
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _currentMood.emoji,
+                          style: const TextStyle(fontSize: 36),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _currentMood.mood,
+                          style: AppTheme.heading(context, size: 20),
+                        ),
+                        const SizedBox(height: 8),
+                        // Score bar
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: moodProgress,
+                                  minHeight: 6,
+                                  backgroundColor:
+                                      AppTheme.cardBorder(context),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      goldC),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              '$moodScore',
+                              style: AppTheme.body(context,
+                                  size: 14, weight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _currentMood.confidence > 0
+                              ? '${(_currentMood.confidence * 100).round()}% confidence'
+                              : 'Point camera at your face',
+                          style: AppTheme.label(context, size: 10),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            // Idle state — prompt to scan
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+              child: Row(
+                children: [
+                  // Mood ring with static score
+                  SizedBox(
+                    width: 100,
+                    height: 100,
+                    child: CustomPaint(
+                      painter: _MoodRingPainter(
+                        progress: moodProgress,
+                        color: goldC,
+                        trackColor: AppTheme.cardBorder(context),
+                      ),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _currentMood.mood == 'No Face'
+                                  ? '—'
+                                  : '$moodScore',
+                              style: AppTheme.heading(context, size: 28),
+                            ),
+                            Text(
+                              _currentMood.mood == 'No Face'
+                                  ? 'Tap Scan'
+                                  : _currentMood.mood,
+                              style: AppTheme.label(context, size: 9)
+                                  .copyWith(letterSpacing: 1),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Detect Your Mood',
+                          style: AppTheme.body(context,
+                              size: 15, weight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Use AI face scanning to analyze your facial expression and detect your mood in real time.',
+                          style: AppTheme.body(context, size: 12).copyWith(
+                            color: AppTheme.text2(context),
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 16),
+          AppTheme.goldDivider(context),
+          const SizedBox(height: 12),
+        ],
+      ),
     );
   }
 
