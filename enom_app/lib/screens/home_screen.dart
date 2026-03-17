@@ -12,6 +12,7 @@ import '../theme/app_theme.dart';
 import 'welcome_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
+import 'feed_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -242,9 +243,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     label: l10n.translate('home').toUpperCase(),
                   ),
                   BottomNavigationBarItem(
-                    icon: const Icon(Icons.emoji_emotions_outlined),
-                    activeIcon: const Icon(Icons.emoji_emotions),
-                    label: l10n.translate('mood').toUpperCase(),
+                    icon: const Icon(Icons.dynamic_feed_outlined),
+                    activeIcon: const Icon(Icons.dynamic_feed),
+                    label: 'FEED',
                   ),
                   BottomNavigationBarItem(
                     icon: const Icon(Icons.people_outline),
@@ -270,7 +271,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 0:
         return _buildHomeTab(l10n);
       case 1:
-        return _buildExploreTab(l10n);
+        return const FeedScreen();
       case 2:
         return _buildProfileTab(l10n);
       case 3:
@@ -750,36 +751,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildExploreTab(AppLocalizations l10n) {
-    return Stack(
-      children: [
-        const EnomScreenBackground(gradientVariant: 4, particleCount: 15),
-        SafeArea(
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.emoji_emotions_outlined,
-                    size: 64,
-                    color: AppTheme.goldColor(context).withValues(alpha: 0.5)),
-                const SizedBox(height: 16),
-                Text(
-                  l10n.translate('mood'),
-                  style: AppTheme.heading(context, size: 20),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Coming soon',
-                  style: AppTheme.label(context, size: 12),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
     );
   }
 
