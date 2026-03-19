@@ -7,7 +7,7 @@ class PostService {
     int page = 1,
     int? userId,
   }) async {
-    String endpoint = '/api/posts?page=$page';
+    String endpoint = '/api/posts?page=$page&per_page=5';
     if (userId != null) endpoint += '&user_id=$userId';
 
     final result = await ApiService.get(endpoint, auth: true);

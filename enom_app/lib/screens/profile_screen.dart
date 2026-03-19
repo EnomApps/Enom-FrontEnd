@@ -7,7 +7,9 @@ import 'package:image_picker/image_picker.dart';
 import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/post_service.dart';
 import '../theme/app_theme.dart';
+import 'welcome_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Map<String, dynamic>? user;
@@ -23,13 +25,26 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProviderStateMixin {
   bool _isEditing = false;
   bool _isSaving = false;
   bool _isLoading = false;
+  bool _isLoggingOut = false;
   Map<String, dynamic>? _user;
   XFile? _pickedImage;
   Uint8List? _pickedImageBytes;
+
+  // Tab controller
+  late TabController _tabController;
+
+  // My Posts state
+  final List<Map<String, dynamic>> _myPosts = [];
+  final ScrollController _postsScrollController = ScrollController();
+  int _postsCurrentPage = 1;
+  int _postsLastPage = 1;
+  bool _isLoadingPosts = false;
+  bool _isLoadingMorePosts = false;
+  bool _postsLoaded = false;
 
   late TextEditingController _nameController;
   late TextEditingController _usernameController;
@@ -82,6 +97,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _initControllers();
     _fetchProfile();
     _fetchInterests();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.index == 1 && !_postsLoaded) {
+        _loadMyPosts();
+      }
+    });
+    _postsScrollController.addListener(_onPostsScroll);
   }
 
   @override
@@ -180,6 +202,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() => _availableInterests = result.interests);
       }
     } catch (_) {}
+  }
+
+  Future<void> _handleLogout() async {
+    setState(() => _isLoggingOut = true);
+    await AuthService.logout();
+
+    if (!mounted) return;
+    setState(() => _isLoggingOut = false);
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+      (route) => false,
+    );
   }
 
   void _startEditing() {
@@ -296,6 +331,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
+    _tabController.dispose();
+    _postsScrollController.dispose();
     _nameController.dispose();
     _usernameController.dispose();
     _bioController.dispose();
@@ -304,6 +341,97 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _cityController.dispose();
     _regionController.dispose();
     super.dispose();
+  }
+
+  void _onPostsScroll() {
+    if (_postsScrollController.position.pixels >=
+        _postsScrollController.position.maxScrollExtent - 200) {
+      _loadMorePosts();
+    }
+  }
+
+  Future<void> _loadMyPosts() async {
+    final userId = _user?['id'] as int?;
+    if (userId == null) return;
+
+    setState(() {
+      _isLoadingPosts = true;
+      _postsLoaded = true;
+    });
+
+    final result = await PostService.getFeed(page: 1, userId: userId);
+
+    if (!mounted) return;
+
+    if (result.success) {
+      setState(() {
+        _myPosts.clear();
+        for (final p in result.posts) {
+          if (p is Map<String, dynamic>) _myPosts.add(p);
+        }
+        _postsCurrentPage = result.pagination?['current_page'] ?? 1;
+        _postsLastPage = result.pagination?['last_page'] ?? 1;
+        _isLoadingPosts = false;
+      });
+    } else {
+      setState(() => _isLoadingPosts = false);
+    }
+  }
+
+  Future<void> _loadMorePosts() async {
+    final userId = _user?['id'] as int?;
+    if (userId == null || _isLoadingMorePosts || _postsCurrentPage >= _postsLastPage) return;
+
+    setState(() => _isLoadingMorePosts = true);
+
+    final result = await PostService.getFeed(page: _postsCurrentPage + 1, userId: userId);
+
+    if (!mounted) return;
+
+    if (result.success) {
+      setState(() {
+        for (final p in result.posts) {
+          if (p is Map<String, dynamic>) _myPosts.add(p);
+        }
+        _postsCurrentPage = result.pagination?['current_page'] ?? _postsCurrentPage;
+        _postsLastPage = result.pagination?['last_page'] ?? _postsLastPage;
+        _isLoadingMorePosts = false;
+      });
+    } else {
+      setState(() => _isLoadingMorePosts = false);
+    }
+  }
+
+  Future<void> _deleteMyPost(int index) async {
+    final post = _myPosts[index];
+    final postId = post['id'] as int;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.bg2(context),
+        title: Text('Delete Post', style: AppTheme.body(context, size: 18, weight: FontWeight.w600)),
+        content: Text('Are you sure?', style: AppTheme.body(context, size: 14)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: TextStyle(color: AppTheme.text2(context))),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final result = await PostService.deletePost(postId);
+    if (result.success && mounted) {
+      setState(() => _myPosts.removeAt(index));
+      AppTheme.showSnackBar(context, 'Post deleted');
+    }
   }
 
   @override
@@ -316,34 +444,78 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
+    final goldC = AppTheme.goldColor(context);
+
     return Stack(
       children: [
         const EnomScreenBackground(gradientVariant: 2, particleCount: 10),
-        SingleChildScrollView(
+        Column(
+          children: [
+            // Profile header (always visible)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  _buildProfileImage(),
+                  const SizedBox(height: 12),
+                  Text(
+                    _user?['name'] as String? ?? '',
+                    style: AppTheme.heading(context, size: 18),
+                  ),
+                  if ((_user?['username'] as String?)?.isNotEmpty == true) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      '@${_user!['username']}',
+                      style: GoogleFonts.cormorantGaramond(
+                        color: goldC,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            // Tab bar
+            TabBar(
+              controller: _tabController,
+              indicatorColor: goldC,
+              indicatorWeight: 2.5,
+              labelColor: goldC,
+              unselectedLabelColor: AppTheme.textMuted(context),
+              labelStyle: GoogleFonts.jost(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 1.5),
+              unselectedLabelStyle: GoogleFonts.jost(fontSize: 13, letterSpacing: 1.5),
+              tabs: const [
+                Tab(text: 'MY PROFILE'),
+                Tab(text: 'MY POSTS'),
+              ],
+            ),
+            // Tab content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Tab 1: My Profile
+                  _buildProfileTabContent(l10n),
+                  // Tab 2: My Posts
+                  _buildMyPostsTab(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfileTabContent(AppLocalizations l10n) {
+    return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Column(
         children: [
-          const SizedBox(height: 8),
-          _buildProfileImage(),
-          const SizedBox(height: 16),
           if (!_isEditing) ...[
-            Text(
-              _user?['name'] as String? ?? '',
-              style: AppTheme.heading(context, size: 18),
-            ),
-            if ((_user?['username'] as String?)?.isNotEmpty == true) ...[
-              const SizedBox(height: 2),
-              Text(
-                '@${_user!['username']}',
-                style: GoogleFonts.cormorantGaramond(
-                  color: AppTheme.goldColor(context),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
-            const SizedBox(height: 4),
             Text(
               _user?['email'] as String? ?? '',
               style: TextStyle(
@@ -388,6 +560,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 style: AppTheme.primaryButton(context),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: _isLoggingOut ? null : _handleLogout,
+                icon: _isLoggingOut
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.logout, size: 20, color: Colors.white),
+                label: Text(
+                  _isLoggingOut ? 'Logging out...' : 'Logout',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
               ),
             ),
           ],
@@ -521,9 +725,210 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 32),
         ],
       ),
-    ),
-      ],
     );
+  }
+
+  Widget _buildMyPostsTab() {
+    if (_isLoadingPosts) {
+      return Center(
+        child: CircularProgressIndicator(color: AppTheme.goldColor(context)),
+      );
+    }
+
+    if (_myPosts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.dynamic_feed_outlined, size: 56, color: AppTheme.goldColor(context).withValues(alpha: 0.4)),
+            const SizedBox(height: 16),
+            Text('No posts yet', style: AppTheme.heading(context, size: 22)),
+            const SizedBox(height: 8),
+            Text('Your posts will appear here', style: AppTheme.label(context, size: 12)),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadMyPosts,
+      color: AppTheme.goldColor(context),
+      child: ListView.builder(
+        controller: _postsScrollController,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+        itemCount: _myPosts.length + (_isLoadingMorePosts ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == _myPosts.length) {
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: AppTheme.goldColor(context),
+                  strokeWidth: 2,
+                ),
+              ),
+            );
+          }
+          return _buildMyPostCard(index);
+        },
+      ),
+    );
+  }
+
+  Widget _buildMyPostCard(int index) {
+    final post = _myPosts[index];
+    final content = post['content'] as String? ?? '';
+    final media = post['media'] as List<dynamic>? ?? [];
+    final createdAt = post['created_at'] as String? ?? '';
+    final reactionsCount = post['reactions_count'] as int? ?? 0;
+    final commentsCount = post['comments_count'] as int? ?? 0;
+
+    String timeAgo = '';
+    if (createdAt.isNotEmpty) {
+      try {
+        final date = DateTime.parse(createdAt);
+        final diff = DateTime.now().difference(date);
+        if (diff.inDays > 0) {
+          timeAgo = '${diff.inDays}d ago';
+        } else if (diff.inHours > 0) {
+          timeAgo = '${diff.inHours}h ago';
+        } else if (diff.inMinutes > 0) {
+          timeAgo = '${diff.inMinutes}m ago';
+        } else {
+          timeAgo = 'Just now';
+        }
+      } catch (_) {}
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: AppTheme.isDark(context) ? const Color(0xFF1A1610) : const Color(0xFFFFFCF5),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppTheme.glassBorder(context)),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.isDark(context)
+                  ? Colors.black.withValues(alpha: 0.3)
+                  : const Color.fromRGBO(160, 140, 100, 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with time and delete
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 8, 0),
+              child: Row(
+                children: [
+                  Icon(Icons.access_time, size: 14, color: AppTheme.textMuted(context)),
+                  const SizedBox(width: 6),
+                  Text(timeAgo, style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
+                  if (reactionsCount > 0 || commentsCount > 0) ...[
+                    const SizedBox(width: 12),
+                    if (reactionsCount > 0)
+                      Text('\u{2764} $reactionsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
+                    if (commentsCount > 0) ...[
+                      const SizedBox(width: 8),
+                      Text('\u{1F4AC} $commentsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
+                    ],
+                  ],
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                    onPressed: () => _deleteMyPost(index),
+                  ),
+                ],
+              ),
+            ),
+            // Content
+            if (content.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Text(
+                  content,
+                  style: GoogleFonts.jost(
+                    color: AppTheme.text1(context),
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+            // Media
+            if (media.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildPostMediaGrid(media),
+            ],
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPostMediaGrid(List<dynamic> media) {
+    if (media.length == 1) {
+      final item = media[0];
+      final url = _getPostMediaUrl(item);
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(
+            url,
+            height: 200,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              height: 200,
+              color: AppTheme.glassBg(context),
+              child: Icon(Icons.broken_image_outlined, color: AppTheme.textMuted(context)),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 180,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: media.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, i) {
+          final url = _getPostMediaUrl(media[i]);
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.network(
+              url,
+              width: 180,
+              height: 180,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 180,
+                height: 180,
+                color: AppTheme.glassBg(context),
+                child: Icon(Icons.broken_image_outlined, color: AppTheme.textMuted(context)),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _getPostMediaUrl(dynamic item) {
+    if (item is Map) {
+      final url = (item['url'] ?? item['file_url'] ?? item['path'] ?? '').toString();
+      return url.startsWith('http') ? url : '${ApiService.baseUrl}/${url.replaceAll(RegExp(r'^/'), '')}';
+    }
+    return item.toString();
   }
 
   Widget _buildProfileImage() {

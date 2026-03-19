@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:video_player/video_player.dart';
 import '../services/post_service.dart';
 import '../theme/app_theme.dart';
 
@@ -30,11 +32,57 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   bool get _canPost =>
       _contentController.text.trim().isNotEmpty || _mediaFiles.isNotEmpty;
 
+  Future<bool> _requestMediaPermission({bool isVideo = false}) async {
+    PermissionStatus status;
+    if (Platform.isAndroid) {
+      if (isVideo) {
+        status = await Permission.videos.request();
+      } else {
+        status = await Permission.photos.request();
+      }
+    } else {
+      status = await Permission.photos.request();
+    }
+
+    if (status.isGranted || status.isLimited) return true;
+
+    if (status.isPermanentlyDenied && mounted) {
+      final open = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppTheme.bg2(context),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Permission Required',
+              style: GoogleFonts.jost(color: AppTheme.text1(context), fontWeight: FontWeight.w600)),
+          content: Text(
+              'Please allow access to your ${isVideo ? 'videos' : 'photos'} in Settings.',
+              style: GoogleFonts.jost(color: AppTheme.textMuted(context))),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Cancel', style: GoogleFonts.jost(color: AppTheme.textMuted(context))),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('Open Settings', style: GoogleFonts.jost(color: AppTheme.goldColor(context))),
+            ),
+          ],
+        ),
+      );
+      if (open == true) await openAppSettings();
+    } else if (mounted) {
+      AppTheme.showSnackBar(context, 'Permission denied', isError: true);
+    }
+    return false;
+  }
+
   Future<void> _pickImages() async {
     if (_mediaFiles.length >= _maxMedia) {
       AppTheme.showSnackBar(context, 'Maximum $_maxMedia media files allowed', isError: true);
       return;
     }
+
+    if (!await _requestMediaPermission()) return;
 
     final picker = ImagePicker();
     final images = await picker.pickMultiImage(maxWidth: 1200);
@@ -52,6 +100,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             bytes: bytes,
             name: img.name,
             type: 'image',
+            filePath: img.path,
           ));
         });
       }
@@ -64,23 +113,60 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       return;
     }
 
+    if (!await _requestMediaPermission(isVideo: true)) {
+      return;
+    }
+
     final picker = ImagePicker();
-    final video = await picker.pickVideo(
-      source: ImageSource.gallery,
-      maxDuration: const Duration(minutes: 5),
-    );
+    // Pick multiple videos one at a time until user cancels or limit reached
+    while (_mediaFiles.length < _maxMedia) {
+      final video = await picker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(minutes: 5),
+      );
 
-    if (video == null) return;
+      if (video == null) break;
 
-    final bytes = await video.readAsBytes();
-    if (mounted) {
-      setState(() {
-        _mediaFiles.add(_MediaFile(
-          bytes: bytes,
-          name: video.name,
-          type: 'video',
-        ));
-      });
+      final bytes = await video.readAsBytes();
+      if (mounted) {
+        setState(() {
+          _mediaFiles.add(_MediaFile(
+            bytes: bytes,
+            name: video.name,
+            type: 'video',
+            filePath: video.path,
+          ));
+        });
+      }
+
+      if (!mounted) break;
+
+      // Ask if user wants to add more videos
+      if (_mediaFiles.length < _maxMedia) {
+        final addMore = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: AppTheme.moodCardBg(context),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text('Add another video?',
+                style: GoogleFonts.jost(color: AppTheme.text1(context), fontWeight: FontWeight.w600)),
+            content: Text(
+                '${_mediaFiles.length} of $_maxMedia media added.',
+                style: GoogleFonts.jost(color: AppTheme.textMuted(context))),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text('Done', style: GoogleFonts.jost(color: AppTheme.textMuted(context))),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text('Add More', style: GoogleFonts.jost(color: AppTheme.goldColor(context))),
+              ),
+            ],
+          ),
+        );
+        if (addMore != true) break;
+      }
     }
   }
 
@@ -175,36 +261,30 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Content input
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppTheme.moodCardBg(context),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppTheme.glassBorder(context)),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.moodCardBg(context),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppTheme.glassBorder(context)),
+                    ),
+                    child: TextField(
+                      controller: _contentController,
+                      onChanged: (_) => setState(() {}),
+                      maxLines: null,
+                      minLines: 6,
+                      style: GoogleFonts.jost(
+                        color: AppTheme.text1(context),
+                        fontSize: 16,
+                        height: 1.6,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: "What's on your mind?",
+                        hintStyle: GoogleFonts.jost(
+                          color: AppTheme.textMuted(context),
+                          fontSize: 16,
                         ),
-                        child: TextField(
-                          controller: _contentController,
-                          onChanged: (_) => setState(() {}),
-                          maxLines: null,
-                          minLines: 6,
-                          style: GoogleFonts.jost(
-                            color: AppTheme.text1(context),
-                            fontSize: 16,
-                            height: 1.6,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: "What's on your mind?",
-                            hintStyle: GoogleFonts.jost(
-                              color: AppTheme.textMuted(context),
-                              fontSize: 16,
-                            ),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.all(20),
-                          ),
-                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.all(20),
                       ),
                     ),
                   ),
@@ -229,39 +309,33 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   // Action buttons
                   Text('ADD TO POST', style: AppTheme.label(context, size: 10)),
                   const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: AppTheme.moodCardBg(context),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppTheme.glassBorder(context)),
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.moodCardBg(context),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppTheme.glassBorder(context)),
+                    ),
+                    child: Row(
+                      children: [
+                        _buildActionButton(
+                          icon: Icons.image_outlined,
+                          label: 'Photo',
+                          color: Colors.greenAccent,
+                          onTap: _pickImages,
                         ),
-                        child: Row(
-                          children: [
-                            _buildActionButton(
-                              icon: Icons.image_outlined,
-                              label: 'Photo',
-                              color: Colors.greenAccent,
-                              onTap: _pickImages,
-                            ),
-                            Container(
-                              width: 1,
-                              height: 32,
-                              color: AppTheme.glassBorder(context),
-                            ),
-                            _buildActionButton(
-                              icon: Icons.videocam_outlined,
-                              label: 'Video',
-                              color: Colors.blueAccent,
-                              onTap: _pickVideo,
-                            ),
-                          ],
+                        Container(
+                          width: 1,
+                          height: 32,
+                          color: AppTheme.glassBorder(context),
                         ),
-                      ),
+                        _buildActionButton(
+                          icon: Icons.videocam_outlined,
+                          label: 'Video',
+                          color: Colors.blueAccent,
+                          onTap: _pickVideo,
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -269,25 +343,19 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   // Visibility picker
                   Text('VISIBILITY', style: AppTheme.label(context, size: 10)),
                   const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: AppTheme.moodCardBg(context),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppTheme.glassBorder(context)),
-                        ),
-                        child: Row(
-                          children: [
-                            _buildVisibilityOption('public', Icons.public, 'Public'),
-                            _buildVisibilityOption('followers', Icons.people_outline, 'Followers'),
-                            _buildVisibilityOption('private', Icons.lock_outline, 'Private'),
-                          ],
-                        ),
-                      ),
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.moodCardBg(context),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppTheme.glassBorder(context)),
+                    ),
+                    child: Row(
+                      children: [
+                        _buildVisibilityOption('public', Icons.public, 'Public'),
+                        _buildVisibilityOption('followers', Icons.people_outline, 'Followers'),
+                        _buildVisibilityOption('private', Icons.lock_outline, 'Private'),
+                      ],
                     ),
                   ),
                 ],
@@ -299,58 +367,141 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     );
   }
 
+  void _showMediaPreview(int index) {
+    final file = _mediaFiles[index];
+    if (file.type == 'video' && file.filePath != null) {
+      _showVideoPreview(file);
+    } else if (file.type == 'image') {
+      _showImagePreview(file);
+    }
+  }
+
+  void _showImagePreview(_MediaFile file) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.memory(
+                file.bytes,
+                fit: BoxFit.contain,
+              ),
+            ),
+            Positioned(
+              top: 0,
+              right: 0,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(ctx),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close, color: Colors.white, size: 20),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showVideoPreview(_MediaFile file) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _VideoPreviewScreen(filePath: file.filePath!),
+      ),
+    );
+  }
+
   Widget _buildMediaPreview(int index) {
     final file = _mediaFiles[index];
-    return Stack(
-      children: [
-        ClipRRect(
+    return GestureDetector(
+      onTap: () => _showMediaPreview(index),
+      child: Container(
+        width: 120,
+        height: 120,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade900,
           borderRadius: BorderRadius.circular(14),
-          child: file.type == 'video'
-              ? Container(
-                  width: 120,
-                  height: 120,
-                  color: AppTheme.glassBg(context),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.videocam, color: AppTheme.goldColor(context), size: 32),
-                      const SizedBox(height: 4),
-                      Text(
-                        file.name,
-                        style: GoogleFonts.jost(
-                          color: AppTheme.textMuted(context),
-                          fontSize: 9,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                )
-              : Image.memory(
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Image/Video thumbnail
+            if (file.type == 'video')
+              _VideoThumbnail(filePath: file.filePath, name: file.name)
+            else if (file.filePath != null)
+              Image.file(
+                File(file.filePath!),
+                width: 120,
+                height: 120,
+                fit: BoxFit.cover,
+                cacheWidth: 300,
+                errorBuilder: (_, __, ___) => Image.memory(
                   file.bytes,
                   width: 120,
                   height: 120,
                   fit: BoxFit.cover,
                 ),
-        ),
-        Positioned(
-          top: 4,
-          right: 4,
-          child: GestureDetector(
-            onTap: () => _removeMedia(index),
-            child: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.6),
-                shape: BoxShape.circle,
+              )
+            else
+              Image.memory(
+                file.bytes,
+                width: 120,
+                height: 120,
+                fit: BoxFit.cover,
               ),
-              child: const Icon(Icons.close, color: Colors.white, size: 14),
+            // Type badge
+            if (file.type == 'video')
+              Positioned(
+                bottom: 6,
+                left: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.play_arrow, color: Colors.white, size: 12),
+                      SizedBox(width: 2),
+                      Text('VIDEO', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              ),
+            // Remove button
+            Positioned(
+              top: 4,
+              right: 4,
+              child: GestureDetector(
+                onTap: () => _removeMedia(index),
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close, color: Colors.white, size: 14),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -427,10 +578,192 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 }
 
+// Video thumbnail widget - shows first frame of video
+class _VideoThumbnail extends StatefulWidget {
+  final String? filePath;
+  final String name;
+
+  const _VideoThumbnail({required this.filePath, required this.name});
+
+  @override
+  State<_VideoThumbnail> createState() => _VideoThumbnailState();
+}
+
+class _VideoThumbnailState extends State<_VideoThumbnail> {
+  VideoPlayerController? _controller;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initThumbnail();
+  }
+
+  Future<void> _initThumbnail() async {
+    if (widget.filePath == null) return;
+    final controller = VideoPlayerController.file(File(widget.filePath!));
+    try {
+      await controller.initialize();
+      if (mounted) {
+        setState(() {
+          _controller = controller;
+          _initialized = true;
+        });
+      } else {
+        controller.dispose();
+      }
+    } catch (_) {
+      controller.dispose();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_initialized && _controller != null) {
+      return SizedBox(
+        width: 120,
+        height: 120,
+        child: FittedBox(
+          fit: BoxFit.cover,
+          clipBehavior: Clip.hardEdge,
+          child: SizedBox(
+            width: _controller!.value.size.width,
+            height: _controller!.value.size.height,
+            child: VideoPlayer(_controller!),
+          ),
+        ),
+      );
+    }
+    return Container(
+      width: 120,
+      height: 120,
+      color: AppTheme.glassBg(context),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.videocam, color: AppTheme.goldColor(context), size: 32),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              widget.name,
+              style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 9),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Full-screen video preview
+class _VideoPreviewScreen extends StatefulWidget {
+  final String filePath;
+
+  const _VideoPreviewScreen({required this.filePath});
+
+  @override
+  State<_VideoPreviewScreen> createState() => _VideoPreviewScreenState();
+}
+
+class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
+  late VideoPlayerController _controller;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.file(File(widget.filePath))
+      ..initialize().then((_) {
+        if (mounted) {
+          setState(() => _initialized = true);
+          _controller.play();
+        }
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text('Preview', style: GoogleFonts.jost(color: Colors.white, fontSize: 16)),
+        centerTitle: true,
+      ),
+      body: Center(
+        child: _initialized
+            ? GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _controller.value.isPlaying ? _controller.pause() : _controller.play();
+                  });
+                },
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    AspectRatio(
+                      aspectRatio: _controller.value.aspectRatio,
+                      child: VideoPlayer(_controller),
+                    ),
+                    if (!_controller.value.isPlaying)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.play_arrow, color: Colors.white, size: 40),
+                      ),
+                  ],
+                ),
+              )
+            : const CircularProgressIndicator(color: Colors.white),
+      ),
+      bottomNavigationBar: _initialized
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: VideoProgressIndicator(
+                  _controller,
+                  allowScrubbing: true,
+                  colors: VideoProgressColors(
+                    playedColor: AppTheme.goldColor(context),
+                    bufferedColor: Colors.white24,
+                    backgroundColor: Colors.white12,
+                  ),
+                ),
+              ),
+            )
+          : null,
+    );
+  }
+}
+
 class _MediaFile {
   final Uint8List bytes;
   final String name;
   final String type;
+  final String? filePath;
 
-  _MediaFile({required this.bytes, required this.name, required this.type});
+  _MediaFile({required this.bytes, required this.name, required this.type, this.filePath});
 }

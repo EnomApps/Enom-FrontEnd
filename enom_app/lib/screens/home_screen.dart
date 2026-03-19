@@ -176,31 +176,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: AppTheme.text2(context)),
             onPressed: () {},
           ),
-          PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert, color: AppTheme.text2(context)),
-            color: AppTheme.isDark(context)
-                ? const Color(0xFF111111)
-                : Colors.white,
-            onSelected: (value) {
-              if (value == 'logout') _handleLogout();
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout,
-                        color: AppTheme.goldColor(context), size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      l10n.translate('logout'),
-                      style: TextStyle(color: AppTheme.text1(context)),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ],
       ),
       body: _isLoggingOut
@@ -248,14 +223,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     label: 'FEED',
                   ),
                   BottomNavigationBarItem(
-                    icon: const Icon(Icons.people_outline),
-                    activeIcon: const Icon(Icons.people),
-                    label: l10n.translate('connect').toUpperCase(),
-                  ),
-                  BottomNavigationBarItem(
                     icon: const Icon(Icons.person_outline),
                     activeIcon: const Icon(Icons.person),
-                    label: l10n.translate('profile').toUpperCase(),
+                    label: 'PROFILE',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: const Icon(Icons.settings_outlined),
+                    activeIcon: const Icon(Icons.settings),
+                    label: 'SETTINGS',
                   ),
                 ],
               ),
