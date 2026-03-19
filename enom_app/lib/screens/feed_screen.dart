@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:video_player/video_player.dart';
 import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../theme/app_theme.dart';
@@ -328,7 +329,9 @@ class _FeedScreenState extends State<FeedScreen> {
     final post = _posts[index];
     final user = post['user'] as Map<String, dynamic>? ?? {};
     final userName = user['name'] as String? ?? 'Anonymous';
-    final userAvatar = user['profile_image'] as String?;
+    final userAvatar = (user['profile_image_url'] ?? user['profile_image']) as String?;
+    // ignore: avoid_print
+    print('[Feed] user: ${user['name']}, avatar: $userAvatar, keys: ${user.keys.toList()}');
     final content = post['content'] as String? ?? '';
     final media = post['media'] as List<dynamic>? ?? [];
     final reactionsCount = post['reactions_count'] as int? ?? 0;
@@ -377,7 +380,6 @@ class _FeedScreenState extends State<FeedScreen> {
                             color: AppTheme.goldColor(context).withValues(alpha: 0.4),
                             width: 1.5,
                           ),
-                          color: AppTheme.glassBg(context),
                         ),
                         child: ClipOval(
                           child: userAvatar != null && userAvatar.isNotEmpty
@@ -385,6 +387,8 @@ class _FeedScreenState extends State<FeedScreen> {
                                   userAvatar.startsWith('http')
                                       ? userAvatar
                                       : '${ApiService.baseUrl}/$userAvatar',
+                                  width: 40,
+                                  height: 40,
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => _avatarFallback(userName),
                                 )
@@ -508,9 +512,24 @@ class _FeedScreenState extends State<FeedScreen> {
     );
   }
 
+  List<String> _getImageUrls(List<dynamic> media) {
+    return media
+        .where((item) => _getMediaType(item).contains('image'))
+        .map((item) => _getMediaUrl(item))
+        .toList();
+  }
+
   Widget _buildMediaGrid(List<dynamic> media) {
+    final imageUrls = _getImageUrls(media);
+
     if (media.length == 1) {
-      return _buildMediaItem(media[0], double.infinity, 240);
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: _buildMediaItem(media[0], double.infinity, 240, imageUrls),
+        ),
+      );
     }
 
     return SizedBox(
@@ -522,51 +541,66 @@ class _FeedScreenState extends State<FeedScreen> {
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (_, i) => ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: _buildMediaItem(media[i], 200, 200),
+          child: _buildMediaItem(media[i], 200, 200, imageUrls),
         ),
       ),
     );
   }
 
-  Widget _buildMediaItem(dynamic item, double width, double height) {
-    String url = '';
-    String type = 'image';
+  String _getMediaUrl(dynamic item) {
     if (item is Map) {
-      // Try multiple possible keys for the URL
-      url = (item['url'] ?? item['file_url'] ?? item['path'] ?? item['file_path'] ?? item['media_url'] ?? '').toString();
-      type = (item['type'] ?? item['mime_type'] ?? item['file_type'] ?? 'image').toString();
-      // ignore: avoid_print
-      print('[Feed] media item keys: ${item.keys.toList()}, url: $url, type: $type');
-    } else if (item is String) {
-      url = item;
+      final url = (item['url'] ?? item['file_url'] ?? item['path'] ?? item['file_path'] ?? item['media_url'] ?? '').toString();
+      return url.startsWith('http') ? url : '${ApiService.baseUrl}/${url.replaceAll(RegExp(r'^/'), '')}';
     }
-    final fullUrl = url.startsWith('http') ? url : '${ApiService.baseUrl}/${url.replaceAll(RegExp(r'^/'), '')}';
+    final url = item.toString();
+    return url.startsWith('http') ? url : '${ApiService.baseUrl}/${url.replaceAll(RegExp(r'^/'), '')}';
+  }
+
+  String _getMediaType(dynamic item) {
+    if (item is Map) {
+      return (item['type'] ?? item['mime_type'] ?? item['file_type'] ?? 'image').toString();
+    }
+    return 'image';
+  }
+
+  Widget _buildMediaItem(dynamic item, double width, double height, List<String> imageUrls) {
+    final fullUrl = _getMediaUrl(item);
+    final type = _getMediaType(item);
 
     if (type.contains('video')) {
       return Container(
-        width: width == double.infinity ? null : width,
+        width: width == double.infinity ? double.infinity : width,
         height: height,
-        margin: width == double.infinity ? const EdgeInsets.symmetric(horizontal: 16) : null,
-        decoration: BoxDecoration(
-          color: AppTheme.glassBg(context),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Center(
-          child: Icon(Icons.play_circle_outline, size: 48,
-              color: AppTheme.goldColor(context).withValues(alpha: 0.7)),
+        color: Colors.black,
+        child: FeedInlineVideoPlayer(
+          url: fullUrl,
+          width: width,
+          height: height,
         ),
       );
     }
 
-    return Container(
-      width: width == double.infinity ? null : width,
-      height: height,
-      margin: width == double.infinity ? const EdgeInsets.symmetric(horizontal: 16) : null,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+    final initialIndex = imageUrls.indexOf(fullUrl);
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => FullImageScreen(
+              urls: imageUrls,
+              initialIndex: initialIndex >= 0 ? initialIndex : 0,
+            ),
+          ),
+        );
+      },
+      child: SizedBox(
+        width: width == double.infinity ? double.infinity : width,
+        height: height,
         child: Image.network(
           fullUrl,
           fit: BoxFit.cover,
+          width: double.infinity,
+          height: height,
           errorBuilder: (_, __, ___) => Container(
             color: AppTheme.glassBg(context),
             child: Icon(Icons.broken_image_outlined, color: AppTheme.textMuted(context)),
@@ -933,6 +967,342 @@ class _CommentsSheetState extends State<_CommentsSheet> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class FullImageScreen extends StatefulWidget {
+  final List<String> urls;
+  final int initialIndex;
+  const FullImageScreen({super.key, required this.urls, this.initialIndex = 0});
+
+  @override
+  State<FullImageScreen> createState() => _FullImageScreenState();
+}
+
+class _FullImageScreenState extends State<FullImageScreen> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: widget.urls.length > 1
+            ? Text(
+                '${_currentIndex + 1} / ${widget.urls.length}',
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              )
+            : null,
+        centerTitle: true,
+      ),
+      extendBodyBehindAppBar: true,
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.urls.length,
+        onPageChanged: (index) => setState(() => _currentIndex = index),
+        itemBuilder: (_, index) => Center(
+          child: InteractiveViewer(
+            minScale: 0.5,
+            maxScale: 4.0,
+            child: Image.network(
+              widget.urls[index],
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Icon(
+                Icons.broken_image_outlined,
+                size: 48,
+                color: Colors.white54,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class FeedInlineVideoPlayer extends StatefulWidget {
+  final String url;
+  final double width;
+  final double height;
+  const FeedInlineVideoPlayer({super.key, required this.url, required this.width, required this.height});
+
+  @override
+  State<FeedInlineVideoPlayer> createState() => _FeedInlineVideoPlayerState();
+}
+
+class _FeedInlineVideoPlayerState extends State<FeedInlineVideoPlayer> {
+  late VideoPlayerController _controller;
+  bool _initialized = false;
+  bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..initialize().then((_) {
+        if (mounted) {
+          setState(() => _initialized = true);
+          _controller.play();
+          _controller.setVolume(0);
+        }
+      }).catchError((_) {
+        if (mounted) setState(() => _hasError = true);
+      });
+    _controller.setLooping(true);
+    _controller.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_hasError) {
+      return Center(
+        child: Icon(Icons.error_outline, size: 36, color: Colors.white54),
+      );
+    }
+
+    if (!_initialized) {
+      return Center(
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: AppTheme.goldColor(context),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () {
+        _controller.pause();
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => VideoPlayerScreen(url: widget.url),
+          ),
+        ).then((_) {
+          if (mounted) {
+            _controller.play();
+          }
+        });
+      },
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox.expand(
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _controller.value.size.width == 0 ? 320 : _controller.value.size.width,
+                height: _controller.value.size.height == 0 ? 240 : _controller.value.size.height,
+                child: VideoPlayer(_controller),
+              ),
+            ),
+          ),
+          // Fullscreen button
+          Positioned(
+            right: 8,
+            bottom: 8,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              padding: const EdgeInsets.all(4),
+              child: const Icon(Icons.fullscreen_rounded, size: 20, color: Colors.white),
+            ),
+          ),
+          // Muted indicator
+          Positioned(
+            left: 8,
+            bottom: 8,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              padding: const EdgeInsets.all(4),
+              child: const Icon(Icons.volume_off_rounded, size: 16, color: Colors.white70),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class VideoPlayerScreen extends StatefulWidget {
+  final String url;
+  const VideoPlayerScreen({super.key, required this.url});
+
+  @override
+  State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
+}
+
+class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
+  late VideoPlayerController _controller;
+  bool _initialized = false;
+  bool _hasError = false;
+  bool _showControls = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..initialize().then((_) {
+        if (mounted) {
+          setState(() {
+            _initialized = true;
+          });
+          _controller.play();
+        }
+      }).catchError((_) {
+        if (mounted) {
+          setState(() => _hasError = true);
+        }
+      });
+    _controller.setLooping(true);
+    _controller.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _togglePlay() {
+    if (_controller.value.isPlaying) {
+      _controller.pause();
+    } else {
+      _controller.play();
+    }
+  }
+
+  void _toggleControls() {
+    setState(() => _showControls = !_showControls);
+  }
+
+  String _formatDuration(Duration d) {
+    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      extendBodyBehindAppBar: true,
+      body: GestureDetector(
+        onTap: _toggleControls,
+        child: Center(
+          child: _hasError
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: Colors.white54),
+                    const SizedBox(height: 12),
+                    Text('Failed to load video',
+                        style: GoogleFonts.jost(color: Colors.white54, fontSize: 14)),
+                  ],
+                )
+              : !_initialized
+                  ? CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppTheme.goldColor(context),
+                    )
+                  : Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        AspectRatio(
+                          aspectRatio: _controller.value.aspectRatio,
+                          child: VideoPlayer(_controller),
+                        ),
+                        if (_showControls) ...[
+                          // Play/pause button
+                          GestureDetector(
+                            onTap: _togglePlay,
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: Colors.black45,
+                                shape: BoxShape.circle,
+                              ),
+                              padding: const EdgeInsets.all(12),
+                              child: Icon(
+                                _controller.value.isPlaying
+                                    ? Icons.pause_rounded
+                                    : Icons.play_arrow_rounded,
+                                size: 40,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          // Progress bar at bottom
+                          Positioned(
+                            bottom: 40,
+                            left: 16,
+                            right: 16,
+                            child: Row(
+                              children: [
+                                Text(
+                                  _formatDuration(_controller.value.position),
+                                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: VideoProgressIndicator(
+                                    _controller,
+                                    allowScrubbing: true,
+                                    colors: VideoProgressColors(
+                                      playedColor: AppTheme.goldColor(context),
+                                      bufferedColor: Colors.white24,
+                                      backgroundColor: Colors.white12,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _formatDuration(_controller.value.duration),
+                                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+        ),
       ),
     );
   }
