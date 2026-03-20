@@ -9,6 +9,8 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/post_service.dart';
 import '../theme/app_theme.dart';
+import 'edit_post_screen.dart';
+import 'feed_screen.dart';
 import 'welcome_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -399,6 +401,17 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       });
     } else {
       setState(() => _isLoadingMorePosts = false);
+    }
+  }
+
+  Future<void> _editMyPost(int index) async {
+    final post = _myPosts[index];
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => EditPostScreen(post: post)),
+    );
+    if (updated == true) {
+      _postsLoaded = false;
+      _loadMyPosts();
     }
   }
 
@@ -839,9 +852,40 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     ],
                   ],
                   const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                    onPressed: () => _deleteMyPost(index),
+                  PopupMenuButton<String>(
+                    icon: Icon(
+                      Icons.more_horiz,
+                      color: AppTheme.textMuted(context),
+                      size: 20,
+                    ),
+                    color: AppTheme.bg2(context),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    onSelected: (value) {
+                      if (value == 'edit') _editMyPost(index);
+                      if (value == 'delete') _deleteMyPost(index);
+                    },
+                    itemBuilder: (ctx) => [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_outlined, color: AppTheme.goldColor(context), size: 18),
+                            const SizedBox(width: 8),
+                            Text('Edit Post', style: TextStyle(color: AppTheme.text1(context))),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+                            const SizedBox(width: 8),
+                            Text('Delete Post', style: TextStyle(color: AppTheme.text1(context))),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -871,19 +915,28 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     );
   }
 
+  List<String> _getPostImageUrls(List<dynamic> media) {
+    return media
+        .where((item) => _getPostMediaType(item).contains('image'))
+        .map((item) => _getPostMediaUrl(item))
+        .toList();
+  }
+
   Widget _buildPostMediaGrid(List<dynamic> media) {
+    final imageUrls = _getPostImageUrls(media);
+
     if (media.length == 1) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: _buildMediaWidget(media[0], double.infinity, 200),
+          child: _buildMediaWidget(media[0], double.infinity, 240, imageUrls),
         ),
       );
     }
 
     return SizedBox(
-      height: 180,
+      height: 240,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -891,7 +944,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (_, i) => ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: _buildMediaWidget(media[i], 180, 180),
+          child: _buildMediaWidget(media[i], 280, 240, imageUrls),
         ),
       ),
     );
@@ -899,10 +952,11 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
 
   String _getPostMediaUrl(dynamic item) {
     if (item is Map) {
-      final url = (item['url'] ?? item['file_url'] ?? item['path'] ?? '').toString();
+      final url = (item['url'] ?? item['file_url'] ?? item['path'] ?? item['file_path'] ?? item['media_url'] ?? '').toString();
       return url.startsWith('http') ? url : '${ApiService.baseUrl}/${url.replaceAll(RegExp(r'^/'), '')}';
     }
-    return item.toString();
+    final url = item.toString();
+    return url.startsWith('http') ? url : '${ApiService.baseUrl}/${url.replaceAll(RegExp(r'^/'), '')}';
   }
 
   String _getPostMediaType(dynamic item) {
@@ -912,54 +966,64 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     return 'image';
   }
 
-  Widget _buildMediaWidget(dynamic item, double width, double height) {
-    final url = _getPostMediaUrl(item);
+  Widget _buildMediaWidget(dynamic item, double width, double height, List<String> imageUrls) {
+    final fullUrl = _getPostMediaUrl(item);
     final type = _getPostMediaType(item);
 
     if (type.contains('video')) {
       return Container(
-        width: width,
+        width: width == double.infinity ? double.infinity : width,
         height: height,
         color: Colors.black,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Icon(Icons.videocam, color: AppTheme.goldColor(context), size: 40),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.5),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.play_arrow, color: Colors.white, size: 28),
-            ),
-            Positioned(
-              bottom: 8,
-              left: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text('VIDEO', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
-              ),
-            ),
-          ],
+        child: FeedInlineVideoPlayer(
+          url: fullUrl,
+          width: width,
+          height: height,
         ),
       );
     }
 
-    return Image.network(
-      url,
-      width: width,
-      height: height,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => Container(
-        width: width,
+    final initialIndex = imageUrls.indexOf(fullUrl);
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => FullImageScreen(
+              urls: imageUrls,
+              initialIndex: initialIndex >= 0 ? initialIndex : 0,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        width: width == double.infinity ? double.infinity : width,
         height: height,
-        color: AppTheme.glassBg(context),
-        child: Icon(Icons.broken_image_outlined, color: AppTheme.textMuted(context)),
+        color: AppTheme.isDark(context)
+            ? const Color(0xFF2A2520)
+            : const Color(0xFFF5F0E8),
+        child: Image.network(
+          fullUrl,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: height,
+          loadingBuilder: (_, child, progress) {
+            if (progress == null) return child;
+            return Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppTheme.goldColor(context),
+              ),
+            );
+          },
+          errorBuilder: (_, __, ___) => Container(
+            color: AppTheme.glassBg(context),
+            child: Icon(
+              Icons.broken_image_outlined,
+              color: AppTheme.textMuted(context),
+            ),
+          ),
+        ),
       ),
     );
   }

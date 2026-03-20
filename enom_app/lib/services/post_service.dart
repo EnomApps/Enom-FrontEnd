@@ -84,6 +84,79 @@ class PostService {
     return (success: status == 200, message: msg);
   }
 
+  /// Update a post's content and/or visibility (text only).
+  static Future<({bool success, String message, Map<String, dynamic>? post})> updatePost(
+    int postId, {
+    String? content,
+    String? visibility,
+  }) async {
+    final body = <String, dynamic>{
+      if (content != null) 'content': content,
+      if (visibility != null) 'visibility': visibility,
+    };
+
+    final result = await ApiService.put('/api/posts/$postId', body, auth: true);
+    final status = result['statusCode'] as int;
+    final resBody = result['body'];
+
+    if (status == 200 && resBody is Map<String, dynamic>) {
+      return (
+        success: true,
+        message: resBody['message'] as String? ?? 'Post updated',
+        post: resBody['post'] as Map<String, dynamic>?,
+      );
+    }
+
+    final msg = resBody is Map ? (resBody['message'] as String? ?? 'Failed to update post') : 'Failed to update post';
+    return (success: false, message: msg, post: null);
+  }
+
+  /// Update a post with media support (uses POST + _method=PUT for multipart).
+  static Future<({bool success, String message, Map<String, dynamic>? post})> updatePostWithMedia(
+    int postId, {
+    String? content,
+    String? visibility,
+    List<Uint8List>? newMediaBytes,
+    List<String>? newMediaNames,
+    List<int>? keepMediaIds,
+  }) async {
+    final fields = <String, String>{
+      '_method': 'PUT',
+      if (content != null) 'content': content,
+      if (visibility != null) 'visibility': visibility,
+    };
+
+    // Tell the server which existing media to keep
+    if (keepMediaIds != null) {
+      for (int i = 0; i < keepMediaIds.length; i++) {
+        fields['keep_media[$i]'] = keepMediaIds[i].toString();
+      }
+    }
+
+    final result = await ApiService.postMultipartMultiFile(
+      '/api/posts/$postId',
+      fields: fields,
+      fileField: 'media',
+      filesBytes: newMediaBytes,
+      fileNames: newMediaNames,
+      auth: true,
+    );
+
+    final status = result['statusCode'] as int;
+    final resBody = result['body'];
+
+    if (status == 200 && resBody is Map<String, dynamic>) {
+      return (
+        success: true,
+        message: resBody['message'] as String? ?? 'Post updated',
+        post: resBody['post'] as Map<String, dynamic>?,
+      );
+    }
+
+    final msg = resBody is Map ? (resBody['message'] as String? ?? 'Failed to update post') : 'Failed to update post';
+    return (success: false, message: msg, post: null);
+  }
+
   /// Toggle a reaction on a post. Type: like, love, haha, wow.
   static Future<({bool success, String message})> toggleReaction(int postId, String type) async {
     final result = await ApiService.post(

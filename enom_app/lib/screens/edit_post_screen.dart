@@ -6,25 +6,51 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:video_compress/video_compress.dart';
 import 'package:video_player/video_player.dart';
+import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../theme/app_theme.dart';
 
-class CreatePostScreen extends StatefulWidget {
-  const CreatePostScreen({super.key});
+class EditPostScreen extends StatefulWidget {
+  final Map<String, dynamic> post;
+
+  const EditPostScreen({super.key, required this.post});
 
   @override
-  State<CreatePostScreen> createState() => _CreatePostScreenState();
+  State<EditPostScreen> createState() => _EditPostScreenState();
 }
 
-class _CreatePostScreenState extends State<CreatePostScreen> {
-  final TextEditingController _contentController = TextEditingController();
-  final List<_MediaFile> _mediaFiles = [];
+class _EditPostScreenState extends State<EditPostScreen> {
+  late TextEditingController _contentController;
+  final List<_ExistingMedia> _existingMedia = [];
+  final List<_NewMediaFile> _newMedia = [];
   String _visibility = 'public';
-  bool _isPosting = false;
+  bool _isSaving = false;
   bool _isCompressing = false;
   double _compressionProgress = 0.0;
 
   static const int _maxMedia = 10;
+
+  @override
+  void initState() {
+    super.initState();
+    _contentController = TextEditingController(
+      text: widget.post['content'] as String? ?? '',
+    );
+    _visibility = widget.post['visibility'] as String? ?? 'public';
+
+    // Load existing media
+    final media = widget.post['media'] as List<dynamic>? ?? [];
+    for (final item in media) {
+      if (item is Map<String, dynamic>) {
+        final id = item['id'] as int?;
+        final url = _getMediaUrl(item);
+        final type = _getMediaType(item);
+        if (id != null) {
+          _existingMedia.add(_ExistingMedia(id: id, url: url, type: type));
+        }
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -32,17 +58,24 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     super.dispose();
   }
 
-  bool get _canPost =>
-      _contentController.text.trim().isNotEmpty || _mediaFiles.isNotEmpty;
+  String _getMediaUrl(Map<String, dynamic> item) {
+    final url = (item['url'] ?? item['file_url'] ?? item['path'] ?? item['file_path'] ?? item['media_url'] ?? '').toString();
+    return url.startsWith('http') ? url : '${ApiService.baseUrl}/${url.replaceAll(RegExp(r'^/'), '')}';
+  }
+
+  String _getMediaType(Map<String, dynamic> item) {
+    return (item['type'] ?? item['mime_type'] ?? item['file_type'] ?? 'image').toString();
+  }
+
+  int get _totalMedia => _existingMedia.length + _newMedia.length;
+
+  bool get _canSave =>
+      _contentController.text.trim().isNotEmpty || _existingMedia.isNotEmpty || _newMedia.isNotEmpty;
 
   Future<bool> _requestMediaPermission({bool isVideo = false}) async {
     PermissionStatus status;
     if (Platform.isAndroid) {
-      if (isVideo) {
-        status = await Permission.videos.request();
-      } else {
-        status = await Permission.photos.request();
-      }
+      status = isVideo ? await Permission.videos.request() : await Permission.photos.request();
     } else {
       status = await Permission.photos.request();
     }
@@ -80,7 +113,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   Future<void> _pickImages() async {
-    if (_mediaFiles.length >= _maxMedia) {
+    if (_totalMedia >= _maxMedia) {
       AppTheme.showSnackBar(context, 'Maximum $_maxMedia media files allowed', isError: true);
       return;
     }
@@ -88,7 +121,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     if (!await _requestMediaPermission()) return;
 
     final picker = ImagePicker();
-    // WhatsApp-style: cap at 1600px and 85% quality
     final images = await picker.pickMultiImage(
       maxWidth: 1600,
       maxHeight: 1600,
@@ -97,14 +129,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
     if (images.isEmpty) return;
 
-    final remaining = _maxMedia - _mediaFiles.length;
+    final remaining = _maxMedia - _totalMedia;
     final toAdd = images.take(remaining);
 
     for (final img in toAdd) {
       final bytes = await img.readAsBytes();
       if (mounted) {
         setState(() {
-          _mediaFiles.add(_MediaFile(
+          _newMedia.add(_NewMediaFile(
             bytes: bytes,
             name: img.name,
             type: 'image',
@@ -115,10 +147,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
-  /// Compress video to 480p (WhatsApp-style) before upload.
-  /// Returns compressed file path and bytes, or null if cancelled/failed.
   Future<({String path, Uint8List bytes})?> _compressVideo(String filePath) async {
-    // Show compression progress dialog
     final subscription = VideoCompress.compressProgress$.subscribe((progress) {
       if (mounted) {
         setState(() => _compressionProgress = progress / 100.0);
@@ -165,18 +194,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   Future<void> _pickVideo() async {
-    if (_mediaFiles.length >= _maxMedia) {
+    if (_totalMedia >= _maxMedia) {
       AppTheme.showSnackBar(context, 'Maximum $_maxMedia media files allowed', isError: true);
       return;
     }
 
-    if (!await _requestMediaPermission(isVideo: true)) {
-      return;
-    }
+    if (!await _requestMediaPermission(isVideo: true)) return;
 
     final picker = ImagePicker();
-    // Pick multiple videos one at a time until user cancels or limit reached
-    while (_mediaFiles.length < _maxMedia) {
+
+    while (_totalMedia < _maxMedia) {
       final video = await picker.pickVideo(
         source: ImageSource.gallery,
         maxDuration: const Duration(minutes: 5),
@@ -187,13 +214,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       final originalBytes = await video.readAsBytes();
       final originalSize = originalBytes.length;
 
-      // Compress video (WhatsApp-style 480p compression)
       final compressed = await _compressVideo(video.path);
 
       if (compressed == null) {
-        if (mounted) {
-          AppTheme.showSnackBar(context, 'Video skipped', isError: true);
-        }
+        if (mounted) AppTheme.showSnackBar(context, 'Video skipped', isError: true);
         break;
       }
 
@@ -208,7 +232,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           );
         }
         setState(() {
-          _mediaFiles.add(_MediaFile(
+          _newMedia.add(_NewMediaFile(
             bytes: compressed.bytes,
             name: video.name,
             type: 'video',
@@ -219,8 +243,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
       if (!mounted) break;
 
-      // Ask if user wants to add more videos
-      if (_mediaFiles.length < _maxMedia) {
+      if (_totalMedia < _maxMedia) {
         final addMore = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -229,7 +252,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             title: Text('Add another video?',
                 style: GoogleFonts.jost(color: AppTheme.text1(context), fontWeight: FontWeight.w600)),
             content: Text(
-                '${_mediaFiles.length} of $_maxMedia media added.',
+                '$_totalMedia of $_maxMedia media added.',
                 style: GoogleFonts.jost(color: AppTheme.textMuted(context))),
             actions: [
               TextButton(
@@ -248,28 +271,36 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
-  void _removeMedia(int index) {
-    setState(() => _mediaFiles.removeAt(index));
+  void _removeExistingMedia(int index) {
+    setState(() => _existingMedia.removeAt(index));
   }
 
-  Future<void> _createPost() async {
-    if (!_canPost) return;
+  void _removeNewMedia(int index) {
+    setState(() => _newMedia.removeAt(index));
+  }
 
-    setState(() => _isPosting = true);
+  Future<void> _savePost() async {
+    if (!_canSave) return;
 
-    final result = await PostService.createPost(
+    setState(() => _isSaving = true);
+
+    final keepIds = _existingMedia.map((m) => m.id).toList();
+
+    final result = await PostService.updatePostWithMedia(
+      widget.post['id'] as int,
       content: _contentController.text.trim(),
       visibility: _visibility,
-      mediaBytes: _mediaFiles.isNotEmpty ? _mediaFiles.map((f) => f.bytes).toList() : null,
-      mediaNames: _mediaFiles.isNotEmpty ? _mediaFiles.map((f) => f.name).toList() : null,
+      keepMediaIds: keepIds,
+      newMediaBytes: _newMedia.isNotEmpty ? _newMedia.map((f) => f.bytes).toList() : null,
+      newMediaNames: _newMedia.isNotEmpty ? _newMedia.map((f) => f.name).toList() : null,
     );
 
     if (!mounted) return;
 
-    setState(() => _isPosting = false);
+    setState(() => _isSaving = false);
 
     if (result.success) {
-      AppTheme.showSnackBar(context, 'Post created successfully!');
+      AppTheme.showSnackBar(context, 'Post updated successfully!');
       Navigator.of(context).pop(true);
     } else {
       AppTheme.showSnackBar(context, result.message, isError: true);
@@ -288,38 +319,35 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           icon: Icon(Icons.close, color: AppTheme.text1(context)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          'CREATE POST',
-          style: AppTheme.label(context, size: 12),
-        ),
+        title: Text('EDIT POST', style: AppTheme.label(context, size: 12)),
         centerTitle: true,
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: GestureDetector(
-              onTap: (_canPost && !_isPosting) ? _createPost : null,
+              onTap: (_canSave && !_isSaving) ? _savePost : null,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                 decoration: BoxDecoration(
-                  gradient: (_canPost && !_isPosting) ? AppTheme.goldGradient2 : null,
-                  color: (!_canPost || _isPosting) ? AppTheme.glassBg(context) : null,
+                  gradient: (_canSave && !_isSaving) ? AppTheme.goldGradient2 : null,
+                  color: (!_canSave || _isSaving) ? AppTheme.glassBg(context) : null,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: _isPosting
-                    ? SizedBox(
+                child: _isSaving
+                    ? const SizedBox(
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
-                          color: const Color(0xFF1A1612),
+                          color: Color(0xFF1A1612),
                           strokeWidth: 2,
                         ),
                       )
                     : Text(
-                        'Post',
+                        'Save',
                         style: GoogleFonts.jost(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: _canPost
+                          color: _canSave
                               ? const Color(0xFF1A1612)
                               : AppTheme.textMuted(context),
                         ),
@@ -368,17 +396,22 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Media preview
-                  if (_mediaFiles.isNotEmpty) ...[
+                  // Existing media
+                  if (_existingMedia.isNotEmpty || _newMedia.isNotEmpty) ...[
                     Text('MEDIA', style: AppTheme.label(context, size: 10)),
                     const SizedBox(height: 12),
                     SizedBox(
                       height: 120,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
-                        itemCount: _mediaFiles.length,
+                        itemCount: _existingMedia.length + _newMedia.length,
                         separatorBuilder: (_, __) => const SizedBox(width: 10),
-                        itemBuilder: (_, i) => _buildMediaPreview(i),
+                        itemBuilder: (_, i) {
+                          if (i < _existingMedia.length) {
+                            return _buildExistingMediaPreview(i);
+                          }
+                          return _buildNewMediaPreview(i - _existingMedia.length);
+                        },
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -440,7 +473,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               ),
             ),
           ),
-          // Compression overlay — on top of everything
+          // Compression overlay
           if (_isCompressing)
             Container(
               color: Colors.black.withValues(alpha: 0.7),
@@ -509,140 +542,188 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     );
   }
 
-  void _showMediaPreview(int index) {
-    final file = _mediaFiles[index];
-    if (file.type == 'video' && file.filePath != null) {
-      _showVideoPreview(file);
-    } else if (file.type == 'image') {
-      _showImagePreview(file);
-    }
-  }
-
-  void _showImagePreview(_MediaFile file) {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(16),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Image.memory(
-                file.bytes,
-                fit: BoxFit.contain,
+  Widget _buildExistingMediaPreview(int index) {
+    final media = _existingMedia[index];
+    return Container(
+      width: 120,
+      height: 120,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade900,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (media.type.contains('video'))
+            Container(
+              color: Colors.black,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(Icons.videocam, color: AppTheme.goldColor(context), size: 32),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.play_arrow, color: Colors.white, size: 20),
+                  ),
+                ],
+              ),
+            )
+          else
+            Image.network(
+              media.url,
+              width: 120,
+              height: 120,
+              fit: BoxFit.cover,
+              loadingBuilder: (_, child, progress) {
+                if (progress == null) return child;
+                return Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppTheme.goldColor(context),
+                  ),
+                );
+              },
+              errorBuilder: (_, __, ___) => Container(
+                color: AppTheme.glassBg(context),
+                child: Icon(Icons.broken_image_outlined, color: AppTheme.textMuted(context)),
               ),
             ),
+          // Type badge
+          if (media.type.contains('video'))
             Positioned(
-              top: 0,
-              right: 0,
-              child: GestureDetector(
-                onTap: () => Navigator.pop(ctx),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.6),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.close, color: Colors.white, size: 20),
+              bottom: 6,
+              left: 6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.play_arrow, color: Colors.white, size: 12),
+                    SizedBox(width: 2),
+                    Text('VIDEO', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w600)),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
+          // Remove button
+          Positioned(
+            top: 4,
+            right: 4,
+            child: GestureDetector(
+              onTap: () => _removeExistingMedia(index),
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, color: Colors.white, size: 14),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  void _showVideoPreview(_MediaFile file) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => _VideoPreviewScreen(filePath: file.filePath!),
+  Widget _buildNewMediaPreview(int index) {
+    final file = _newMedia[index];
+    return Container(
+      width: 120,
+      height: 120,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade900,
+        borderRadius: BorderRadius.circular(14),
       ),
-    );
-  }
-
-  Widget _buildMediaPreview(int index) {
-    final file = _mediaFiles[index];
-    return GestureDetector(
-      onTap: () => _showMediaPreview(index),
-      child: Container(
-        width: 120,
-        height: 120,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade900,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Image/Video thumbnail
-            if (file.type == 'video')
-              _VideoThumbnail(filePath: file.filePath, name: file.name)
-            else if (file.filePath != null)
-              Image.file(
-                File(file.filePath!),
-                width: 120,
-                height: 120,
-                fit: BoxFit.cover,
-                cacheWidth: 300,
-                errorBuilder: (_, __, ___) => Image.memory(
-                  file.bytes,
-                  width: 120,
-                  height: 120,
-                  fit: BoxFit.cover,
-                ),
-              )
-            else
-              Image.memory(
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (file.type == 'video')
+            _VideoThumbnail(filePath: file.filePath, name: file.name)
+          else if (file.filePath != null)
+            Image.file(
+              File(file.filePath!),
+              width: 120,
+              height: 120,
+              fit: BoxFit.cover,
+              cacheWidth: 300,
+              errorBuilder: (_, __, ___) => Image.memory(
                 file.bytes,
                 width: 120,
                 height: 120,
                 fit: BoxFit.cover,
               ),
-            // Type badge
-            if (file.type == 'video')
-              Positioned(
-                bottom: 6,
-                left: 6,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.play_arrow, color: Colors.white, size: 12),
-                      SizedBox(width: 2),
-                      Text('VIDEO', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ),
-              ),
-            // Remove button
+            )
+          else
+            Image.memory(
+              file.bytes,
+              width: 120,
+              height: 120,
+              fit: BoxFit.cover,
+            ),
+          // Type badge
+          if (file.type == 'video')
             Positioned(
-              top: 4,
-              right: 4,
-              child: GestureDetector(
-                onTap: () => _removeMedia(index),
-                child: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.6),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.close, color: Colors.white, size: 14),
+              bottom: 6,
+              left: 6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.play_arrow, color: Colors.white, size: 12),
+                    SizedBox(width: 2),
+                    Text('VIDEO', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w600)),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
+          // "NEW" badge
+          Positioned(
+            bottom: 6,
+            right: 6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.goldColor(context),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text('NEW', style: TextStyle(color: Color(0xFF1A1612), fontSize: 8, fontWeight: FontWeight.w700)),
+            ),
+          ),
+          // Remove button
+          Positioned(
+            top: 4,
+            right: 4,
+            child: GestureDetector(
+              onTap: () => _removeNewMedia(index),
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, color: Colors.white, size: 14),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -692,17 +773,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           decoration: BoxDecoration(
             color: isSelected ? goldC.withValues(alpha: 0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
-            border: isSelected
-                ? Border.all(color: goldC.withValues(alpha: 0.3))
-                : null,
+            border: isSelected ? Border.all(color: goldC.withValues(alpha: 0.3)) : null,
           ),
           child: Column(
             children: [
-              Icon(
-                icon,
-                size: 20,
-                color: isSelected ? goldC : AppTheme.textMuted(context),
-              ),
+              Icon(icon, size: 20, color: isSelected ? goldC : AppTheme.textMuted(context)),
               const SizedBox(height: 4),
               Text(
                 label,
@@ -720,7 +795,24 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 }
 
-// Video thumbnail widget - shows first frame of video
+class _ExistingMedia {
+  final int id;
+  final String url;
+  final String type;
+
+  _ExistingMedia({required this.id, required this.url, required this.type});
+}
+
+class _NewMediaFile {
+  final Uint8List bytes;
+  final String name;
+  final String type;
+  final String? filePath;
+
+  _NewMediaFile({required this.bytes, required this.name, required this.type, this.filePath});
+}
+
+// Video thumbnail widget
 class _VideoThumbnail extends StatefulWidget {
   final String? filePath;
   final String name;
@@ -804,108 +896,4 @@ class _VideoThumbnailState extends State<_VideoThumbnail> {
       ),
     );
   }
-}
-
-// Full-screen video preview
-class _VideoPreviewScreen extends StatefulWidget {
-  final String filePath;
-
-  const _VideoPreviewScreen({required this.filePath});
-
-  @override
-  State<_VideoPreviewScreen> createState() => _VideoPreviewScreenState();
-}
-
-class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
-  late VideoPlayerController _controller;
-  bool _initialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = VideoPlayerController.file(File(widget.filePath))
-      ..initialize().then((_) {
-        if (mounted) {
-          setState(() => _initialized = true);
-          _controller.play();
-        }
-      });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text('Preview', style: GoogleFonts.jost(color: Colors.white, fontSize: 16)),
-        centerTitle: true,
-      ),
-      body: Center(
-        child: _initialized
-            ? GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _controller.value.isPlaying ? _controller.pause() : _controller.play();
-                  });
-                },
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    AspectRatio(
-                      aspectRatio: _controller.value.aspectRatio,
-                      child: VideoPlayer(_controller),
-                    ),
-                    if (!_controller.value.isPlaying)
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.5),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.play_arrow, color: Colors.white, size: 40),
-                      ),
-                  ],
-                ),
-              )
-            : const CircularProgressIndicator(color: Colors.white),
-      ),
-      bottomNavigationBar: _initialized
-          ? SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: VideoProgressIndicator(
-                  _controller,
-                  allowScrubbing: true,
-                  colors: VideoProgressColors(
-                    playedColor: AppTheme.goldColor(context),
-                    bufferedColor: Colors.white24,
-                    backgroundColor: Colors.white12,
-                  ),
-                ),
-              ),
-            )
-          : null,
-    );
-  }
-}
-
-class _MediaFile {
-  final Uint8List bytes;
-  final String name;
-  final String type;
-  final String? filePath;
-
-  _MediaFile({required this.bytes, required this.name, required this.type, this.filePath});
 }

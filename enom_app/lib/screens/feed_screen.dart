@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../theme/app_theme.dart';
 import 'create_post_screen.dart';
+import 'edit_post_screen.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -126,6 +127,16 @@ class _FeedScreenState extends State<FeedScreen> {
     });
 
     await PostService.toggleReaction(postId, type);
+  }
+
+  Future<void> _editPost(int index) async {
+    final post = _posts[index];
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => EditPostScreen(post: post)),
+    );
+    if (updated == true) {
+      _onRefresh();
+    }
   }
 
   Future<void> _deletePost(int index) async {
@@ -481,11 +492,32 @@ class _FeedScreenState extends State<FeedScreen> {
                         size: 20,
                       ),
                       color: AppTheme.bg2(context),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       onSelected: (value) {
+                        if (value == 'edit') _editPost(index);
                         if (value == 'delete') _deletePost(index);
                       },
                       itemBuilder:
                           (ctx) => [
+                            PopupMenuItem(
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.edit_outlined,
+                                    color: AppTheme.goldColor(context),
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Edit Post',
+                                    style: TextStyle(
+                                      color: AppTheme.text1(context),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                             PopupMenuItem(
                               value: 'delete',
                               child: Row(
@@ -497,7 +529,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Delete',
+                                    'Delete Post',
                                     style: TextStyle(
                                       color: AppTheme.text1(context),
                                     ),
@@ -600,7 +632,7 @@ class _FeedScreenState extends State<FeedScreen> {
     }
 
     return SizedBox(
-      height: 200,
+      height: 240,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -609,7 +641,7 @@ class _FeedScreenState extends State<FeedScreen> {
         itemBuilder:
             (_, i) => ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: _buildMediaItem(media[i], 200, 200, imageUrls),
+              child: _buildMediaItem(media[i], 280, 240, imageUrls),
             ),
       ),
     );
@@ -947,7 +979,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                   16,
                   8,
                   16,
-                  MediaQuery.of(context).viewInsets.bottom + 12,
+                  MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom + 12,
                 ),
                 decoration: BoxDecoration(
                   color: AppTheme.bg2(context),

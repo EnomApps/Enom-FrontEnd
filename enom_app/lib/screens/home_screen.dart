@@ -184,6 +184,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: AppTheme.goldColor(context)),
             )
           : _buildBody(l10n),
+      extendBody: true,
       bottomNavigationBar: ClipRect(
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),

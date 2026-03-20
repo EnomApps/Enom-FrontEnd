@@ -256,6 +256,35 @@ class ApiService {
   }
 
   /// HTTP DELETE request
+  static Future<Map<String, dynamic>> put(
+    String endpoint,
+    Map<String, dynamic> body, {
+    bool auth = false,
+  }) async {
+    String? token;
+    if (auth) {
+      token = await getToken();
+    }
+
+    final response = await http.put(
+      Uri.parse('$baseUrl$endpoint'),
+      headers: _headers(token: token),
+      body: json.encode(body),
+    );
+
+    dynamic decoded;
+    try {
+      decoded = json.decode(response.body);
+    } catch (_) {
+      decoded = {'message': 'Server error. Please try again later.'};
+    }
+
+    return {
+      'statusCode': response.statusCode,
+      'body': decoded,
+    };
+  }
+
   static Future<Map<String, dynamic>> delete(
     String endpoint, {
     bool auth = false,
