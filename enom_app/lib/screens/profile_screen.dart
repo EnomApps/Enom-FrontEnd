@@ -873,23 +873,11 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
 
   Widget _buildPostMediaGrid(List<dynamic> media) {
     if (media.length == 1) {
-      final item = media[0];
-      final url = _getPostMediaUrl(item);
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: Image.network(
-            url,
-            height: 200,
-            width: double.infinity,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
-              height: 200,
-              color: AppTheme.glassBg(context),
-              child: Icon(Icons.broken_image_outlined, color: AppTheme.textMuted(context)),
-            ),
-          ),
+          child: _buildMediaWidget(media[0], double.infinity, 200),
         ),
       );
     }
@@ -901,24 +889,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: media.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (_, i) {
-          final url = _getPostMediaUrl(media[i]);
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              url,
-              width: 180,
-              height: 180,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 180,
-                height: 180,
-                color: AppTheme.glassBg(context),
-                child: Icon(Icons.broken_image_outlined, color: AppTheme.textMuted(context)),
-              ),
-            ),
-          );
-        },
+        itemBuilder: (_, i) => ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: _buildMediaWidget(media[i], 180, 180),
+        ),
       ),
     );
   }
@@ -929,6 +903,65 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       return url.startsWith('http') ? url : '${ApiService.baseUrl}/${url.replaceAll(RegExp(r'^/'), '')}';
     }
     return item.toString();
+  }
+
+  String _getPostMediaType(dynamic item) {
+    if (item is Map) {
+      return (item['type'] ?? item['mime_type'] ?? item['file_type'] ?? 'image').toString();
+    }
+    return 'image';
+  }
+
+  Widget _buildMediaWidget(dynamic item, double width, double height) {
+    final url = _getPostMediaUrl(item);
+    final type = _getPostMediaType(item);
+
+    if (type.contains('video')) {
+      return Container(
+        width: width,
+        height: height,
+        color: Colors.black,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(Icons.videocam, color: AppTheme.goldColor(context), size: 40),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.play_arrow, color: Colors.white, size: 28),
+            ),
+            Positioned(
+              bottom: 8,
+              left: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text('VIDEO', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Image.network(
+      url,
+      width: width,
+      height: height,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(
+        width: width,
+        height: height,
+        color: AppTheme.glassBg(context),
+        child: Icon(Icons.broken_image_outlined, color: AppTheme.textMuted(context)),
+      ),
+    );
   }
 
   Widget _buildProfileImage() {
