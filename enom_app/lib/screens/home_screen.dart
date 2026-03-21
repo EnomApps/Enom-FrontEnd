@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -21,7 +22,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
   Map<String, dynamic>? _user;
   bool _isLoggingOut = false;
@@ -29,10 +30,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Mood detection
   MoodDetectionService? _moodService;
-  MoodResult _currentMood = MoodResult.none;
-  bool _isMoodScanActive = false;
+  bool _isScanning = false;
   bool _isMoodInitializing = false;
   String? _moodError;
+  double _scanProgress = 0.0;
+  MoodResult? _liveMood; // real-time during scan
+  MoodResult? _finalMood; // final result after scan completes
+  StreamSubscription? _scanSub;
+
+  // Scan progress animation
+  AnimationController? _progressController;
 
   @override
   void initState() {
@@ -47,11 +54,14 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _startMoodScan() async {
-    if (_isMoodInitializing) return;
+  Future<void> _startQuickScan() async {
+    if (_isMoodInitializing || _isScanning) return;
     setState(() {
       _isMoodInitializing = true;
       _moodError = null;
+      _finalMood = null;
+      _liveMood = null;
+      _scanProgress = 0.0;
     });
 
     final status = await Permission.camera.request();
@@ -78,32 +88,72 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    _moodService!.moodStream.listen((result) {
+    // Start progress animation (4 seconds)
+    _progressController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    );
+    _progressController!.addListener(() {
       if (mounted) {
-        setState(() => _currentMood = result);
+        setState(() => _scanProgress = _progressController!.value);
+      }
+    });
+    _progressController!.forward();
+
+    // Listen for scan events
+    _scanSub = _moodService!.scanStream.listen((event) {
+      if (!mounted) return;
+      setState(() {
+        _liveMood = event.latestMood;
+      });
+
+      if (event.isDone && event.finalResult != null) {
+        _onScanComplete(event.finalResult!);
       }
     });
 
-    _moodService!.startDetection();
+    _moodService!.startQuickScan();
 
     setState(() {
-      _isMoodScanActive = true;
+      _isScanning = true;
       _isMoodInitializing = false;
     });
   }
 
-  Future<void> _stopMoodScan() async {
-    _moodService?.stopDetection();
-    await _moodService?.dispose();
+  void _onScanComplete(MoodResult result) async {
+    _progressController?.stop();
+    _scanSub?.cancel();
+    _scanSub = null;
+
+    // Keep camera preview visible briefly, then close
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    _moodService?.dispose();
     _moodService = null;
+    _progressController?.dispose();
+    _progressController = null;
+
     if (mounted) {
-      setState(() => _isMoodScanActive = false);
+      setState(() {
+        _isScanning = false;
+        _finalMood = result;
+        _scanProgress = 1.0;
+        // Also update the selected mood pill to match
+        if (result.mood == 'Happy' ||
+            result.mood == 'Calm' ||
+            result.mood == 'Sad' ||
+            result.mood == 'Angry') {
+          _selectedMood = result.mood;
+        }
+      });
     }
   }
 
   Future<void> _handleLogout() async {
     setState(() => _isLoggingOut = true);
-    await _stopMoodScan();
+    _scanSub?.cancel();
+    _moodService?.dispose();
+    _moodService = null;
     await AuthService.logout();
 
     if (!mounted) return;
@@ -117,9 +167,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    _moodService?.stopDetection();
+    _scanSub?.cancel();
+    _progressController?.dispose();
     _moodService?.dispose();
     super.dispose();
+  }
+
+  String _getTimeGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
   }
 
   @override
@@ -135,7 +193,6 @@ class _HomeScreenState extends State<HomeScreen> {
         automaticallyImplyLeading: false,
         title: Row(
           children: [
-            // Mini logo mark
             Container(
               width: 36,
               height: 36,
@@ -214,23 +271,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     GoogleFonts.jost(fontSize: 9, letterSpacing: 2),
                 items: [
                   BottomNavigationBarItem(
-                    icon: const Icon(Icons.home_outlined),
-                    activeIcon: const Icon(Icons.home),
+                    icon: const Icon(Icons.spa_outlined),
+                    activeIcon: const Icon(Icons.spa),
                     label: l10n.translate('home').toUpperCase(),
                   ),
                   BottomNavigationBarItem(
-                    icon: const Icon(Icons.dynamic_feed_outlined),
-                    activeIcon: const Icon(Icons.dynamic_feed),
-                    label: 'FEED',
+                    icon: const Icon(Icons.explore_outlined),
+                    activeIcon: const Icon(Icons.explore),
+                    label: 'DISCOVER',
                   ),
                   BottomNavigationBarItem(
-                    icon: const Icon(Icons.person_outline),
-                    activeIcon: const Icon(Icons.person),
+                    icon: const Icon(Icons.person_outline_rounded),
+                    activeIcon: const Icon(Icons.person_rounded),
                     label: 'PROFILE',
                   ),
                   BottomNavigationBarItem(
-                    icon: const Icon(Icons.settings_outlined),
-                    activeIcon: const Icon(Icons.settings),
+                    icon: const Icon(Icons.tune_outlined),
+                    activeIcon: const Icon(Icons.tune),
                     label: 'SETTINGS',
                   ),
                 ],
@@ -259,7 +316,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHomeTab(AppLocalizations l10n) {
     final userName = _user?['name'] as String? ?? '';
-    final moodScore = _currentMood.score;
+    final displayMood = _finalMood ?? MoodResult.none;
+    final moodScore = displayMood.score;
     final moodProgress = moodScore / 100.0;
 
     return Stack(
@@ -280,7 +338,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'GOOD EVENING',
+                          _getTimeGreeting().toUpperCase(),
                           style: GoogleFonts.jost(
                             color: AppTheme.goldColor(context),
                             fontSize: 11,
@@ -291,36 +349,44 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 2),
                         Text(
                           userName.isNotEmpty
-                              ? '$userName \u2728'
+                              ? userName
                               : l10n.translate('welcome_back'),
                           style: GoogleFonts.cormorantGaramond(
                             color: AppTheme.text1(context),
-                            fontSize: 26,
-                            fontWeight: FontWeight.w400,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
                     Container(
-                      width: 44,
-                      height: 44,
+                      width: 48,
+                      height: 48,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: AppTheme.goldColor(context),
                           width: 1.5,
                         ),
-                        color: AppTheme.glassBg(context),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            AppTheme.goldColor(context)
+                                .withValues(alpha: 0.15),
+                            AppTheme.glassBg(context),
+                          ],
+                        ),
                       ),
                       child: Center(
                         child: Text(
                           userName.isNotEmpty
                               ? userName[0].toUpperCase()
                               : 'U',
-                          style: GoogleFonts.jost(
+                          style: GoogleFonts.cormorantGaramond(
                             color: AppTheme.goldColor(context),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -329,9 +395,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Mood Score Card (glassmorphic)
+                // Mood Score Card
                 _buildMoodScoreCard(moodScore, moodProgress),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
+
+                // Camera scan area (only visible when scanning)
+                if (_isScanning) _buildScanningCard(),
+                if (_isScanning) const SizedBox(height: 20),
+
+                // Final result card (visible after scan completes)
+                if (!_isScanning && _finalMood != null) _buildResultCard(),
+                if (!_isScanning && _finalMood != null)
+                  const SizedBox(height: 20),
 
                 // How are you feeling?
                 Text(
@@ -342,7 +417,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildMoodPills(),
                 const SizedBox(height: 24),
 
-                // Weekly Overview Card (glassmorphic)
+                // Weekly Overview
                 _buildWeeklyCard(),
                 const SizedBox(height: 24),
               ],
@@ -352,6 +427,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
+
+  // ─── Mood Score Card ──────────────────────────────────────────
 
   Widget _buildMoodScoreCard(int moodScore, double moodProgress) {
     final goldC = AppTheme.goldColor(context);
@@ -411,7 +488,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       size: const Size(140, 140),
                       painter: _MoodRingPainter(
                         progress: moodProgress,
-                        goldColors: [AppTheme.gold4, AppTheme.gold2, AppTheme.gold1],
+                        goldColors: [
+                          AppTheme.gold4,
+                          AppTheme.gold2,
+                          AppTheme.gold1
+                        ],
                         trackColor: AppTheme.glassBg(context),
                       ),
                     ),
@@ -429,9 +510,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          _currentMood.mood == 'No Face'
-                              ? 'Tap Scan'
-                              : 'Feeling Good',
+                          _finalMood != null && _finalMood!.mood != 'No Face'
+                              ? _finalMood!.mood
+                              : 'Tap Scan',
                           style: GoogleFonts.jost(
                             color: AppTheme.goldColor(context),
                             fontSize: 11,
@@ -456,19 +537,24 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              // Scan button
-              if (!_isMoodScanActive) ...[
+              // Scan button (only when NOT scanning)
+              if (!_isScanning) ...[
                 const SizedBox(height: 16),
                 GestureDetector(
-                  onTap: _isMoodInitializing ? null : _startMoodScan,
+                  onTap: _isMoodInitializing ? null : _startQuickScan,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
+                        horizontal: 24, vertical: 12),
                     decoration: BoxDecoration(
-                      color: AppTheme.goldFill(context),
-                      borderRadius: BorderRadius.circular(20),
+                      gradient: LinearGradient(
+                        colors: [
+                          goldC.withValues(alpha: 0.15),
+                          goldC.withValues(alpha: 0.08),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(24),
                       border: Border.all(
-                        color: goldC.withValues(alpha: 0.3),
+                        color: goldC.withValues(alpha: 0.4),
                       ),
                     ),
                     child: Row(
@@ -476,8 +562,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         if (_isMoodInitializing)
                           SizedBox(
-                            width: 14,
-                            height: 14,
+                            width: 16,
+                            height: 16,
                             child: CircularProgressIndicator(
                               color: goldC,
                               strokeWidth: 2,
@@ -485,78 +571,24 @@ class _HomeScreenState extends State<HomeScreen> {
                           )
                         else
                           Icon(Icons.face_retouching_natural,
-                              size: 16, color: goldC),
-                        const SizedBox(width: 6),
+                              size: 18, color: goldC),
+                        const SizedBox(width: 8),
                         Text(
-                          _isMoodInitializing ? 'Starting...' : 'AI Scan',
+                          _isMoodInitializing
+                              ? 'Opening Camera...'
+                              : _finalMood != null
+                                  ? 'Scan Again'
+                                  : 'Start AI Scan',
                           style: GoogleFonts.jost(
-                            fontSize: 12,
+                            fontSize: 13,
                             fontWeight: FontWeight.w500,
                             color: goldC,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ],
-
-              // Camera preview when scanning
-              if (_isMoodScanActive &&
-                  _moodService?.cameraController != null &&
-                  _moodService!.cameraController!.value.isInitialized) ...[
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: goldC, width: 1.5),
-                      ),
-                      child: ClipOval(
-                        child: Transform.scale(
-                          scaleX: -1,
-                          child: CameraPreview(
-                              _moodService!.cameraController!),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(_currentMood.emoji,
-                        style: const TextStyle(fontSize: 24)),
-                    const SizedBox(width: 8),
-                    Text(
-                      _currentMood.mood,
-                      style: GoogleFonts.jost(
-                        color: AppTheme.text1(context),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: _stopMoodScan,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.redAccent.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          'Stop',
-                          style: GoogleFonts.jost(
-                            fontSize: 11,
-                            color: Colors.redAccent,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ],
 
@@ -577,6 +609,370 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ─── Scanning Camera Card ─────────────────────────────────────
+
+  Widget _buildScanningCard() {
+    final goldC = AppTheme.goldColor(context);
+    final cameraReady = _moodService?.cameraController != null &&
+        _moodService!.cameraController!.value.isInitialized;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        width: double.infinity,
+        height: 280,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: goldC.withValues(alpha: 0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Camera feed
+            if (cameraReady)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(23),
+                child: Transform.scale(
+                  scaleX: -1,
+                  child:
+                      CameraPreview(_moodService!.cameraController!),
+                ),
+              )
+            else
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(23),
+                ),
+                child: const Center(
+                  child: CircularProgressIndicator(color: Colors.white24),
+                ),
+              ),
+
+            // Dark gradient overlay at bottom
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(23),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.7),
+                    ],
+                    stops: const [0.0, 0.55, 1.0],
+                  ),
+                ),
+              ),
+            ),
+
+            // Corner brackets
+            Positioned(
+              top: 20, left: 20,
+              child: _buildScanCorner(goldC, topLeft: true),
+            ),
+            Positioned(
+              top: 20, right: 20,
+              child: _buildScanCorner(goldC, topRight: true),
+            ),
+            Positioned(
+              bottom: 70, left: 20,
+              child: _buildScanCorner(goldC, bottomLeft: true),
+            ),
+            Positioned(
+              bottom: 70, right: 20,
+              child: _buildScanCorner(goldC, bottomRight: true),
+            ),
+
+            // Top: scanning label
+            Positioned(
+              top: 14,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.greenAccent,
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  Colors.greenAccent.withValues(alpha: 0.5),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'ANALYZING FACE',
+                        style: GoogleFonts.jost(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white70,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Live mood indicator (center)
+            if (_liveMood != null && _liveMood!.mood != 'No Face')
+              Positioned(
+                top: 0,
+                bottom: 60,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Text(
+                    _liveMood!.emoji,
+                    style: const TextStyle(fontSize: 48),
+                  ),
+                ),
+              ),
+
+            // Bottom: progress bar + live status
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(23),
+                    bottomRight: Radius.circular(23),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Progress bar
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: _scanProgress,
+                        minHeight: 4,
+                        backgroundColor: Colors.white12,
+                        valueColor: AlwaysStoppedAnimation<Color>(goldC),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Text(
+                          _liveMood?.mood != null &&
+                                  _liveMood!.mood != 'No Face'
+                              ? _liveMood!.emoji
+                              : '\u{1F50D}',
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _liveMood?.mood != null &&
+                                    _liveMood!.mood != 'No Face'
+                                ? 'Detecting: ${_liveMood!.mood}'
+                                : 'Looking for face...',
+                            style: GoogleFonts.jost(
+                              color: Colors.white70,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${(_scanProgress * 100).round()}%',
+                          style: GoogleFonts.jost(
+                            color: goldC,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Result Card (shown after scan) ───────────────────────────
+
+  Widget _buildResultCard() {
+    final goldC = AppTheme.goldColor(context);
+    final mood = _finalMood!;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: AppTheme.moodCardBg(context),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppTheme.glassBorder(context)),
+          ),
+          child: Column(
+            children: [
+              Text(
+                'SCAN RESULT',
+                style: AppTheme.label(context, size: 10),
+              ),
+              const SizedBox(height: 16),
+              // Big emoji
+              Text(mood.emoji, style: const TextStyle(fontSize: 56)),
+              const SizedBox(height: 12),
+              // Mood name
+              Text(
+                mood.mood.toUpperCase(),
+                style: GoogleFonts.cormorantGaramond(
+                  color: AppTheme.text1(context),
+                  fontSize: 28,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 3,
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Confidence + score row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildStatChip(
+                    'Score',
+                    '${mood.score}',
+                    goldC,
+                  ),
+                  const SizedBox(width: 16),
+                  _buildStatChip(
+                    'Confidence',
+                    '${(mood.confidence * 100).round()}%',
+                    goldC,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Mood message
+              Text(
+                _getMoodMessage(mood.mood),
+                textAlign: TextAlign.center,
+                style: GoogleFonts.jost(
+                  color: AppTheme.text2(context),
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatChip(String label, String value, Color goldC) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: goldC.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: goldC.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: GoogleFonts.cormorantGaramond(
+              color: goldC,
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Text(
+            label.toUpperCase(),
+            style: GoogleFonts.jost(
+              color: AppTheme.textMuted(context),
+              fontSize: 9,
+              letterSpacing: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getMoodMessage(String mood) {
+    switch (mood) {
+      case 'Happy':
+        return 'You\'re radiating positive energy! Keep spreading those good vibes.';
+      case 'Calm':
+        return 'You\'re in a peaceful state of mind. A great time for reflection.';
+      case 'Sad':
+        return 'It\'s okay to feel this way. Take a moment for self-care.';
+      case 'Angry':
+        return 'Take a deep breath. Consider a short walk or meditation.';
+      case 'Surprised':
+        return 'Something caught your attention! Stay curious.';
+      case 'Neutral':
+        return 'You\'re in a balanced state. A calm mind is a clear mind.';
+      default:
+        return 'Scan your face to discover your current mood.';
+    }
+  }
+
+  // ─── Scan Corner Brackets ─────────────────────────────────────
+
+  Widget _buildScanCorner(Color color,
+      {bool topLeft = false,
+      bool topRight = false,
+      bool bottomLeft = false,
+      bool bottomRight = false}) {
+    const size = 28.0;
+    const thickness = 2.5;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _CornerPainter(
+          color: color,
+          thickness: thickness,
+          topLeft: topLeft,
+          topRight: topRight,
+          bottomLeft: bottomLeft,
+          bottomRight: bottomRight,
+        ),
+      ),
+    );
+  }
+
+  // ─── Mood Pills ───────────────────────────────────────────────
+
   Widget _buildMoodPills() {
     final moods = [
       ('\u{1F60A}', 'Happy'),
@@ -594,8 +990,8 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () => setState(() => _selectedMood = m.$2),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
-              margin: EdgeInsets.only(
-                  right: m.$2 != 'Loved' ? 10 : 0),
+              margin:
+                  EdgeInsets.only(right: m.$2 != 'Loved' ? 10 : 0),
               padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
                 color: isActive
@@ -629,6 +1025,8 @@ class _HomeScreenState extends State<HomeScreen> {
       }).toList(),
     );
   }
+
+  // ─── Weekly Card ──────────────────────────────────────────────
 
   Widget _buildWeeklyCard() {
     final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -673,7 +1071,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 child: Container(
                                   width: 32,
                                   decoration: BoxDecoration(
-                                    borderRadius: const BorderRadius.only(
+                                    borderRadius:
+                                        const BorderRadius.only(
                                       topLeft: Radius.circular(6),
                                       topRight: Radius.circular(6),
                                       bottomLeft: Radius.circular(2),
@@ -683,19 +1082,23 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   child: Stack(
                                     children: [
-                                      // Top highlight
                                       Container(
                                         height: double.infinity,
                                         decoration: BoxDecoration(
-                                          borderRadius: const BorderRadius.only(
-                                            topLeft: Radius.circular(6),
-                                            topRight: Radius.circular(6),
+                                          borderRadius:
+                                              const BorderRadius.only(
+                                            topLeft:
+                                                Radius.circular(6),
+                                            topRight:
+                                                Radius.circular(6),
                                           ),
                                           gradient: LinearGradient(
-                                            begin: Alignment.topCenter,
+                                            begin:
+                                                Alignment.topCenter,
                                             end: Alignment.center,
                                             colors: [
-                                              Colors.white.withValues(alpha: 0.25),
+                                              Colors.white.withValues(
+                                                  alpha: 0.25),
                                               Colors.transparent,
                                             ],
                                           ),
@@ -763,14 +1166,12 @@ class _MoodRingPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 6;
 
-    // Track
     final trackPaint = Paint()
       ..color = trackColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 6;
     canvas.drawCircle(center, radius, trackPaint);
 
-    // Progress arc with gradient
     if (progress > 0) {
       final rect = Rect.fromCircle(center: center, radius: radius);
       final gradient = SweepGradient(
@@ -796,4 +1197,55 @@ class _MoodRingPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _MoodRingPainter oldDelegate) =>
       oldDelegate.progress != progress;
+}
+
+/// Paints corner brackets for the scanning overlay.
+class _CornerPainter extends CustomPainter {
+  final Color color;
+  final double thickness;
+  final bool topLeft;
+  final bool topRight;
+  final bool bottomLeft;
+  final bool bottomRight;
+
+  _CornerPainter({
+    required this.color,
+    required this.thickness,
+    this.topLeft = false,
+    this.topRight = false,
+    this.bottomLeft = false,
+    this.bottomRight = false,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = thickness
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final w = size.width;
+    final h = size.height;
+
+    if (topLeft) {
+      canvas.drawLine(Offset(0, h * 0.4), const Offset(0, 0), paint);
+      canvas.drawLine(const Offset(0, 0), Offset(w * 0.4, 0), paint);
+    }
+    if (topRight) {
+      canvas.drawLine(Offset(w * 0.6, 0), Offset(w, 0), paint);
+      canvas.drawLine(Offset(w, 0), Offset(w, h * 0.4), paint);
+    }
+    if (bottomLeft) {
+      canvas.drawLine(Offset(0, h * 0.6), Offset(0, h), paint);
+      canvas.drawLine(Offset(0, h), Offset(w * 0.4, h), paint);
+    }
+    if (bottomRight) {
+      canvas.drawLine(Offset(w, h * 0.6), Offset(w, h), paint);
+      canvas.drawLine(Offset(w * 0.6, h), Offset(w, h), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
