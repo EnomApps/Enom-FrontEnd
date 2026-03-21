@@ -6,6 +6,8 @@ import '../services/post_service.dart';
 import '../theme/app_theme.dart';
 import 'create_post_screen.dart';
 import 'edit_post_screen.dart';
+import 'feed_reels_screen.dart';
+import 'threaded_comments_sheet.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -190,7 +192,35 @@ class _FeedScreenState extends State<FeedScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _CommentsSheet(postId: postId),
+      builder: (ctx) => ThreadedCommentsSheet(postId: postId),
+    );
+  }
+
+  /// Filter only posts that contain at least one video media item.
+  List<Map<String, dynamic>> _getVideoPosts() {
+    return _posts.where((post) {
+      final media = post['media'] as List<dynamic>? ?? [];
+      return media.any((item) {
+        if (item is Map) {
+          final type = (item['type'] ?? item['mime_type'] ?? item['file_type'] ?? 'image').toString();
+          return type.contains('video');
+        }
+        return false;
+      });
+    }).toList();
+  }
+
+  /// Open the TikTok/Reels-style video screen starting at the given post.
+  void _openReelsScreen(Map<String, dynamic> tappedPost) {
+    final videoPosts = _getVideoPosts();
+    final initialIndex = videoPosts.indexWhere((p) => p['id'] == tappedPost['id']);
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FeedReelsScreen(
+          videoPosts: videoPosts,
+          initialIndex: initialIndex >= 0 ? initialIndex : 0,
+        ),
+      ),
     );
   }
 
@@ -561,7 +591,7 @@ class _FeedScreenState extends State<FeedScreen> {
             // Media
             if (media.isNotEmpty) ...[
               const SizedBox(height: 12),
-              _buildMediaGrid(media),
+              _buildMediaGrid(media, post),
             ],
 
             // Reactions bar
@@ -618,7 +648,7 @@ class _FeedScreenState extends State<FeedScreen> {
         .toList();
   }
 
-  Widget _buildMediaGrid(List<dynamic> media) {
+  Widget _buildMediaGrid(List<dynamic> media, Map<String, dynamic> post) {
     final imageUrls = _getImageUrls(media);
 
     if (media.length == 1) {
@@ -626,7 +656,7 @@ class _FeedScreenState extends State<FeedScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: _buildMediaItem(media[0], double.infinity, 240, imageUrls),
+          child: _buildMediaItem(media[0], double.infinity, 240, imageUrls, post),
         ),
       );
     }
@@ -641,7 +671,7 @@ class _FeedScreenState extends State<FeedScreen> {
         itemBuilder:
             (_, i) => ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: _buildMediaItem(media[i], 280, 240, imageUrls),
+              child: _buildMediaItem(media[i], 280, 240, imageUrls, post),
             ),
       ),
     );
@@ -680,19 +710,23 @@ class _FeedScreenState extends State<FeedScreen> {
     double width,
     double height,
     List<String> imageUrls,
+    Map<String, dynamic> post,
   ) {
     final fullUrl = _getMediaUrl(item);
     final type = _getMediaType(item);
 
     if (type.contains('video')) {
-      return Container(
-        width: width == double.infinity ? double.infinity : width,
-        height: height,
-        color: Colors.black,
-        child: FeedInlineVideoPlayer(
-          url: fullUrl,
-          width: width,
+      return GestureDetector(
+        onTap: () => _openReelsScreen(post),
+        child: Container(
+          width: width == double.infinity ? double.infinity : width,
           height: height,
+          color: Colors.black,
+          child: FeedInlineVideoPlayer(
+            url: fullUrl,
+            width: width,
+            height: height,
+          ),
         ),
       );
     }
@@ -846,315 +880,6 @@ class _ReactionButton extends StatelessWidget {
   }
 }
 
-/// Comments bottom sheet
-class _CommentsSheet extends StatefulWidget {
-  final int postId;
-  const _CommentsSheet({required this.postId});
-
-  @override
-  State<_CommentsSheet> createState() => _CommentsSheetState();
-}
-
-class _CommentsSheetState extends State<_CommentsSheet> {
-  final List<Map<String, dynamic>> _comments = [];
-  final TextEditingController _commentController = TextEditingController();
-  bool _isLoading = true;
-  bool _isSending = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadComments();
-  }
-
-  @override
-  void dispose() {
-    _commentController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadComments() async {
-    final result = await PostService.getComments(widget.postId);
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = false;
-      _comments.clear();
-      for (final c in result.comments) {
-        if (c is Map<String, dynamic>) _comments.add(c);
-      }
-    });
-  }
-
-  Future<void> _sendComment() async {
-    final text = _commentController.text.trim();
-    if (text.isEmpty) return;
-
-    setState(() => _isSending = true);
-
-    final result = await PostService.addComment(widget.postId, content: text);
-
-    if (!mounted) return;
-
-    if (result.success) {
-      _commentController.clear();
-      _loadComments();
-    }
-    setState(() => _isSending = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final goldC = AppTheme.goldColor(context);
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.6,
-      minChildSize: 0.3,
-      maxChildSize: 0.9,
-      builder: (ctx, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: AppTheme.bg(context),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border.all(color: AppTheme.glassBorder(context)),
-          ),
-          child: Column(
-            children: [
-              // Handle
-              Container(
-                margin: const EdgeInsets.only(top: 10, bottom: 6),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppTheme.textMuted(context),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: Text(
-                  'COMMENTS',
-                  style: AppTheme.label(context, size: 11),
-                ),
-              ),
-              AppTheme.goldDivider(context),
-
-              // Comments list
-              Expanded(
-                child:
-                    _isLoading
-                        ? Center(
-                          child: CircularProgressIndicator(
-                            color: goldC,
-                            strokeWidth: 2,
-                          ),
-                        )
-                        : _comments.isEmpty
-                        ? Center(
-                          child: Text(
-                            'No comments yet',
-                            style: GoogleFonts.jost(
-                              color: AppTheme.textMuted(context),
-                              fontSize: 14,
-                            ),
-                          ),
-                        )
-                        : ListView.builder(
-                          controller: scrollController,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          itemCount: _comments.length,
-                          itemBuilder: (_, i) => _buildComment(_comments[i]),
-                        ),
-              ),
-
-              // Comment input
-              Container(
-                padding: EdgeInsets.fromLTRB(
-                  16,
-                  8,
-                  16,
-                  MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom + 12,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.bg2(context),
-                  border: Border(
-                    top: BorderSide(color: AppTheme.glassBorder(context)),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _commentController,
-                        style: GoogleFonts.jost(
-                          color: AppTheme.text1(context),
-                          fontSize: 14,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Write a comment...',
-                          hintStyle: GoogleFonts.jost(
-                            color: AppTheme.textMuted(context),
-                            fontSize: 14,
-                          ),
-                          filled: true,
-                          fillColor: AppTheme.glassBg(context),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide(
-                              color: AppTheme.glassBorder(context),
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide(
-                              color: AppTheme.glassBorder(context),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide(
-                              color: goldC.withValues(alpha: 0.4),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: _isSending ? null : _sendComment,
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          gradient: AppTheme.goldGradient2,
-                          shape: BoxShape.circle,
-                        ),
-                        child:
-                            _isSending
-                                ? const Padding(
-                                  padding: EdgeInsets.all(10),
-                                  child: CircularProgressIndicator(
-                                    color: Color(0xFF1A1612),
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                                : const Icon(
-                                  Icons.send_rounded,
-                                  size: 18,
-                                  color: Color(0xFF1A1612),
-                                ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildComment(Map<String, dynamic> comment) {
-    final user = comment['user'] as Map<String, dynamic>? ?? {};
-    final name = user['name'] as String? ?? 'Anonymous';
-    final content = comment['content'] as String? ?? '';
-    final createdAt = comment['created_at'] as String? ?? '';
-
-    String timeAgo = '';
-    if (createdAt.isNotEmpty) {
-      try {
-        final date = DateTime.parse(createdAt);
-        final diff = DateTime.now().difference(date);
-        if (diff.inMinutes < 60) {
-          timeAgo = '${diff.inMinutes}m';
-        } else if (diff.inHours < 24) {
-          timeAgo = '${diff.inHours}h';
-        } else {
-          timeAgo = '${diff.inDays}d';
-        }
-      } catch (_) {}
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppTheme.glassBg(context),
-              border: Border.all(color: AppTheme.glassBorder(context)),
-            ),
-            child: Center(
-              child: Text(
-                name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                style: GoogleFonts.jost(
-                  color: AppTheme.goldColor(context),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      name,
-                      style: GoogleFonts.jost(
-                        color: AppTheme.text1(context),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (timeAgo.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      Text(
-                        timeAgo,
-                        style: GoogleFonts.jost(
-                          color: AppTheme.textMuted(context),
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  content,
-                  style: GoogleFonts.jost(
-                    color: AppTheme.text2(context),
-                    fontSize: 13,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class FullImageScreen extends StatefulWidget {
   final List<String> urls;
   final int initialIndex;
@@ -1289,21 +1014,7 @@ class _FeedInlineVideoPlayerState extends State<FeedInlineVideoPlayer> {
       );
     }
 
-    return GestureDetector(
-      onTap: () {
-        _controller.pause();
-        Navigator.of(context)
-            .push(
-              MaterialPageRoute(
-                builder: (_) => VideoPlayerScreen(url: widget.url),
-              ),
-            )
-            .then((_) {
-              if (mounted) {
-                _controller.play();
-              }
-            });
-      },
+    return IgnorePointer(
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -1323,21 +1034,17 @@ class _FeedInlineVideoPlayerState extends State<FeedInlineVideoPlayer> {
               ),
             ),
           ),
-          // Fullscreen button
-          Positioned(
-            right: 8,
-            bottom: 8,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              padding: const EdgeInsets.all(4),
-              child: const Icon(
-                Icons.fullscreen_rounded,
-                size: 20,
-                color: Colors.white,
-              ),
+          // Play icon overlay
+          Container(
+            decoration: const BoxDecoration(
+              color: Colors.black26,
+              shape: BoxShape.circle,
+            ),
+            padding: const EdgeInsets.all(10),
+            child: const Icon(
+              Icons.play_arrow_rounded,
+              size: 28,
+              color: Colors.white,
             ),
           ),
           // Muted indicator
