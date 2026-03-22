@@ -4,9 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:video_compress/video_compress.dart';
 import 'package:video_player/video_player.dart';
-import '../services/post_service.dart';
+import '../services/upload_manager.dart';
 import '../theme/app_theme.dart';
 
 class CreatePostScreen extends StatefulWidget {
@@ -20,9 +19,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _contentController = TextEditingController();
   final List<_MediaFile> _mediaFiles = [];
   String _visibility = 'public';
-  bool _isPosting = false;
-  bool _isCompressing = false;
-  double _compressionProgress = 0.0;
 
   static const int _maxMedia = 10;
 
@@ -115,55 +111,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
-  /// Compress video to 480p (WhatsApp-style) before upload.
-  /// Returns compressed file path and bytes, or null if cancelled/failed.
-  Future<({String path, Uint8List bytes})?> _compressVideo(String filePath) async {
-    // Show compression progress dialog
-    final subscription = VideoCompress.compressProgress$.subscribe((progress) {
-      if (mounted) {
-        setState(() => _compressionProgress = progress / 100.0);
-      }
-    });
-
-    setState(() {
-      _isCompressing = true;
-      _compressionProgress = 0.0;
-    });
-
-    try {
-      final info = await VideoCompress.compressVideo(
-        filePath,
-        quality: VideoQuality.MediumQuality,
-        deleteOrigin: false,
-        includeAudio: true,
-      );
-
-      if (info == null || info.file == null) return null;
-
-      final compressedBytes = await info.file!.readAsBytes();
-      return (path: info.file!.path, bytes: compressedBytes);
-    } catch (e) {
-      if (mounted) {
-        AppTheme.showSnackBar(context, 'Video compression failed', isError: true);
-      }
-      return null;
-    } finally {
-      subscription.unsubscribe();
-      if (mounted) {
-        setState(() {
-          _isCompressing = false;
-          _compressionProgress = 0.0;
-        });
-      }
-    }
-  }
-
-  String _formatFileSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
-
   Future<void> _pickVideo() async {
     if (_mediaFiles.length >= _maxMedia) {
       AppTheme.showSnackBar(context, 'Maximum $_maxMedia media files allowed', isError: true);
@@ -184,35 +131,15 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
       if (video == null) break;
 
-      final originalBytes = await video.readAsBytes();
-      final originalSize = originalBytes.length;
-
-      // Compress video (WhatsApp-style 480p compression)
-      final compressed = await _compressVideo(video.path);
-
-      if (compressed == null) {
-        if (mounted) {
-          AppTheme.showSnackBar(context, 'Video skipped', isError: true);
-        }
-        break;
-      }
-
-      final compressedSize = compressed.bytes.length;
+      final videoBytes = await video.readAsBytes();
 
       if (mounted) {
-        final saved = originalSize - compressedSize;
-        if (saved > 0) {
-          AppTheme.showSnackBar(
-            context,
-            'Compressed: ${_formatFileSize(originalSize)} → ${_formatFileSize(compressedSize)} (saved ${_formatFileSize(saved)})',
-          );
-        }
         setState(() {
           _mediaFiles.add(_MediaFile(
-            bytes: compressed.bytes,
+            bytes: videoBytes,
             name: video.name,
             type: 'video',
-            filePath: compressed.path,
+            filePath: video.path,
           ));
         });
       }
@@ -252,28 +179,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     setState(() => _mediaFiles.removeAt(index));
   }
 
-  Future<void> _createPost() async {
+  void _createPost() {
     if (!_canPost) return;
 
-    setState(() => _isPosting = true);
-
-    final result = await PostService.createPost(
+    // Start background compress + upload via UploadManager
+    UploadManager.instance.startUpload(
       content: _contentController.text.trim(),
       visibility: _visibility,
       mediaBytes: _mediaFiles.isNotEmpty ? _mediaFiles.map((f) => f.bytes).toList() : null,
       mediaNames: _mediaFiles.isNotEmpty ? _mediaFiles.map((f) => f.name).toList() : null,
+      mediaTypes: _mediaFiles.isNotEmpty ? _mediaFiles.map((f) => f.type).toList() : null,
+      mediaFilePaths: _mediaFiles.isNotEmpty ? _mediaFiles.map((f) => f.filePath).toList() : null,
     );
 
-    if (!mounted) return;
-
-    setState(() => _isPosting = false);
-
-    if (result.success) {
-      AppTheme.showSnackBar(context, 'Post created successfully!');
-      Navigator.of(context).pop(true);
-    } else {
-      AppTheme.showSnackBar(context, result.message, isError: true);
-    }
+    // Navigate back to feed immediately (Instagram-style)
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -297,33 +217,24 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: GestureDetector(
-              onTap: (_canPost && !_isPosting) ? _createPost : null,
+              onTap: _canPost ? _createPost : null,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                 decoration: BoxDecoration(
-                  gradient: (_canPost && !_isPosting) ? AppTheme.goldGradient2 : null,
-                  color: (!_canPost || _isPosting) ? AppTheme.glassBg(context) : null,
+                  gradient: _canPost ? AppTheme.goldGradient2 : null,
+                  color: !_canPost ? AppTheme.glassBg(context) : null,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: _isPosting
-                    ? SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          color: const Color(0xFF1A1612),
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Text(
-                        'Post',
-                        style: GoogleFonts.jost(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: _canPost
-                              ? const Color(0xFF1A1612)
-                              : AppTheme.textMuted(context),
-                        ),
-                      ),
+                child: Text(
+                  'Post',
+                  style: GoogleFonts.jost(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _canPost
+                        ? const Color(0xFF1A1612)
+                        : AppTheme.textMuted(context),
+                  ),
+                ),
               ),
             ),
           ),
@@ -440,70 +351,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               ),
             ),
           ),
-          // Compression overlay — on top of everything
-          if (_isCompressing)
-            Container(
-              color: Colors.black.withValues(alpha: 0.7),
-              child: Center(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 48),
-                  padding: const EdgeInsets.all(28),
-                  decoration: BoxDecoration(
-                    color: AppTheme.bg2(context),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppTheme.goldColor(context).withValues(alpha: 0.3)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        blurRadius: 30,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 56,
-                        height: 56,
-                        child: CircularProgressIndicator(
-                          value: _compressionProgress > 0 ? _compressionProgress : null,
-                          strokeWidth: 4,
-                          color: AppTheme.goldColor(context),
-                          backgroundColor: AppTheme.glassBorder(context),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        'Compressing Video...',
-                        style: GoogleFonts.jost(
-                          color: AppTheme.text1(context),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${(_compressionProgress * 100).toInt()}%',
-                        style: GoogleFonts.jost(
-                          color: AppTheme.goldColor(context),
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Optimizing for faster upload',
-                        style: GoogleFonts.jost(
-                          color: AppTheme.textMuted(context),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );

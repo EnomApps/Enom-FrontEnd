@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
 import '../services/api_service.dart';
 import '../services/post_service.dart';
+import '../services/social_service.dart';
 import '../theme/app_theme.dart';
 import 'threaded_comments_sheet.dart';
 
@@ -159,13 +160,23 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
   int _likesCount = 0;
   int _commentsCount = 0;
 
+  // Social state
+  bool _isFollowing = false;
+  bool _isSaved = false;
+  int _viewsCount = 0;
+  bool _viewRecorded = false;
+
   @override
   void initState() {
     super.initState();
     _isLiked = widget.post['user_reaction'] != null;
     _likesCount = widget.post['reactions_count'] as int? ?? 0;
     _commentsCount = widget.post['comments_count'] as int? ?? 0;
+    _isFollowing = widget.post['is_following'] as bool? ?? false;
+    _isSaved = widget.post['is_saved'] as bool? ?? false;
+    _viewsCount = widget.post['views_count'] as int? ?? 0;
     _initVideo();
+    if (widget.isActive) _recordView();
   }
 
   void _initVideo() {
@@ -209,6 +220,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
       if (widget.isActive) {
         _controller?.play();
         _isPaused = false;
+        _recordView();
       } else {
         _controller?.pause();
       }
@@ -240,6 +252,42 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
     Future.delayed(const Duration(milliseconds: 800), () {
       if (mounted) setState(() => _showPauseIcon = false);
     });
+  }
+
+  void _recordView() {
+    if (_viewRecorded) return;
+    _viewRecorded = true;
+    final postId = widget.post['id'] as int;
+    SocialService.recordView(postId);
+  }
+
+  Future<void> _toggleFollow() async {
+    final user = widget.post['user'] as Map<String, dynamic>? ?? {};
+    final userId = user['id'] as int?;
+    if (userId == null) return;
+
+    final was = _isFollowing;
+    setState(() => _isFollowing = !was);
+
+    final result = await SocialService.toggleFollow(userId);
+    if (mounted && result.success) {
+      setState(() => _isFollowing = result.isFollowing);
+    } else if (mounted) {
+      setState(() => _isFollowing = was);
+    }
+  }
+
+  Future<void> _toggleSave() async {
+    final postId = widget.post['id'] as int;
+    final was = _isSaved;
+    setState(() => _isSaved = !was);
+
+    final result = await SocialService.toggleSave(postId);
+    if (mounted && result.success) {
+      setState(() => _isSaved = result.isSaved);
+    } else if (mounted) {
+      setState(() => _isSaved = was);
+    }
   }
 
   Future<void> _toggleLike() async {
@@ -364,15 +412,33 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                 ),
                 const SizedBox(height: 20),
 
+                // Save/Bookmark button
+                _buildActionButton(
+                  icon: _isSaved ? Icons.bookmark : Icons.bookmark_border,
+                  label: _isSaved ? 'Saved' : 'Save',
+                  color: _isSaved ? AppTheme.gold1 : Colors.white,
+                  onTap: _toggleSave,
+                ),
+                const SizedBox(height: 20),
+
                 // Share button
                 _buildActionButton(
                   icon: Icons.share_outlined,
                   label: 'Share',
                   color: Colors.white,
-                  onTap: () {
-                    // Share functionality placeholder
-                  },
+                  onTap: () {},
                 ),
+
+                // Views count
+                if (_viewsCount > 0) ...[
+                  const SizedBox(height: 20),
+                  _buildActionButton(
+                    icon: Icons.visibility_outlined,
+                    label: _formatCount(_viewsCount),
+                    color: Colors.white70,
+                    onTap: () {},
+                  ),
+                ],
               ],
             ),
           ),
@@ -479,9 +545,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
 
   Widget _buildProfileAvatar(String? avatarUrl, String name) {
     return GestureDetector(
-      onTap: () {
-        // Could navigate to user profile
-      },
+      onTap: _toggleFollow,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,
@@ -491,7 +555,10 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
             height: 48,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
+              border: Border.all(
+                color: _isFollowing ? AppTheme.gold1 : Colors.white,
+                width: 2,
+              ),
             ),
             child: ClipOval(
               child: avatarUrl != null && avatarUrl.isNotEmpty
@@ -507,18 +574,22 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                   : _avatarFallback(name),
             ),
           ),
-          // Plus icon at bottom of avatar
+          // Follow/Following icon at bottom of avatar
           Positioned(
             bottom: -6,
             child: Container(
               width: 20,
               height: 20,
               decoration: BoxDecoration(
-                color: AppTheme.gold1,
+                color: _isFollowing ? Colors.grey[700] : AppTheme.gold1,
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.black, width: 1.5),
               ),
-              child: const Icon(Icons.add, size: 14, color: Colors.black),
+              child: Icon(
+                _isFollowing ? Icons.check : Icons.add,
+                size: 14,
+                color: _isFollowing ? Colors.white : Colors.black,
+              ),
             ),
           ),
         ],

@@ -1,13 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
 import '../services/api_service.dart';
 import '../services/post_service.dart';
+import '../services/social_service.dart';
+import '../services/upload_manager.dart';
 import '../theme/app_theme.dart';
 import 'create_post_screen.dart';
 import 'edit_post_screen.dart';
 import 'feed_reels_screen.dart';
 import 'threaded_comments_sheet.dart';
+import 'user_profile_screen.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -19,21 +23,32 @@ class FeedScreen extends StatefulWidget {
 class _FeedScreenState extends State<FeedScreen> {
   final List<Map<String, dynamic>> _posts = [];
   final ScrollController _scrollController = ScrollController();
+  int? _currentUserId;
+  final Map<int, bool> _followStates = {}; // userId → isFollowing
   int _currentPage = 1;
   int _lastPage = 1;
   bool _isLoading = false;
   bool _isLoadingMore = false;
   bool _hasError = false;
+  StreamSubscription<bool>? _uploadSub;
+  final Set<int> _viewedPostIds = {}; // Track which posts have been viewed
 
   @override
   void initState() {
     super.initState();
+    _loadCurrentUser();
     _loadFeed();
     _scrollController.addListener(_onScroll);
+
+    // Listen for background upload completion and auto-refresh feed
+    _uploadSub = UploadManager.instance.onUploadComplete.listen((_) {
+      if (mounted) _onRefresh();
+    });
   }
 
   @override
   void dispose() {
+    _uploadSub?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
@@ -65,11 +80,32 @@ class _FeedScreenState extends State<FeedScreen> {
         _lastPage = result.pagination?['last_page'] ?? 1;
         _isLoading = false;
       });
+      _fetchFollowStatuses(_posts);
     } else {
       setState(() {
         _isLoading = false;
         _hasError = true;
       });
+    }
+  }
+
+  /// Fetch follow status for all unique non-owner users in posts.
+  Future<void> _fetchFollowStatuses(List<Map<String, dynamic>> posts) async {
+    final userIds = <int>[];
+    for (final post in posts) {
+      final user = post['user'] as Map<String, dynamic>? ?? {};
+      final uid = user['id'] as int?;
+      final isOwner = (post['is_owner'] as bool? ?? false) ||
+          (_currentUserId != null && uid == _currentUserId);
+      if (uid != null && !isOwner && !_followStates.containsKey(uid)) {
+        userIds.add(uid);
+      }
+    }
+    if (userIds.isEmpty) return;
+
+    final statuses = await SocialService.batchFollowStatus(userIds);
+    if (mounted) {
+      setState(() => _followStates.addAll(statuses));
     }
   }
 
@@ -83,14 +119,19 @@ class _FeedScreenState extends State<FeedScreen> {
     if (!mounted) return;
 
     if (result.success) {
+      final newPosts = <Map<String, dynamic>>[];
       setState(() {
         for (final p in result.posts) {
-          if (p is Map<String, dynamic>) _posts.add(p);
+          if (p is Map<String, dynamic>) {
+            _posts.add(p);
+            newPosts.add(p);
+          }
         }
         _currentPage = result.pagination?['current_page'] ?? _currentPage;
         _lastPage = result.pagination?['last_page'] ?? _lastPage;
         _isLoadingMore = false;
       });
+      _fetchFollowStatuses(newPosts);
     } else {
       setState(() => _isLoadingMore = false);
     }
@@ -107,6 +148,59 @@ class _FeedScreenState extends State<FeedScreen> {
     ).push<bool>(MaterialPageRoute(builder: (_) => const CreatePostScreen()));
     if (created == true) {
       _onRefresh();
+    }
+  }
+
+  void _openUserProfile(Map<String, dynamic> user) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => UserProfileScreen(user: user)),
+    );
+  }
+
+  Future<void> _loadCurrentUser() async {
+    final user = await ApiService.getUser();
+    if (user != null && mounted) {
+      setState(() => _currentUserId = user['id'] as int?);
+    }
+  }
+
+  /// Record a view for a post (once per session).
+  void _recordView(int postId) {
+    if (_viewedPostIds.contains(postId)) return;
+    _viewedPostIds.add(postId);
+    SocialService.recordView(postId);
+  }
+
+  /// Toggle follow on a user from a post card.
+  Future<void> _toggleFollow(int index) async {
+    final post = _posts[index];
+    final user = post['user'] as Map<String, dynamic>? ?? {};
+    final userId = user['id'] as int?;
+    if (userId == null) return;
+
+    // Optimistic update
+    final wasFollowing = _followStates[userId] ?? false;
+    setState(() => _followStates[userId] = !wasFollowing);
+
+    final result = await SocialService.toggleFollow(userId);
+    if (mounted) {
+      setState(() => _followStates[userId] = result.success ? result.isFollowing : wasFollowing);
+    }
+  }
+
+  /// Toggle save/bookmark on a post.
+  Future<void> _toggleSave(int index) async {
+    final post = _posts[index];
+    final postId = post['id'] as int;
+
+    final wasSaved = post['is_saved'] as bool? ?? false;
+    setState(() => post['is_saved'] = !wasSaved);
+
+    final result = await SocialService.toggleSave(postId);
+    if (mounted && result.success) {
+      setState(() => post['is_saved'] = result.isSaved);
+    } else if (mounted) {
+      setState(() => post['is_saved'] = wasSaved);
     }
   }
 
@@ -416,7 +510,15 @@ class _FeedScreenState extends State<FeedScreen> {
     final userReaction = post['user_reaction'] as String?;
     final createdAt = post['created_at'] as String? ?? '';
     final timeAgo = _formatTimeAgo(createdAt);
-    final isOwner = post['is_owner'] as bool? ?? false;
+    final postUserId = user['id'] as int?;
+    final isOwner = (post['is_owner'] as bool? ?? false) || (_currentUserId != null && postUserId == _currentUserId);
+    final isFollowing = postUserId != null ? (_followStates[postUserId] ?? false) : false;
+    final isSaved = post['is_saved'] as bool? ?? false;
+    final viewsCount = post['views_count'] as int? ?? 0;
+    final postId = post['id'] as int;
+
+    // Record view when card is built (visible on screen)
+    _recordView(postId);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -448,47 +550,50 @@ class _FeedScreenState extends State<FeedScreen> {
               padding: const EdgeInsets.fromLTRB(16, 14, 12, 0),
               child: Row(
                 children: [
-                  // Avatar
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppTheme.goldColor(
-                          context,
-                        ).withValues(alpha: 0.4),
-                        width: 1.5,
+                  // Avatar — tap to open user profile
+                  GestureDetector(
+                    onTap: isOwner ? null : () => _openUserProfile(user),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppTheme.goldColor(
+                            context,
+                          ).withValues(alpha: 0.4),
+                          width: 1.5,
+                        ),
                       ),
-                    ),
-                    child: ClipOval(
-                      child:
-                          userAvatar != null && userAvatar.isNotEmpty
-                              ? Image.network(
-                                userAvatar.startsWith('http')
-                                    ? userAvatar
-                                    : '${ApiService.baseUrl}/$userAvatar',
-                                width: 40,
-                                height: 40,
-                                fit: BoxFit.cover,
-                                cacheWidth: 120,
-                                loadingBuilder: (_, child, progress) {
-                                  if (progress == null) return child;
-                                  return Center(
-                                    child: SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 1.5,
-                                        color: AppTheme.goldColor(context),
+                      child: ClipOval(
+                        child:
+                            userAvatar != null && userAvatar.isNotEmpty
+                                ? Image.network(
+                                  userAvatar.startsWith('http')
+                                      ? userAvatar
+                                      : '${ApiService.baseUrl}/$userAvatar',
+                                  width: 40,
+                                  height: 40,
+                                  fit: BoxFit.cover,
+                                  cacheWidth: 120,
+                                  loadingBuilder: (_, child, progress) {
+                                    if (progress == null) return child;
+                                    return Center(
+                                      child: SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 1.5,
+                                          color: AppTheme.goldColor(context),
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                },
-                                errorBuilder:
-                                    (_, __, ___) => _avatarFallback(userName),
-                              )
-                              : _avatarFallback(userName),
+                                    );
+                                  },
+                                  errorBuilder:
+                                      (_, __, ___) => _avatarFallback(userName),
+                                )
+                                : _avatarFallback(userName),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -496,13 +601,36 @@ class _FeedScreenState extends State<FeedScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          userName,
-                          style: GoogleFonts.jost(
-                            color: AppTheme.text1(context),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                userName,
+                                style: GoogleFonts.jost(
+                                  color: AppTheme.text1(context),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (!isOwner) ...[
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () => _toggleFollow(index),
+                                child: Text(
+                                  isFollowing ? 'Following' : 'Follow',
+                                  style: GoogleFonts.jost(
+                                    color: isFollowing
+                                        ? AppTheme.textMuted(context)
+                                        : AppTheme.goldColor(context),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                         Text(
                           timeAgo,
@@ -616,7 +744,50 @@ class _FeedScreenState extends State<FeedScreen> {
                     activeColor: AppTheme.goldColor(context),
                     context: context,
                   ),
+                  // Save/Bookmark button
+                  GestureDetector(
+                    onTap: () => _toggleSave(index),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSaved
+                            ? AppTheme.goldColor(context).withValues(alpha: 0.12)
+                            : AppTheme.glassBg(context),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSaved
+                              ? AppTheme.goldColor(context).withValues(alpha: 0.3)
+                              : AppTheme.glassBorder(context),
+                        ),
+                      ),
+                      child: Icon(
+                        isSaved ? Icons.bookmark : Icons.bookmark_border,
+                        size: 18,
+                        color: isSaved ? AppTheme.goldColor(context) : AppTheme.text2(context),
+                      ),
+                    ),
+                  ),
                   const Spacer(),
+                  // Views count
+                  if (viewsCount > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.visibility_outlined, size: 14, color: AppTheme.textMuted(context)),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatCount(viewsCount),
+                            style: GoogleFonts.jost(
+                              color: AppTheme.textMuted(context),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   // Reaction picker
                   _buildReactionPicker(index),
                 ],
@@ -800,6 +971,12 @@ class _FeedScreenState extends State<FeedScreen> {
             );
           }).toList(),
     );
+  }
+
+  String _formatCount(int count) {
+    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
+    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
+    return '$count';
   }
 
   String _formatTimeAgo(String dateStr) {

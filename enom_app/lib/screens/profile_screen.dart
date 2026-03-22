@@ -8,9 +8,11 @@ import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/post_service.dart';
+import '../services/social_service.dart';
 import '../theme/app_theme.dart';
 import 'edit_post_screen.dart';
 import 'feed_screen.dart';
+import 'follow_list_screen.dart';
 import 'welcome_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -48,6 +50,15 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   bool _isLoadingMorePosts = false;
   bool _postsLoaded = false;
 
+  // Saved Posts state
+  final List<Map<String, dynamic>> _savedPosts = [];
+  final ScrollController _savedScrollController = ScrollController();
+  int _savedCurrentPage = 1;
+  int _savedLastPage = 1;
+  bool _isLoadingSaved = false;
+  bool _isLoadingMoreSaved = false;
+  bool _savedLoaded = false;
+
   late TextEditingController _nameController;
   late TextEditingController _usernameController;
   late TextEditingController _bioController;
@@ -66,6 +77,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
 
   // Available interests from API
   List<Map<String, dynamic>> _availableInterests = [];
+
+  // Follow counts from API
+  int _followersCount = 0;
+  int _followingCount = 0;
 
   static const List<String> _professions = [
     'Student', 'Entrepreneur', 'Developer', 'Designer',
@@ -99,13 +114,17 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     _initControllers();
     _fetchProfile();
     _fetchInterests();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       if (_tabController.index == 1 && !_postsLoaded) {
         _loadMyPosts();
       }
+      if (_tabController.index == 2 && !_savedLoaded) {
+        _loadSavedPosts();
+      }
     });
     _postsScrollController.addListener(_onPostsScroll);
+    _savedScrollController.addListener(_onSavedScroll);
   }
 
   @override
@@ -189,12 +208,27 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           _isLoading = false;
         });
         _initControllers();
+        _fetchFollowCounts();
       } else if (mounted) {
         setState(() => _isLoading = false);
       }
     } catch (_) {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _fetchFollowCounts() async {
+    final userId = _user?['id'] as int?;
+    if (userId == null) return;
+    try {
+      final result = await SocialService.getFollowCounts(userId);
+      if (mounted && result.success) {
+        setState(() {
+          _followersCount = result.followersCount;
+          _followingCount = result.followingCount;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _fetchInterests() async {
@@ -335,6 +369,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   void dispose() {
     _tabController.dispose();
     _postsScrollController.dispose();
+    _savedScrollController.dispose();
     _nameController.dispose();
     _usernameController.dispose();
     _bioController.dispose();
@@ -402,6 +437,92 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     } else {
       setState(() => _isLoadingMorePosts = false);
     }
+  }
+
+  // ─── Saved Posts ───
+
+  void _onSavedScroll() {
+    if (_savedScrollController.position.pixels >=
+        _savedScrollController.position.maxScrollExtent - 200) {
+      _loadMoreSaved();
+    }
+  }
+
+  Future<void> _loadSavedPosts() async {
+    setState(() {
+      _isLoadingSaved = true;
+      _savedLoaded = true;
+    });
+
+    final result = await SocialService.getSavedPosts(page: 1);
+
+    if (!mounted) return;
+
+    if (result.success) {
+      setState(() {
+        _savedPosts.clear();
+        for (final p in result.posts) {
+          if (p is Map<String, dynamic>) {
+            // The saved post might be wrapped: { post: {...} }
+            final post = p['post'] as Map<String, dynamic>? ?? p;
+            _savedPosts.add(post);
+          }
+        }
+        _savedCurrentPage = result.pagination?['current_page'] ?? 1;
+        _savedLastPage = result.pagination?['last_page'] ?? 1;
+        _isLoadingSaved = false;
+      });
+    } else {
+      setState(() => _isLoadingSaved = false);
+    }
+  }
+
+  Future<void> _loadMoreSaved() async {
+    if (_isLoadingMoreSaved || _savedCurrentPage >= _savedLastPage) return;
+
+    setState(() => _isLoadingMoreSaved = true);
+
+    final result = await SocialService.getSavedPosts(page: _savedCurrentPage + 1);
+
+    if (!mounted) return;
+
+    if (result.success) {
+      setState(() {
+        for (final p in result.posts) {
+          if (p is Map<String, dynamic>) {
+            final post = p['post'] as Map<String, dynamic>? ?? p;
+            _savedPosts.add(post);
+          }
+        }
+        _savedCurrentPage = result.pagination?['current_page'] ?? _savedCurrentPage;
+        _savedLastPage = result.pagination?['last_page'] ?? _savedLastPage;
+        _isLoadingMoreSaved = false;
+      });
+    } else {
+      setState(() => _isLoadingMoreSaved = false);
+    }
+  }
+
+  // ─── Navigate to Followers/Following ───
+
+  void _openFollowersList() {
+    final userId = _user?['id'] as int?;
+    if (userId == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FollowListScreen(userId: userId, title: 'Followers', isFollowers: true),
+      ),
+    );
+  }
+
+  void _openFollowingList() {
+    final userId = _user?['id'] as int?;
+    if (userId == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FollowListScreen(userId: userId, title: 'Following', isFollowers: false),
+      ),
+    );
   }
 
   Future<void> _editMyPost(int index) async {
@@ -503,6 +624,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               tabs: const [
                 Tab(text: 'MY PROFILE'),
                 Tab(text: 'MY POSTS'),
+                Tab(text: 'SAVED'),
               ],
             ),
             // Tab content
@@ -514,6 +636,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   _buildProfileTabContent(l10n),
                   // Tab 2: My Posts
                   _buildMyPostsTab(),
+                  // Tab 3: Saved Posts
+                  _buildSavedPostsTab(),
                 ],
               ),
             ),
@@ -784,6 +908,178 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           }
           return _buildMyPostCard(index);
         },
+      ),
+    );
+  }
+
+  Widget _buildSavedPostsTab() {
+    if (_isLoadingSaved) {
+      return Center(
+        child: CircularProgressIndicator(color: AppTheme.goldColor(context)),
+      );
+    }
+
+    if (_savedPosts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.bookmark_border, size: 56, color: AppTheme.goldColor(context).withValues(alpha: 0.4)),
+            const SizedBox(height: 16),
+            Text('No saved posts', style: AppTheme.heading(context, size: 22)),
+            const SizedBox(height: 8),
+            Text('Posts you save will appear here', style: AppTheme.label(context, size: 12)),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadSavedPosts,
+      color: AppTheme.goldColor(context),
+      child: ListView.builder(
+        controller: _savedScrollController,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+        itemCount: _savedPosts.length + (_isLoadingMoreSaved ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == _savedPosts.length) {
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: AppTheme.goldColor(context),
+                  strokeWidth: 2,
+                ),
+              ),
+            );
+          }
+          return _buildSavedPostCard(index);
+        },
+      ),
+    );
+  }
+
+  Widget _buildSavedPostCard(int index) {
+    final post = _savedPosts[index];
+    final user = post['user'] as Map<String, dynamic>? ?? {};
+    final userName = user['name'] as String? ?? 'Unknown';
+    final userAvatar = (user['profile_image_url'] ?? user['profile_image']) as String?;
+    final content = post['content'] as String? ?? '';
+    final media = post['media'] as List<dynamic>? ?? [];
+    final reactionsCount = post['reactions_count'] as int? ?? 0;
+    final commentsCount = post['comments_count'] as int? ?? 0;
+    final createdAt = post['created_at'] as String? ?? '';
+    final viewsCount = post['views_count'] as int? ?? 0;
+
+    String timeAgo = '';
+    if (createdAt.isNotEmpty) {
+      try {
+        final date = DateTime.parse(createdAt);
+        final diff = DateTime.now().difference(date);
+        if (diff.inSeconds < 60) timeAgo = 'Just now';
+        else if (diff.inMinutes < 60) timeAgo = '${diff.inMinutes}m ago';
+        else if (diff.inHours < 24) timeAgo = '${diff.inHours}h ago';
+        else if (diff.inDays < 7) timeAgo = '${diff.inDays}d ago';
+        else timeAgo = '${date.day}/${date.month}/${date.year}';
+      } catch (_) {}
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: AppTheme.isDark(context) ? const Color(0xFF1A1610) : const Color(0xFFFFFCF5),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppTheme.glassBorder(context)),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.isDark(context)
+                  ? Colors.black.withValues(alpha: 0.3)
+                  : const Color.fromRGBO(160, 140, 100, 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // User header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 12, 0),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppTheme.goldColor(context).withValues(alpha: 0.4), width: 1.5),
+                    ),
+                    child: ClipOval(
+                      child: userAvatar != null && userAvatar.isNotEmpty
+                          ? Image.network(
+                              userAvatar.startsWith('http') ? userAvatar : '${ApiService.baseUrl}/$userAvatar',
+                              width: 36, height: 36, fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Center(
+                                child: Text(userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                                    style: GoogleFonts.jost(color: AppTheme.goldColor(context), fontSize: 14)),
+                              ),
+                            )
+                          : Center(
+                              child: Text(userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                                  style: GoogleFonts.jost(color: AppTheme.goldColor(context), fontSize: 14)),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(userName, style: GoogleFonts.jost(color: AppTheme.text1(context), fontSize: 13, fontWeight: FontWeight.w600)),
+                        if (timeAgo.isNotEmpty)
+                          Text(timeAgo, style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.bookmark, size: 20, color: AppTheme.goldColor(context)),
+                ],
+              ),
+            ),
+            if (content.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                child: Text(content, style: GoogleFonts.jost(color: AppTheme.text1(context), fontSize: 14, height: 1.5)),
+              ),
+            if (media.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _buildPostMediaGrid(media),
+            ],
+            // Stats row
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+              child: Row(
+                children: [
+                  Icon(Icons.favorite, size: 14, color: AppTheme.textMuted(context)),
+                  const SizedBox(width: 4),
+                  Text('$reactionsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
+                  const SizedBox(width: 16),
+                  Icon(Icons.chat_bubble_outline, size: 14, color: AppTheme.textMuted(context)),
+                  const SizedBox(width: 4),
+                  Text('$commentsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
+                  if (viewsCount > 0) ...[
+                    const SizedBox(width: 16),
+                    Icon(Icons.visibility_outlined, size: 14, color: AppTheme.textMuted(context)),
+                    const SizedBox(width: 4),
+                    Text('$viewsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1138,25 +1434,32 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   }
 
   Widget _buildStatsRow() {
+    final followersCount = _followersCount;
+    final followingCount = _followingCount;
+    final postsCount = _user?['posts_count'] as int? ?? _myPosts.length;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _buildStatItem('0', 'Entries'),
+        _buildStatItem('$postsCount', 'Posts'),
         _buildStatDivider(),
-        _buildStatItem('0', 'Streak'),
+        _buildStatItem('$followersCount', 'Followers', onTap: _openFollowersList),
         _buildStatDivider(),
-        _buildStatItem('0', 'Friends'),
+        _buildStatItem('$followingCount', 'Following', onTap: _openFollowingList),
       ],
     );
   }
 
-  Widget _buildStatItem(String value, String label) {
-    return Column(
-      children: [
-        Text(value, style: AppTheme.heading(context, size: 16)),
-        const SizedBox(height: 2),
-        Text(label, style: AppTheme.label(context)),
-      ],
+  Widget _buildStatItem(String value, String label, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Text(value, style: AppTheme.heading(context, size: 16)),
+          const SizedBox(height: 2),
+          Text(label, style: AppTheme.label(context)),
+        ],
+      ),
     );
   }
 

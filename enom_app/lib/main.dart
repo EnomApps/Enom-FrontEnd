@@ -6,10 +6,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'l10n/app_localizations.dart';
 import 'models/language_model.dart';
 import 'screens/splash_screen.dart';
+import 'services/upload_manager.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await UploadManager.instance.init();
   // Make system nav bar transparent so content doesn't get hidden behind it
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
