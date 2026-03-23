@@ -2,12 +2,15 @@ import 'dart:typed_data';
 import 'api_service.dart';
 
 class PostService {
-  /// Get paginated feed posts. Optionally filter by [userId].
+  /// Get paginated feed posts using cursor-based pagination.
+  /// Pass [cursor] from the previous response's `next_cursor` to load the next page.
+  /// Optionally filter by [userId].
   static Future<({bool success, List<dynamic> posts, Map<String, dynamic>? pagination})> getFeed({
-    int page = 1,
+    String? cursor,
     int? userId,
   }) async {
-    String endpoint = '/api/posts?page=$page&per_page=5';
+    String endpoint = '/api/posts?per_page=5';
+    if (cursor != null) endpoint += '&cursor=$cursor';
     if (userId != null) endpoint += '&user_id=$userId';
 
     final result = await ApiService.get(endpoint, auth: true);
@@ -16,21 +19,10 @@ class PostService {
 
     if (status == 200 && body is Map<String, dynamic>) {
       final posts = body['data'] as List<dynamic>? ?? [];
-      // Debug: log first post media structure
-      if (posts.isNotEmpty) {
-        final first = posts[0];
-        if (first is Map) {
-          // ignore: avoid_print
-          print('[Feed] first post keys: ${first.keys.toList()}');
-          // ignore: avoid_print
-          print('[Feed] first post media: ${first['media']}');
-        }
-      }
       final pagination = <String, dynamic>{
-        'current_page': body['current_page'],
-        'last_page': body['last_page'],
-        'per_page': body['per_page'],
-        'total': body['total'],
+        'next_cursor': body['next_cursor'],
+        'prev_cursor': body['prev_cursor'],
+        'next_page_url': body['next_page_url'],
       };
       return (success: true, posts: posts, pagination: pagination);
     }

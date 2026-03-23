@@ -12,6 +12,7 @@ import '../services/social_service.dart';
 import '../theme/app_theme.dart';
 import 'edit_post_screen.dart';
 import 'feed_screen.dart';
+import 'feed_reels_screen.dart';
 import 'follow_list_screen.dart';
 import 'welcome_screen.dart';
 
@@ -44,8 +45,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   // My Posts state
   final List<Map<String, dynamic>> _myPosts = [];
   final ScrollController _postsScrollController = ScrollController();
-  int _postsCurrentPage = 1;
-  int _postsLastPage = 1;
+  String? _postsNextCursor;
   bool _isLoadingPosts = false;
   bool _isLoadingMorePosts = false;
   bool _postsLoaded = false;
@@ -396,7 +396,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       _postsLoaded = true;
     });
 
-    final result = await PostService.getFeed(page: 1, userId: userId);
+    final result = await PostService.getFeed(userId: userId);
 
     if (!mounted) return;
 
@@ -406,8 +406,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         for (final p in result.posts) {
           if (p is Map<String, dynamic>) _myPosts.add(p);
         }
-        _postsCurrentPage = result.pagination?['current_page'] ?? 1;
-        _postsLastPage = result.pagination?['last_page'] ?? 1;
+        _postsNextCursor = result.pagination?['next_cursor'] as String?;
         _isLoadingPosts = false;
       });
     } else {
@@ -417,11 +416,11 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
 
   Future<void> _loadMorePosts() async {
     final userId = _user?['id'] as int?;
-    if (userId == null || _isLoadingMorePosts || _postsCurrentPage >= _postsLastPage) return;
+    if (userId == null || _isLoadingMorePosts || _postsNextCursor == null) return;
 
     setState(() => _isLoadingMorePosts = true);
 
-    final result = await PostService.getFeed(page: _postsCurrentPage + 1, userId: userId);
+    final result = await PostService.getFeed(cursor: _postsNextCursor, userId: userId);
 
     if (!mounted) return;
 
@@ -430,8 +429,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         for (final p in result.posts) {
           if (p is Map<String, dynamic>) _myPosts.add(p);
         }
-        _postsCurrentPage = result.pagination?['current_page'] ?? _postsCurrentPage;
-        _postsLastPage = result.pagination?['last_page'] ?? _postsLastPage;
+        _postsNextCursor = result.pagination?['next_cursor'] as String?;
         _isLoadingMorePosts = false;
       });
     } else {
@@ -984,30 +982,32 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       } catch (_) {}
     }
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: AppTheme.isDark(context) ? const Color(0xFF1A1610) : const Color(0xFFFFFCF5),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppTheme.glassBorder(context)),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.isDark(context)
-                  ? Colors.black.withValues(alpha: 0.3)
-                  : const Color.fromRGBO(160, 140, 100, 0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // User header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 12, 0),
+    return GestureDetector(
+      onTap: () => _openSavedPostDetail(index),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: AppTheme.isDark(context) ? const Color(0xFF1A1610) : const Color(0xFFFFFCF5),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.glassBorder(context)),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.isDark(context)
+                    ? Colors.black.withValues(alpha: 0.3)
+                    : const Color.fromRGBO(160, 140, 100, 0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // User header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 12, 0),
               child: Row(
                 children: [
                   Container(
@@ -1081,7 +1081,51 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           ],
         ),
       ),
+      ),
     );
+  }
+
+  void _openSavedPostDetail(int index) {
+    final post = _savedPosts[index];
+    final media = post['media'] as List<dynamic>? ?? [];
+    final hasVideo = media.any((item) {
+      if (item is Map) {
+        final type = (item['type'] ?? item['mime_type'] ?? item['file_type'] ?? 'image').toString();
+        return type.contains('video');
+      }
+      return false;
+    });
+
+    if (hasVideo) {
+      final videoPosts = _savedPosts.where((p) {
+        final m = p['media'] as List<dynamic>? ?? [];
+        return m.any((item) {
+          if (item is Map) {
+            final type = (item['type'] ?? item['mime_type'] ?? item['file_type'] ?? 'image').toString();
+            return type.contains('video');
+          }
+          return false;
+        });
+      }).toList();
+      final reelIndex = videoPosts.indexOf(post);
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => FeedReelsScreen(
+            videoPosts: videoPosts,
+            initialIndex: reelIndex >= 0 ? reelIndex : 0,
+          ),
+        ),
+      );
+    } else {
+      final imageUrls = _getPostImageUrls(media);
+      if (imageUrls.isNotEmpty) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => FullImageScreen(urls: imageUrls),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildMyPostCard(int index) {
@@ -1109,30 +1153,32 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       } catch (_) {}
     }
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: AppTheme.isDark(context) ? const Color(0xFF1A1610) : const Color(0xFFFFFCF5),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppTheme.glassBorder(context)),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.isDark(context)
-                  ? Colors.black.withValues(alpha: 0.3)
-                  : const Color.fromRGBO(160, 140, 100, 0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with time and delete
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 8, 0),
+    return GestureDetector(
+      onTap: () => _openPostDetail(index),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: AppTheme.isDark(context) ? const Color(0xFF1A1610) : const Color(0xFFFFFCF5),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.glassBorder(context)),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.isDark(context)
+                    ? Colors.black.withValues(alpha: 0.3)
+                    : const Color.fromRGBO(160, 140, 100, 0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with time and delete
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 8, 0),
               child: Row(
                 children: [
                   Icon(Icons.access_time, size: 14, color: AppTheme.textMuted(context)),
@@ -1208,7 +1254,53 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           ],
         ),
       ),
+      ),
     );
+  }
+
+  void _openPostDetail(int index) {
+    final post = _myPosts[index];
+    final media = post['media'] as List<dynamic>? ?? [];
+    final hasVideo = media.any((item) {
+      if (item is Map) {
+        final type = (item['type'] ?? item['mime_type'] ?? item['file_type'] ?? 'image').toString();
+        return type.contains('video');
+      }
+      return false;
+    });
+
+    if (hasVideo) {
+      // Open in reels view with all video posts
+      final videoPosts = _myPosts.where((p) {
+        final m = p['media'] as List<dynamic>? ?? [];
+        return m.any((item) {
+          if (item is Map) {
+            final type = (item['type'] ?? item['mime_type'] ?? item['file_type'] ?? 'image').toString();
+            return type.contains('video');
+          }
+          return false;
+        });
+      }).toList();
+      final reelIndex = videoPosts.indexOf(post);
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => FeedReelsScreen(
+            videoPosts: videoPosts,
+            initialIndex: reelIndex >= 0 ? reelIndex : 0,
+          ),
+        ),
+      );
+    } else {
+      // Open image viewer for image posts
+      final imageUrls = _getPostImageUrls(media);
+      if (imageUrls.isNotEmpty) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => FullImageScreen(urls: imageUrls),
+          ),
+        );
+      }
+    }
   }
 
   List<String> _getPostImageUrls(List<dynamic> media) {
@@ -1452,13 +1544,17 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
 
   Widget _buildStatItem(String value, String label, {VoidCallback? onTap}) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Column(
-        children: [
-          Text(value, style: AppTheme.heading(context, size: 16)),
-          const SizedBox(height: 2),
-          Text(label, style: AppTheme.label(context)),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          children: [
+            Text(value, style: AppTheme.heading(context, size: 16)),
+            const SizedBox(height: 2),
+            Text(label, style: AppTheme.label(context)),
+          ],
+        ),
       ),
     );
   }

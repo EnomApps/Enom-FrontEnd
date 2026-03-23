@@ -229,6 +229,20 @@ class _FollowListScreenState extends State<FollowListScreen> {
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,
+                      cacheWidth: 144,
+                      loadingBuilder: (_, child, progress) {
+                        if (progress == null) return child;
+                        return Center(
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: AppTheme.goldColor(context),
+                            ),
+                          ),
+                        );
+                      },
                       errorBuilder: (_, __, ___) => _avatarFallback(name),
                     )
                   : _avatarFallback(name),
@@ -264,7 +278,7 @@ class _FollowListScreenState extends State<FollowListScreen> {
             GestureDetector(
               onTap: () => _toggleFollow(userId),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                 decoration: BoxDecoration(
                   gradient: isFollowing ? null : AppTheme.goldGradient2,
                   color: isFollowing ? AppTheme.glassBg(context) : null,
@@ -276,7 +290,7 @@ class _FollowListScreenState extends State<FollowListScreen> {
                 child: Text(
                   isFollowing ? 'Following' : 'Follow',
                   style: GoogleFonts.jost(
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: isFollowing
                         ? AppTheme.text2(context)

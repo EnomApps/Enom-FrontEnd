@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../services/social_service.dart';
@@ -25,8 +26,7 @@ class _FeedScreenState extends State<FeedScreen> {
   final ScrollController _scrollController = ScrollController();
   int? _currentUserId;
   final Map<int, bool> _followStates = {}; // userId → isFollowing
-  int _currentPage = 1;
-  int _lastPage = 1;
+  String? _nextCursor;
   bool _isLoading = false;
   bool _isLoadingMore = false;
   bool _hasError = false;
@@ -66,7 +66,7 @@ class _FeedScreenState extends State<FeedScreen> {
       _hasError = false;
     });
 
-    final result = await PostService.getFeed(page: 1);
+    final result = await PostService.getFeed();
 
     if (!mounted) return;
 
@@ -76,8 +76,7 @@ class _FeedScreenState extends State<FeedScreen> {
         for (final p in result.posts) {
           if (p is Map<String, dynamic>) _posts.add(p);
         }
-        _currentPage = result.pagination?['current_page'] ?? 1;
-        _lastPage = result.pagination?['last_page'] ?? 1;
+        _nextCursor = result.pagination?['next_cursor'] as String?;
         _isLoading = false;
       });
       _fetchFollowStatuses(_posts);
@@ -110,11 +109,11 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Future<void> _loadMore() async {
-    if (_isLoadingMore || _currentPage >= _lastPage) return;
+    if (_isLoadingMore || _nextCursor == null) return;
 
     setState(() => _isLoadingMore = true);
 
-    final result = await PostService.getFeed(page: _currentPage + 1);
+    final result = await PostService.getFeed(cursor: _nextCursor);
 
     if (!mounted) return;
 
@@ -127,8 +126,7 @@ class _FeedScreenState extends State<FeedScreen> {
             newPosts.add(p);
           }
         }
-        _currentPage = result.pagination?['current_page'] ?? _currentPage;
-        _lastPage = result.pagination?['last_page'] ?? _lastPage;
+        _nextCursor = result.pagination?['next_cursor'] as String?;
         _isLoadingMore = false;
       });
       _fetchFollowStatuses(newPosts);
@@ -138,7 +136,7 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Future<void> _onRefresh() async {
-    _currentPage = 1;
+    _nextCursor = null;
     await _loadFeed();
   }
 
@@ -286,7 +284,16 @@ class _FeedScreenState extends State<FeedScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => ThreadedCommentsSheet(postId: postId),
+      builder: (ctx) => ThreadedCommentsSheet(
+        postId: postId,
+        onCommentAdded: () {
+          if (mounted) {
+            setState(() {
+              post['comments_count'] = ((post['comments_count'] ?? 0) as int) + 1;
+            });
+          }
+        },
+      ),
     );
   }
 
@@ -307,6 +314,14 @@ class _FeedScreenState extends State<FeedScreen> {
   /// Open the TikTok/Reels-style video screen starting at the given post.
   void _openReelsScreen(Map<String, dynamic> tappedPost) {
     final videoPosts = _getVideoPosts();
+    // Inject follow state into each post so reels can read it
+    for (final post in videoPosts) {
+      final user = post['user'] as Map<String, dynamic>? ?? {};
+      final uid = user['id'] as int?;
+      if (uid != null && _followStates.containsKey(uid)) {
+        post['is_following'] = _followStates[uid];
+      }
+    }
     final initialIndex = videoPosts.indexWhere((p) => p['id'] == tappedPost['id']);
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -618,14 +633,25 @@ class _FeedScreenState extends State<FeedScreen> {
                               const SizedBox(width: 8),
                               GestureDetector(
                                 onTap: () => _toggleFollow(index),
-                                child: Text(
-                                  isFollowing ? 'Following' : 'Follow',
-                                  style: GoogleFonts.jost(
-                                    color: isFollowing
-                                        ? AppTheme.textMuted(context)
-                                        : AppTheme.goldColor(context),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    gradient: isFollowing ? null : AppTheme.goldGradient2,
+                                    color: isFollowing ? AppTheme.glassBg(context) : null,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: isFollowing
+                                        ? Border.all(color: AppTheme.glassBorder(context))
+                                        : null,
+                                  ),
+                                  child: Text(
+                                    isFollowing ? 'Following' : 'Follow',
+                                    style: GoogleFonts.jost(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: isFollowing
+                                          ? AppTheme.text2(context)
+                                          : const Color(0xFF1A1612),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -727,22 +753,75 @@ class _FeedScreenState extends State<FeedScreen> {
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
               child: Row(
                 children: [
-                  // Reaction buttons
-                  _ReactionButton(
-                    emoji: '\u{2764}',
-                    label: reactionsCount > 0 ? '$reactionsCount' : '',
-                    isActive: userReaction != null,
+                  // Like button
+                  GestureDetector(
                     onTap: () => _toggleReaction(index, 'like'),
-                    activeColor: AppTheme.goldColor(context),
-                    context: context,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: userReaction != null
+                            ? Colors.redAccent.withValues(alpha: 0.12)
+                            : AppTheme.glassBg(context),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: userReaction != null
+                              ? Colors.redAccent.withValues(alpha: 0.3)
+                              : AppTheme.glassBorder(context),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            userReaction != null ? Icons.favorite : Icons.favorite_border,
+                            size: 18,
+                            color: userReaction != null ? Colors.redAccent : AppTheme.text2(context),
+                          ),
+                          if (reactionsCount > 0) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              '$reactionsCount',
+                              style: GoogleFonts.jost(
+                                color: userReaction != null ? Colors.redAccent : AppTheme.text2(context),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
-                  _ReactionButton(
-                    emoji: '\u{1F4AC}',
-                    label: commentsCount > 0 ? '$commentsCount' : '',
-                    isActive: false,
+                  // Comment button
+                  GestureDetector(
                     onTap: () => _showComments(post),
-                    activeColor: AppTheme.goldColor(context),
-                    context: context,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.glassBg(context),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.glassBorder(context)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.chat_bubble_outline, size: 16, color: AppTheme.text2(context)),
+                          if (commentsCount > 0) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              '$commentsCount',
+                              style: GoogleFonts.jost(
+                                color: AppTheme.text2(context),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
                   // Save/Bookmark button
                   GestureDetector(
@@ -788,8 +867,24 @@ class _FeedScreenState extends State<FeedScreen> {
                         ],
                       ),
                     ),
-                  // Reaction picker
-                  _buildReactionPicker(index),
+                  // Share button
+                  GestureDetector(
+                    onTap: () {},
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.glassBg(context),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.glassBorder(context)),
+                      ),
+                      child: Icon(
+                        Icons.share_outlined,
+                        size: 18,
+                        color: AppTheme.text2(context),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -950,28 +1045,6 @@ class _FeedScreenState extends State<FeedScreen> {
     );
   }
 
-  Widget _buildReactionPicker(int index) {
-    final reactions = [
-      ('\u{1F44D}', 'like'),
-      ('\u{2764}', 'love'),
-      ('\u{1F602}', 'haha'),
-      ('\u{1F62E}', 'wow'),
-    ];
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children:
-          reactions.map((r) {
-            return GestureDetector(
-              onTap: () => _toggleReaction(index, r.$2),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                child: Text(r.$1, style: const TextStyle(fontSize: 18)),
-              ),
-            );
-          }).toList(),
-    );
-  }
 
   String _formatCount(int count) {
     if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
@@ -997,65 +1070,6 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 }
 
-/// Reaction button widget
-class _ReactionButton extends StatelessWidget {
-  final String emoji;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-  final Color activeColor;
-  final BuildContext context;
-
-  const _ReactionButton({
-    required this.emoji,
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-    required this.activeColor,
-    required this.context,
-  });
-
-  @override
-  Widget build(BuildContext _) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color:
-              isActive
-                  ? activeColor.withValues(alpha: 0.12)
-                  : AppTheme.glassBg(context),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color:
-                isActive
-                    ? activeColor.withValues(alpha: 0.3)
-                    : AppTheme.glassBorder(context),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 16)),
-            if (label.isNotEmpty) ...[
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: GoogleFonts.jost(
-                  color: isActive ? activeColor : AppTheme.text2(context),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class FullImageScreen extends StatefulWidget {
   final List<String> urls;
@@ -1146,6 +1160,8 @@ class _FeedInlineVideoPlayerState extends State<FeedInlineVideoPlayer> {
   late VideoPlayerController _controller;
   bool _initialized = false;
   bool _hasError = false;
+  bool _isMuted = true;
+  bool _isVisible = false;
 
   @override
   void initState() {
@@ -1155,17 +1171,15 @@ class _FeedInlineVideoPlayerState extends State<FeedInlineVideoPlayer> {
           .then((_) {
             if (mounted) {
               setState(() => _initialized = true);
-              _controller.play();
               _controller.setVolume(0);
+              _controller.setLooping(true);
+              // Only play if currently visible
+              if (_isVisible) _controller.play();
             }
           })
           .catchError((_) {
             if (mounted) setState(() => _hasError = true);
           });
-    _controller.setLooping(true);
-    _controller.addListener(() {
-      if (mounted) setState(() {});
-    });
   }
 
   @override
@@ -1174,8 +1188,29 @@ class _FeedInlineVideoPlayerState extends State<FeedInlineVideoPlayer> {
     super.dispose();
   }
 
+  void _onVisibilityChanged(VisibilityInfo info) {
+    final visible = info.visibleFraction > 0.5;
+    if (visible == _isVisible) return;
+    _isVisible = visible;
+    if (!_initialized) return;
+
+    if (visible) {
+      _controller.play();
+    } else {
+      _controller.pause();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    return VisibilityDetector(
+      key: Key('feed-video-${widget.url}'),
+      onVisibilityChanged: _onVisibilityChanged,
+      child: _buildContent(context),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     if (_hasError) {
       return Center(
         child: Icon(Icons.error_outline, size: 36, color: Colors.white54),
@@ -1191,11 +1226,11 @@ class _FeedInlineVideoPlayerState extends State<FeedInlineVideoPlayer> {
       );
     }
 
-    return IgnorePointer(
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox.expand(
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        IgnorePointer(
+          child: SizedBox.expand(
             child: FittedBox(
               fit: BoxFit.cover,
               child: SizedBox(
@@ -1211,38 +1246,33 @@ class _FeedInlineVideoPlayerState extends State<FeedInlineVideoPlayer> {
               ),
             ),
           ),
-          // Play icon overlay
-          Container(
-            decoration: const BoxDecoration(
-              color: Colors.black26,
-              shape: BoxShape.circle,
-            ),
-            padding: const EdgeInsets.all(10),
-            child: const Icon(
-              Icons.play_arrow_rounded,
-              size: 28,
-              color: Colors.white,
-            ),
-          ),
-          // Muted indicator
-          Positioned(
-            left: 8,
-            bottom: 8,
+        ),
+        // Mute/Unmute toggle
+        Positioned(
+          right: 8,
+          bottom: 8,
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _isMuted = !_isMuted;
+                _controller.setVolume(_isMuted ? 0 : 1);
+              });
+            },
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.black54,
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(14),
               ),
-              padding: const EdgeInsets.all(4),
-              child: const Icon(
-                Icons.volume_off_rounded,
+              padding: const EdgeInsets.all(6),
+              child: Icon(
+                _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
                 size: 16,
                 color: Colors.white70,
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

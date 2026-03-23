@@ -31,6 +31,8 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
   late PageController _pageController;
   late int _currentIndex;
   late List<Map<String, dynamic>> _videoPosts;
+  String? _nextCursor;
+  bool _isLoadingMore = false;
 
   @override
   void initState() {
@@ -46,6 +48,9 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
         statusBarIconBrightness: Brightness.light,
       ),
     );
+
+    // Start loading more posts from the API
+    _loadMorePosts();
   }
 
   @override
@@ -72,14 +77,12 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
             controller: _pageController,
             scrollDirection: Axis.vertical,
             itemCount: _videoPosts.length,
-            onPageChanged: (index) {
-              setState(() => _currentIndex = index);
-            },
+            onPageChanged: _onPageChanged,
             itemBuilder: (context, index) {
               return _ReelVideoPage(
                 post: _videoPosts[index],
                 isActive: index == _currentIndex,
-                onCommentTap: () => _showComments(_videoPosts[index]),
+                onCommentTap: (onCommentAdded) => _showComments(_videoPosts[index], onCommentAdded),
               );
             },
           ),
@@ -118,13 +121,59 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
     );
   }
 
-  void _showComments(Map<String, dynamic> post) {
+  Future<void> _loadMorePosts() async {
+    if (_isLoadingMore) return;
+    _isLoadingMore = true;
+
+    final result = await PostService.getFeed(cursor: _nextCursor);
+    if (!mounted) return;
+
+    if (result.success) {
+      _nextCursor = result.pagination?['next_cursor'] as String?;
+      final newVideoPosts = <Map<String, dynamic>>[];
+      for (final p in result.posts) {
+        if (p is Map<String, dynamic>) {
+          final media = p['media'] as List<dynamic>? ?? [];
+          final hasVideo = media.any((item) {
+            if (item is Map) {
+              final type = (item['type'] ?? item['mime_type'] ?? item['file_type'] ?? 'image').toString();
+              return type.contains('video');
+            }
+            return false;
+          });
+          if (hasVideo) {
+            // Avoid duplicates
+            final exists = _videoPosts.any((vp) => vp['id'] == p['id']);
+            if (!exists) newVideoPosts.add(p);
+          }
+        }
+      }
+      if (newVideoPosts.isNotEmpty) {
+        setState(() => _videoPosts.addAll(newVideoPosts));
+      }
+    }
+    _isLoadingMore = false;
+  }
+
+  void _onPageChanged(int index) {
+    setState(() => _currentIndex = index);
+    // Load more when 2 posts away from the end
+    if (index >= _videoPosts.length - 2 && _nextCursor != null) {
+      _loadMorePosts();
+    }
+  }
+
+  void _showComments(Map<String, dynamic> post, VoidCallback onCommentAdded) {
     final postId = post['id'] as int;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => ThreadedCommentsSheet(postId: postId, darkMode: true),
+      builder: (ctx) => ThreadedCommentsSheet(
+        postId: postId,
+        darkMode: true,
+        onCommentAdded: onCommentAdded,
+      ),
     );
   }
 }
@@ -136,7 +185,7 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
 class _ReelVideoPage extends StatefulWidget {
   final Map<String, dynamic> post;
   final bool isActive;
-  final VoidCallback onCommentTap;
+  final void Function(VoidCallback onCommentAdded) onCommentTap;
 
   const _ReelVideoPage({
     required this.post,
@@ -165,6 +214,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
   bool _isSaved = false;
   int _viewsCount = 0;
   bool _viewRecorded = false;
+  bool _isOwner = false;
 
   @override
   void initState() {
@@ -175,8 +225,11 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
     _isFollowing = widget.post['is_following'] as bool? ?? false;
     _isSaved = widget.post['is_saved'] as bool? ?? false;
     _viewsCount = widget.post['views_count'] as int? ?? 0;
+    _isOwner = widget.post['is_owner'] as bool? ?? false;
     _initVideo();
     if (widget.isActive) _recordView();
+    if (!_isOwner) _checkFollowStatus();
+    _loadCurrentUserId();
   }
 
   void _initVideo() {
@@ -259,6 +312,28 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
     _viewRecorded = true;
     final postId = widget.post['id'] as int;
     SocialService.recordView(postId);
+  }
+
+  Future<void> _loadCurrentUserId() async {
+    final currentUser = await ApiService.getUser();
+    if (!mounted || currentUser == null) return;
+    final currentUserId = currentUser['id'] as int?;
+    final user = widget.post['user'] as Map<String, dynamic>? ?? {};
+    final postUserId = user['id'] as int?;
+    if (currentUserId != null && currentUserId == postUserId) {
+      setState(() => _isOwner = true);
+    }
+  }
+
+  Future<void> _checkFollowStatus() async {
+    final user = widget.post['user'] as Map<String, dynamic>? ?? {};
+    final userId = user['id'] as int?;
+    if (userId == null) return;
+
+    final result = await SocialService.getFollowStatus(userId);
+    if (mounted && result.success) {
+      setState(() => _isFollowing = result.isFollowing);
+    }
   }
 
   Future<void> _toggleFollow() async {
@@ -408,7 +483,9 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                   icon: Icons.chat_bubble_outline_rounded,
                   label: _formatCount(_commentsCount),
                   color: Colors.white,
-                  onTap: widget.onCommentTap,
+                  onTap: () => widget.onCommentTap(() {
+                    if (mounted) setState(() => _commentsCount += 1);
+                  }),
                 ),
                 const SizedBox(height: 20),
 
@@ -545,7 +622,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
 
   Widget _buildProfileAvatar(String? avatarUrl, String name) {
     return GestureDetector(
-      onTap: _toggleFollow,
+      onTap: _isOwner ? null : _toggleFollow,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,
@@ -569,49 +646,74 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _avatarFallback(name),
+                      cacheWidth: 144,
+                      loadingBuilder: (_, child, progress) {
+                        if (progress == null) return child;
+                        return Container(
+                          width: 48,
+                          height: 48,
+                          color: Colors.grey[800],
+                          child: const Center(
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.5,
+                                color: Colors.white54,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 48,
+                        height: 48,
+                        color: Colors.grey[800],
+                        child: Center(
+                          child: Text(
+                            name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                            style: GoogleFonts.jost(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
                     )
-                  : _avatarFallback(name),
+                  : Container(
+                      width: 48,
+                      height: 48,
+                      color: Colors.grey[800],
+                      child: Center(
+                        child: Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                          style: GoogleFonts.jost(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
             ),
           ),
-          // Follow/Following icon at bottom of avatar
-          Positioned(
-            bottom: -6,
-            child: Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                color: _isFollowing ? Colors.grey[700] : AppTheme.gold1,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.black, width: 1.5),
-              ),
-              child: Icon(
-                _isFollowing ? Icons.check : Icons.add,
-                size: 14,
-                color: _isFollowing ? Colors.white : Colors.black,
+          // Follow/Following icon at bottom of avatar (hide for own posts)
+          if (!_isOwner)
+            Positioned(
+              bottom: -6,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: _isFollowing ? Colors.grey[700] : AppTheme.gold1,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.black, width: 1.5),
+                ),
+                child: Icon(
+                  _isFollowing ? Icons.check : Icons.add,
+                  size: 14,
+                  color: _isFollowing ? Colors.white : Colors.black,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _avatarFallback(String name) {
-    return Container(
-      color: Colors.grey[800],
-      child: Center(
-        child: Text(
-          name.isNotEmpty ? name[0].toUpperCase() : 'U',
-          style: GoogleFonts.jost(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildActionButton({
     required IconData icon,

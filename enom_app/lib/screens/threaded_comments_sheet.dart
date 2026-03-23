@@ -13,10 +13,14 @@ class ThreadedCommentsSheet extends StatefulWidget {
   /// If true, uses dark theme (for reels screen).
   final bool darkMode;
 
+  /// Called whenever a comment is added so the parent can update count instantly.
+  final VoidCallback? onCommentAdded;
+
   const ThreadedCommentsSheet({
     super.key,
     required this.postId,
     this.darkMode = false,
+    this.onCommentAdded,
   });
 
   @override
@@ -109,6 +113,7 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
       }
       _cancelReply();
       _loadComments();
+      widget.onCommentAdded?.call();
     }
     setState(() => _isSending = false);
   }

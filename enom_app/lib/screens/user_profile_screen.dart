@@ -4,6 +4,8 @@ import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../services/social_service.dart';
 import '../theme/app_theme.dart';
+import 'feed_reels_screen.dart';
+import 'feed_screen.dart';
 
 /// Public profile screen for viewing another user's profile.
 class UserProfileScreen extends StatefulWidget {
@@ -23,8 +25,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   // User's posts
   final List<Map<String, dynamic>> _posts = [];
   final ScrollController _scrollController = ScrollController();
-  int _currentPage = 1;
-  int _lastPage = 1;
+  String? _nextCursor;
   bool _isLoading = false;
   bool _isLoadingMore = false;
 
@@ -77,7 +78,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Future<void> _loadPosts() async {
     setState(() => _isLoading = true);
 
-    final result = await PostService.getFeed(page: 1, userId: _userId);
+    final result = await PostService.getFeed(userId: _userId);
 
     if (!mounted) return;
 
@@ -87,8 +88,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         for (final p in result.posts) {
           if (p is Map<String, dynamic>) _posts.add(p);
         }
-        _currentPage = result.pagination?['current_page'] ?? 1;
-        _lastPage = result.pagination?['last_page'] ?? 1;
+        _nextCursor = result.pagination?['next_cursor'] as String?;
         _isLoading = false;
       });
     } else {
@@ -97,10 +97,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Future<void> _loadMore() async {
-    if (_isLoadingMore || _currentPage >= _lastPage) return;
+    if (_isLoadingMore || _nextCursor == null) return;
     setState(() => _isLoadingMore = true);
 
-    final result = await PostService.getFeed(page: _currentPage + 1, userId: _userId);
+    final result = await PostService.getFeed(cursor: _nextCursor, userId: _userId);
 
     if (!mounted) return;
 
@@ -109,8 +109,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         for (final p in result.posts) {
           if (p is Map<String, dynamic>) _posts.add(p);
         }
-        _currentPage = result.pagination?['current_page'] ?? _currentPage;
-        _lastPage = result.pagination?['last_page'] ?? _lastPage;
+        _nextCursor = result.pagination?['next_cursor'] as String?;
         _isLoadingMore = false;
       });
     } else {
@@ -214,11 +213,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             onTap: _followLoading ? null : _toggleFollow,
                             child: Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                               decoration: BoxDecoration(
                                 gradient: _isFollowing ? null : AppTheme.goldGradient2,
                                 color: _isFollowing ? AppTheme.glassBg(context) : null,
-                                borderRadius: BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(20),
                                 border: _isFollowing ? Border.all(color: AppTheme.glassBorder(context)) : null,
                               ),
                               child: Center(
@@ -297,12 +296,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Widget _buildStat(String value, String label) {
-    return Column(
-      children: [
-        Text(value, style: AppTheme.heading(context, size: 16)),
-        const SizedBox(height: 2),
-        Text(label, style: AppTheme.label(context)),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        children: [
+          Text(value, style: AppTheme.heading(context, size: 16)),
+          const SizedBox(height: 2),
+          Text(label, style: AppTheme.label(context)),
+        ],
+      ),
     );
   }
 
@@ -327,56 +329,115 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       } catch (_) {}
     }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: AppTheme.isDark(context) ? const Color(0xFF1A1610) : const Color(0xFFFFFCF5),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppTheme.glassBorder(context)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (timeAgo.isNotEmpty)
+    return GestureDetector(
+      onTap: () => _openPostDetail(post),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: AppTheme.isDark(context) ? const Color(0xFF1A1610) : const Color(0xFFFFFCF5),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.glassBorder(context)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (timeAgo.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: Text(timeAgo, style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 11)),
+                ),
+              if (content.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Text(content, style: GoogleFonts.jost(color: AppTheme.text1(context), fontSize: 14, height: 1.5)),
+                ),
+              if (media.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _buildMediaGrid(media),
+              ],
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: Text(timeAgo, style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 11)),
-              ),
-            if (content.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Text(content, style: GoogleFonts.jost(color: AppTheme.text1(context), fontSize: 14, height: 1.5)),
-              ),
-            if (media.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              _buildMediaGrid(media),
-            ],
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-              child: Row(
-                children: [
-                  Icon(Icons.favorite, size: 14, color: AppTheme.textMuted(context)),
-                  const SizedBox(width: 4),
-                  Text('$reactionsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
-                  const SizedBox(width: 16),
-                  Icon(Icons.chat_bubble_outline, size: 14, color: AppTheme.textMuted(context)),
-                  const SizedBox(width: 4),
-                  Text('$commentsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
-                  if (viewsCount > 0) ...[
-                    const SizedBox(width: 16),
-                    Icon(Icons.visibility_outlined, size: 14, color: AppTheme.textMuted(context)),
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                child: Row(
+                  children: [
+                    Icon(Icons.favorite, size: 14, color: AppTheme.textMuted(context)),
                     const SizedBox(width: 4),
-                    Text('$viewsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
+                    Text('$reactionsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
+                    const SizedBox(width: 16),
+                    Icon(Icons.chat_bubble_outline, size: 14, color: AppTheme.textMuted(context)),
+                    const SizedBox(width: 4),
+                    Text('$commentsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
+                    if (viewsCount > 0) ...[
+                      const SizedBox(width: 16),
+                      Icon(Icons.visibility_outlined, size: 14, color: AppTheme.textMuted(context)),
+                      const SizedBox(width: 4),
+                      Text('$viewsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  void _openPostDetail(Map<String, dynamic> post) {
+    final media = post['media'] as List<dynamic>? ?? [];
+    final hasVideo = media.any((item) {
+      if (item is Map) {
+        final type = (item['type'] ?? item['mime_type'] ?? item['file_type'] ?? 'image').toString();
+        return type.contains('video');
+      }
+      return false;
+    });
+
+    if (hasVideo) {
+      final videoPosts = _posts.where((p) {
+        final m = p['media'] as List<dynamic>? ?? [];
+        return m.any((item) {
+          if (item is Map) {
+            final type = (item['type'] ?? item['mime_type'] ?? item['file_type'] ?? 'image').toString();
+            return type.contains('video');
+          }
+          return false;
+        });
+      }).toList();
+      final reelIndex = videoPosts.indexOf(post);
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => FeedReelsScreen(
+            videoPosts: videoPosts,
+            initialIndex: reelIndex >= 0 ? reelIndex : 0,
+          ),
+        ),
+      );
+    } else {
+      final imageUrls = media
+          .where((item) {
+            if (item is Map) {
+              final type = (item['type'] ?? item['mime_type'] ?? 'image').toString();
+              return !type.contains('video');
+            }
+            return true;
+          })
+          .map((item) {
+            final url = (item is Map
+                ? (item['url'] ?? item['file_url'] ?? item['path'] ?? item['media_url'] ?? '')
+                : item).toString();
+            return url.startsWith('http') ? url : '${ApiService.baseUrl}/${url.replaceAll(RegExp(r'^/'), '')}';
+          })
+          .toList();
+      if (imageUrls.isNotEmpty) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => FullImageScreen(urls: imageUrls),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildMediaGrid(List<dynamic> media) {
