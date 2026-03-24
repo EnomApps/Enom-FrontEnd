@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'api_service.dart';
 
 class PostService {
@@ -173,12 +173,38 @@ class PostService {
     final body = result['body'];
 
     if (status == 200 && body is Map<String, dynamic>) {
-      final comments = body['data'] as List<dynamic>? ?? [];
+      final rawComments = body['data'] as List<dynamic>? ?? [];
+
+      // Debug: print raw API response to see the actual structure
+      debugPrint('[PostService.getComments] raw keys: ${body.keys.toList()}');
+      if (rawComments.isNotEmpty) {
+        debugPrint('[PostService.getComments] first comment keys: ${(rawComments.first as Map?)?.keys.toList()}');
+      }
+
+      // Flatten: if the API nests replies inside each comment, extract them.
+      final flatComments = <dynamic>[];
+      for (final c in rawComments) {
+        if (c is Map<String, dynamic>) {
+          flatComments.add(c);
+          // Check for nested replies array (common Laravel pattern)
+          final replies = c['replies'] as List<dynamic>?;
+          if (replies != null) {
+            for (final r in replies) {
+              if (r is Map<String, dynamic>) {
+                // Ensure parent_id is set on nested replies
+                r['parent_id'] ??= c['id'];
+                flatComments.add(r);
+              }
+            }
+          }
+        }
+      }
+
       final pagination = <String, dynamic>{
         'current_page': body['current_page'],
         'last_page': body['last_page'],
       };
-      return (success: true, comments: comments, pagination: pagination);
+      return (success: true, comments: flatComments, pagination: pagination);
     }
 
     return (success: false, comments: <dynamic>[], pagination: null);
@@ -201,6 +227,25 @@ class PostService {
     final msg = resBody is Map ? (resBody['message'] as String? ?? '') : '';
 
     return (success: status == 201, message: msg);
+  }
+
+  /// Get the list of users who reacted to a post.
+  static Future<({bool success, List<dynamic> reactions})> getReactions(int postId) async {
+    final result = await ApiService.get('/api/posts/$postId/reactions', auth: true);
+    final status = result['statusCode'] as int;
+    final body = result['body'];
+
+    if (status == 200 && body is Map<String, dynamic>) {
+      final reactions = body['data'] as List<dynamic>? ?? [];
+      return (success: true, reactions: reactions);
+    }
+
+    // Some APIs return a direct list
+    if (status == 200 && body is List<dynamic>) {
+      return (success: true, reactions: body);
+    }
+
+    return (success: false, reactions: <dynamic>[]);
   }
 
   /// Delete a comment by id.

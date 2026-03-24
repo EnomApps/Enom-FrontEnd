@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../services/social_service.dart';
 import '../theme/app_theme.dart';
+import 'likes_list_sheet.dart';
 import 'threaded_comments_sheet.dart';
 
 /// TikTok / Instagram Reels style vertical video feed.
@@ -469,12 +470,37 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                 _buildProfileAvatar(userAvatar, userName),
                 const SizedBox(height: 24),
 
-                // Like button
-                _buildActionButton(
-                  icon: _isLiked ? Icons.favorite : Icons.favorite_border,
-                  label: _formatCount(_likesCount),
-                  color: _isLiked ? Colors.redAccent : Colors.white,
+                // Like button — icon toggles like, count opens likes list
+                GestureDetector(
                   onTap: _toggleLike,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isLiked ? Icons.favorite : Icons.favorite_border,
+                        size: 32,
+                        color: _isLiked ? Colors.redAccent : Colors.white,
+                      ),
+                      const SizedBox(height: 4),
+                      GestureDetector(
+                        onTap: _likesCount > 0
+                            ? () => LikesListSheet.show(
+                                  context,
+                                  widget.post['id'] as int,
+                                  darkMode: true,
+                                )
+                            : null,
+                        child: Text(
+                          _formatCount(_likesCount),
+                          style: GoogleFonts.jost(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 20),
 

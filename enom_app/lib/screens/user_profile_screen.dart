@@ -6,6 +6,7 @@ import '../services/social_service.dart';
 import '../theme/app_theme.dart';
 import 'feed_reels_screen.dart';
 import 'feed_screen.dart';
+import 'likes_list_sheet.dart';
 
 /// Public profile screen for viewing another user's profile.
 class UserProfileScreen extends StatefulWidget {
@@ -361,9 +362,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
                 child: Row(
                   children: [
-                    Icon(Icons.favorite, size: 14, color: AppTheme.textMuted(context)),
-                    const SizedBox(width: 4),
-                    Text('$reactionsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
+                    GestureDetector(
+                      onTap: reactionsCount > 0 ? () => LikesListSheet.show(context, post['id'] as int) : null,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.favorite, size: 14, color: AppTheme.textMuted(context)),
+                          const SizedBox(width: 4),
+                          Text('$reactionsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
+                        ],
+                      ),
+                    ),
                     const SizedBox(width: 16),
                     Icon(Icons.chat_bubble_outline, size: 14, color: AppTheme.textMuted(context)),
                     const SizedBox(width: 4),

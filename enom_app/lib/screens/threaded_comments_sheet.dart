@@ -38,6 +38,10 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
   int? _replyToId;
   String? _replyToName;
 
+  /// The root (top-level) parent id for the current reply.
+  /// Instagram-style: all replies in a thread share the same top-level parent_id.
+  int? _replyRootId;
+
   // Tracks which comment threads are expanded (show replies).
   final Set<int> _expandedReplies = {};
 
@@ -54,6 +58,14 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
     super.dispose();
   }
 
+  /// Safely parse an int from a value that may be int, String, or null.
+  int? _toInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
   Future<void> _loadComments() async {
     final result = await PostService.getComments(widget.postId);
     if (!mounted) return;
@@ -62,9 +74,22 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
       _isLoading = false;
       _comments.clear();
       for (final c in result.comments) {
-        if (c is Map<String, dynamic>) _comments.add(c);
+        if (c is Map<String, dynamic>) {
+          // Normalise id and parent_id to int for reliable comparisons.
+          c['id'] = _toInt(c['id']);
+          c['parent_id'] = _toInt(c['parent_id']);
+          _comments.add(c);
+        }
       }
     });
+
+    // Debug: print comment tree so we can verify in console
+    debugPrint('[Comments] total=${_comments.length}  '
+        'topLevel=${_getTopLevelComments().length}');
+    for (final c in _comments) {
+      debugPrint('  id=${c['id']} parent_id=${c['parent_id']} '
+          'content="${(c['content'] as String?)?.substring(0, (c['content'] as String?)!.length.clamp(0, 40))}"');
+    }
   }
 
   /// Build a tree: top-level comments (no parent_id) and their nested replies.
@@ -72,15 +97,51 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
     return _comments.where((c) => c['parent_id'] == null).toList();
   }
 
+  /// Get all replies belonging to this top-level comment thread (Instagram-style flat list).
   List<Map<String, dynamic>> _getReplies(int parentId) {
-    return _comments.where((c) => c['parent_id'] == parentId).toList();
+    // Collect all descendants recursively so deeply nested replies also appear.
+    final replies = <Map<String, dynamic>>[];
+    void collect(int pid) {
+      for (final c in _comments) {
+        if (c['parent_id'] == pid) {
+          replies.add(c);
+          final childId = c['id'] as int?;
+          if (childId != null) collect(childId);
+        }
+      }
+    }
+    collect(parentId);
+    return replies;
+  }
+
+  /// Walk up the parent chain to find the top-level (root) comment id.
+  int _findRootCommentId(int commentId) {
+    int current = commentId;
+    while (true) {
+      final comment = _comments.firstWhere(
+        (c) => c['id'] == current,
+        orElse: () => <String, dynamic>{},
+      );
+      final parentId = comment['parent_id'];
+      if (parentId == null || parentId is! int) return current;
+      current = parentId;
+    }
   }
 
   void _startReply(int commentId, String userName) {
+    final rootId = _findRootCommentId(commentId);
     setState(() {
       _replyToId = commentId;
       _replyToName = userName;
+      _replyRootId = rootId;
     });
+    // Pre-fill @mention when replying to a reply (not the top-level comment itself)
+    if (commentId != rootId) {
+      _commentController.text = '@$userName ';
+      _commentController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _commentController.text.length),
+      );
+    }
     _focusNode.requestFocus();
   }
 
@@ -88,7 +149,9 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
     setState(() {
       _replyToId = null;
       _replyToName = null;
+      _replyRootId = null;
     });
+    _commentController.clear();
   }
 
   Future<void> _sendComment() async {
@@ -97,10 +160,14 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
 
     setState(() => _isSending = true);
 
+    // Instagram-style: always use the root (top-level) comment as parent_id
+    // so all replies stay in the same flat thread.
+    final parentId = _replyRootId ?? _replyToId;
+
     final result = await PostService.addComment(
       widget.postId,
       content: text,
-      parentId: _replyToId,
+      parentId: parentId,
     );
 
     if (!mounted) return;
@@ -108,8 +175,8 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
     if (result.success) {
       _commentController.clear();
       // Auto-expand the parent thread if replying
-      if (_replyToId != null) {
-        _expandedReplies.add(_replyToId!);
+      if (parentId != null) {
+        _expandedReplies.add(parentId);
       }
       _cancelReply();
       _loadComments();
@@ -282,21 +349,26 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
   Widget _buildCommentTile(Map<String, dynamic> comment, {required bool isReply}) {
     final user = comment['user'] as Map<String, dynamic>? ?? {};
     final name = user['name'] as String? ?? 'Anonymous';
-    final userAvatar = (user['profile_image_url'] ?? user['profile_image']) as String?;
+    var userAvatar = (user['profile_image_url'] ?? user['profile_image']) as String?;
+    // Complete the URL if it's a relative path (same as profile screen)
+    if (userAvatar != null && userAvatar.isNotEmpty && !userAvatar.startsWith('http')) {
+      userAvatar = '${ApiService.baseUrl}/storage/$userAvatar';
+    }
     final content = comment['content'] as String? ?? '';
     final createdAt = comment['created_at'] as String? ?? '';
     final commentId = comment['id'] as int;
     final timeAgo = _formatTimeAgo(createdAt);
+    final double avatarSize = isReply ? 28 : 34;
 
     return Padding(
       padding: EdgeInsets.only(bottom: isReply ? 10 : 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar
+          // Avatar — same pattern as profile screen
           Container(
-            width: isReply ? 28 : 34,
-            height: isReply ? 28 : 34,
+            width: avatarSize,
+            height: avatarSize,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: _avatarBgColor,
@@ -305,12 +377,24 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
             child: ClipOval(
               child: userAvatar != null && userAvatar.isNotEmpty
                   ? Image.network(
-                      userAvatar.startsWith('http')
-                          ? userAvatar
-                          : '${ApiService.baseUrl}/$userAvatar',
-                      width: isReply ? 28 : 34,
-                      height: isReply ? 28 : 34,
+                      userAvatar,
+                      width: avatarSize,
+                      height: avatarSize,
                       fit: BoxFit.cover,
+                      cacheWidth: 120,
+                      loadingBuilder: (_, child, progress) {
+                        if (progress == null) return child;
+                        return Center(
+                          child: SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: AppTheme.gold1,
+                            ),
+                          ),
+                        );
+                      },
                       errorBuilder: (_, __, ___) => _avatarFallback(name, isReply),
                     )
                   : _avatarFallback(name, isReply),
@@ -345,15 +429,8 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
                   ],
                 ),
                 const SizedBox(height: 2),
-                // Comment content
-                Text(
-                  content,
-                  style: GoogleFonts.jost(
-                    color: _textColor,
-                    fontSize: isReply ? 12 : 13,
-                    height: 1.4,
-                  ),
-                ),
+                // Comment content — highlight @mentions like Instagram
+                _buildCommentContent(content, isReply),
                 const SizedBox(height: 4),
                 // Reply button
                 GestureDetector(
@@ -384,6 +461,50 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
           fontSize: isReply ? 11 : 13,
           fontWeight: FontWeight.w500,
         ),
+      ),
+    );
+  }
+
+  /// Renders comment text with @mentions highlighted in blue like Instagram.
+  Widget _buildCommentContent(String content, bool isReply) {
+    final fontSize = isReply ? 12.0 : 13.0;
+    final mentionRegex = RegExp(r'@\S+');
+    final match = mentionRegex.matchAsPrefix(content);
+
+    if (match != null && isReply) {
+      final mention = match.group(0)!;
+      final rest = content.substring(match.end);
+      return Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: mention,
+              style: GoogleFonts.jost(
+                color: const Color(0xFF3897F0),
+                fontSize: fontSize,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+            TextSpan(
+              text: rest,
+              style: GoogleFonts.jost(
+                color: _textColor,
+                fontSize: fontSize,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Text(
+      content,
+      style: GoogleFonts.jost(
+        color: _textColor,
+        fontSize: fontSize,
+        height: 1.4,
       ),
     );
   }

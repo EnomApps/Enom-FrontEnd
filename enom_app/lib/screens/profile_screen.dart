@@ -14,6 +14,7 @@ import 'edit_post_screen.dart';
 import 'feed_screen.dart';
 import 'feed_reels_screen.dart';
 import 'follow_list_screen.dart';
+import 'likes_list_sheet.dart';
 import 'welcome_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -1062,9 +1063,17 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
               child: Row(
                 children: [
-                  Icon(Icons.favorite, size: 14, color: AppTheme.textMuted(context)),
-                  const SizedBox(width: 4),
-                  Text('$reactionsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
+                  GestureDetector(
+                    onTap: reactionsCount > 0 ? () => LikesListSheet.show(context, post['id'] as int) : null,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.favorite, size: 14, color: AppTheme.textMuted(context)),
+                        const SizedBox(width: 4),
+                        Text('$reactionsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
+                      ],
+                    ),
+                  ),
                   const SizedBox(width: 16),
                   Icon(Icons.chat_bubble_outline, size: 14, color: AppTheme.textMuted(context)),
                   const SizedBox(width: 4),
@@ -1187,7 +1196,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   if (reactionsCount > 0 || commentsCount > 0) ...[
                     const SizedBox(width: 12),
                     if (reactionsCount > 0)
-                      Text('\u{2764} $reactionsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
+                      GestureDetector(
+                        onTap: () => LikesListSheet.show(context, post['id'] as int),
+                        child: Text('\u{2764} $reactionsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),
+                      ),
                     if (commentsCount > 0) ...[
                       const SizedBox(width: 8),
                       Text('\u{1F4AC} $commentsCount', style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 12)),

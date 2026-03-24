@@ -12,6 +12,7 @@ import 'create_post_screen.dart';
 import 'edit_post_screen.dart';
 import 'feed_reels_screen.dart';
 import 'threaded_comments_sheet.dart';
+import 'likes_list_sheet.dart';
 import 'user_profile_screen.dart';
 
 class FeedScreen extends StatefulWidget {
@@ -753,44 +754,52 @@ class _FeedScreenState extends State<FeedScreen> {
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
               child: Row(
                 children: [
-                  // Like button
-                  GestureDetector(
-                    onTap: () => _toggleReaction(index, 'like'),
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
+                  // Like button + count
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: userReaction != null
+                          ? Colors.redAccent.withValues(alpha: 0.12)
+                          : AppTheme.glassBg(context),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
                         color: userReaction != null
-                            ? Colors.redAccent.withValues(alpha: 0.12)
-                            : AppTheme.glassBg(context),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: userReaction != null
-                              ? Colors.redAccent.withValues(alpha: 0.3)
-                              : AppTheme.glassBorder(context),
-                        ),
+                            ? Colors.redAccent.withValues(alpha: 0.3)
+                            : AppTheme.glassBorder(context),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            userReaction != null ? Icons.favorite : Icons.favorite_border,
-                            size: 18,
-                            color: userReaction != null ? Colors.redAccent : AppTheme.text2(context),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Heart icon — tap to toggle like
+                        GestureDetector(
+                          onTap: () => _toggleReaction(index, 'like'),
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+                            child: Icon(
+                              userReaction != null ? Icons.favorite : Icons.favorite_border,
+                              size: 18,
+                              color: userReaction != null ? Colors.redAccent : AppTheme.text2(context),
+                            ),
                           ),
-                          if (reactionsCount > 0) ...[
-                            const SizedBox(width: 4),
-                            Text(
-                              '$reactionsCount',
-                              style: GoogleFonts.jost(
-                                color: userReaction != null ? Colors.redAccent : AppTheme.text2(context),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
+                        ),
+                        // Count — tap to show likes list
+                        if (reactionsCount > 0)
+                          GestureDetector(
+                            onTap: () => LikesListSheet.show(context, post['id'] as int),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(0, 8, 12, 8),
+                              child: Text(
+                                '$reactionsCount',
+                                style: GoogleFonts.jost(
+                                  color: userReaction != null ? Colors.redAccent : AppTheme.text2(context),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
-                          ],
-                        ],
-                      ),
+                          ),
+                      ],
                     ),
                   ),
                   // Comment button
