@@ -330,7 +330,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     return Stack(
       children: [
-        const EnomScreenBackground(gradientVariant: 4, particleCount: 15),
+        const EnomScreenBackground(gradientVariant: 4, particleCount: 45),
 
         SafeArea(
           child: SingleChildScrollView(

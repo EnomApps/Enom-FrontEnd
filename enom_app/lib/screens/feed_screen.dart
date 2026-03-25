@@ -298,36 +298,26 @@ class _FeedScreenState extends State<FeedScreen> {
     );
   }
 
-  /// Filter only posts that contain at least one video media item.
-  List<Map<String, dynamic>> _getVideoPosts() {
-    return _posts.where((post) {
-      final media = post['media'] as List<dynamic>? ?? [];
-      return media.any((item) {
-        if (item is Map) {
-          final type = (item['type'] ?? item['mime_type'] ?? item['file_type'] ?? 'image').toString();
-          return type.contains('video');
-        }
-        return false;
-      });
-    }).toList();
-  }
-
-  /// Open the TikTok/Reels-style video screen starting at the given post.
+  /// Open the TikTok/Reels-style screen starting at the given post.
   void _openReelsScreen(Map<String, dynamic> tappedPost) {
-    final videoPosts = _getVideoPosts();
+    // Only posts with media (images/videos), skip text-only posts
+    final allPosts = _posts.where((post) {
+      final media = post['media'] as List<dynamic>? ?? [];
+      return media.isNotEmpty;
+    }).toList();
     // Inject follow state into each post so reels can read it
-    for (final post in videoPosts) {
+    for (final post in allPosts) {
       final user = post['user'] as Map<String, dynamic>? ?? {};
       final uid = user['id'] as int?;
       if (uid != null && _followStates.containsKey(uid)) {
         post['is_following'] = _followStates[uid];
       }
     }
-    final initialIndex = videoPosts.indexWhere((p) => p['id'] == tappedPost['id']);
+    final initialIndex = allPosts.indexWhere((p) => p['id'] == tappedPost['id']);
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => FeedReelsScreen(
-          videoPosts: videoPosts,
+          videoPosts: allPosts,
           initialIndex: initialIndex >= 0 ? initialIndex : 0,
         ),
       ),
@@ -338,7 +328,7 @@ class _FeedScreenState extends State<FeedScreen> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        const EnomScreenBackground(gradientVariant: 4, particleCount: 15),
+        const EnomScreenBackground(gradientVariant: 4, particleCount: 45),
         SafeArea(
           child: Column(
             children: [
@@ -1006,27 +996,15 @@ class _FeedScreenState extends State<FeedScreen> {
       );
     }
 
-    final initialIndex = imageUrls.indexOf(fullUrl);
-
     return GestureDetector(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder:
-                (_) => FullImageScreen(
-                  urls: imageUrls,
-                  initialIndex: initialIndex >= 0 ? initialIndex : 0,
-                ),
-          ),
-        );
-      },
+      onTap: () => _openReelsScreen(post),
       child: Container(
         width: width == double.infinity ? double.infinity : width,
         height: height,
         color:
             AppTheme.isDark(context)
-                ? const Color(0xFF2A2520)
-                : const Color(0xFFF5F0E8),
+                ? const Color(0xFF1A1A1A)
+                : const Color(0xFFFAFAFA),
         child: Image.network(
           fullUrl,
           fit: BoxFit.cover,

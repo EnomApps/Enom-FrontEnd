@@ -581,7 +581,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
 
     return Stack(
       children: [
-        const EnomScreenBackground(gradientVariant: 2, particleCount: 10),
+        const EnomScreenBackground(gradientVariant: 2, particleCount: 35),
         Column(
           children: [
             // Profile header (always visible)
@@ -1400,8 +1400,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         width: width == double.infinity ? double.infinity : width,
         height: height,
         color: AppTheme.isDark(context)
-            ? const Color(0xFF2A2520)
-            : const Color(0xFFF5F0E8),
+            ? const Color(0xFF1A1A1A)
+            : const Color(0xFFFAFAFA),
         child: Image.network(
           fullUrl,
           fit: BoxFit.cover,
@@ -1734,7 +1734,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   }) {
     return DropdownButtonFormField<String>(
       value: items.contains(value) ? value : null,
-      dropdownColor: AppTheme.isDark(context) ? const Color(0xFF111111) : Colors.white,
+      dropdownColor: AppTheme.isDark(context) ? const Color(0xFF121212) : Colors.white,
       style: TextStyle(color: AppTheme.text1(context)),
       decoration: AppTheme.inputDecoration(context, hint: label, prefixIcon: icon),
       items: items.map((item) {

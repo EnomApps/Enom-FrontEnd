@@ -92,7 +92,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          const EnomScreenBackground(gradientVariant: 2, particleCount: 15),
+          const EnomScreenBackground(gradientVariant: 2, particleCount: 45),
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnimation,

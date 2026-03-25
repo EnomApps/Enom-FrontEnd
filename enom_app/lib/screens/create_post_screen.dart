@@ -242,7 +242,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       ),
       body: Stack(
         children: [
-          const EnomScreenBackground(gradientVariant: 2, particleCount: 10),
+          const EnomScreenBackground(gradientVariant: 2, particleCount: 35),
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),

@@ -74,7 +74,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          const EnomScreenBackground(gradientVariant: 3, particleCount: 15),
+          const EnomScreenBackground(gradientVariant: 3, particleCount: 45),
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 28),

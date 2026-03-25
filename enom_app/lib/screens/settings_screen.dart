@@ -13,7 +13,7 @@ class SettingsScreen extends StatelessWidget {
 
     return Stack(
       children: [
-        const EnomScreenBackground(gradientVariant: 2, particleCount: 10),
+        const EnomScreenBackground(gradientVariant: 2, particleCount: 35),
         SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(

@@ -70,7 +70,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           fit: StackFit.expand,
           children: [
             // Full background with gold dust + gradient + particles
-            const EnomScreenBackground(gradientVariant: 1, particleCount: 30),
+            const EnomScreenBackground(gradientVariant: 1, particleCount: 60),
 
             // Floating orbs
             AnimatedBuilder(

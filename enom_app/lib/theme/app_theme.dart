@@ -33,43 +33,43 @@ class AppTheme {
     colors: [gold4, gold2, gold3, gold1],
   );
 
-  // ── Dark Theme Colors ──
-  static const Color darkBg = Color(0xFF0A0A0A);
-  static const Color darkBg2 = Color(0xFF111111);
-  static const Color darkNavBg = Color(0xD90F0F0F); // rgba(15,15,15,0.85)
-  static const Color darkTextPrimary = Color(0xFFF5F0E8);
-  static Color darkTextSecondary = const Color(0xFFF5F0E8).withValues(alpha: 0.60);
-  static Color darkTextMuted = const Color(0xFFF5F0E8).withValues(alpha: 0.35);
-  static Color darkGlass = Colors.white.withValues(alpha: 0.06);
-  static Color darkGlassBorder = Colors.white.withValues(alpha: 0.08);
-  static Color darkGlassHighlight = Colors.white.withValues(alpha: 0.12);
-  static Color darkMoodCardBg = const Color.fromRGBO(20, 18, 14, 0.70);
-  static Color darkCardBg = Colors.white.withValues(alpha: 0.04);
-  static Color darkCardBorder = Colors.white.withValues(alpha: 0.08);
-  static Color darkInputBg = Colors.white.withValues(alpha: 0.06);
-  static Color darkInputBorder = Colors.white.withValues(alpha: 0.08);
+  // ── Dark Theme Colors (Instagram-style) ──
+  static const Color darkBg = Color(0xFF000000);
+  static const Color darkBg2 = Color(0xFF121212);
+  static const Color darkNavBg = Color(0xD9000000); // rgba(0,0,0,0.85)
+  static const Color darkTextPrimary = Color(0xFFF5F5F5);
+  static Color darkTextSecondary = const Color(0xFFF5F5F5).withValues(alpha: 0.65);
+  static Color darkTextMuted = const Color(0xFFF5F5F5).withValues(alpha: 0.40);
+  static Color darkGlass = Colors.white.withValues(alpha: 0.08);
+  static Color darkGlassBorder = Colors.white.withValues(alpha: 0.12);
+  static Color darkGlassHighlight = Colors.white.withValues(alpha: 0.15);
+  static Color darkMoodCardBg = const Color.fromRGBO(18, 18, 18, 0.80);
+  static Color darkCardBg = Colors.white.withValues(alpha: 0.06);
+  static Color darkCardBorder = Colors.white.withValues(alpha: 0.12);
+  static Color darkInputBg = Colors.white.withValues(alpha: 0.08);
+  static Color darkInputBorder = Colors.white.withValues(alpha: 0.12);
 
-  // ── Light Theme Colors ──
-  static const Color lightBg = Color(0xFFF8F4EE);
-  static const Color lightBg2 = Color(0xFFF0EBE2);
-  static const Color lightNavBg = Color(0xD9F8F4EE); // rgba(248,244,238,0.85)
+  // ── Light Theme Colors (Instagram-style) ──
+  static const Color lightBg = Color(0xFFFAFAFA);
+  static const Color lightBg2 = Color(0xFFEFEFEF);
+  static const Color lightNavBg = Color(0xD9FAFAFA); // rgba(250,250,250,0.85)
   static const Color lightGold = Color(0xFF8C6D14);
-  static const Color lightTextPrimary = Color(0xFF1A1612);
-  static Color lightTextSecondary = const Color(0xFF1A1612).withValues(alpha: 0.55);
-  static Color lightTextMuted = const Color(0xFF1A1612).withValues(alpha: 0.30);
-  static Color lightGlass = Colors.white.withValues(alpha: 0.50);
-  static Color lightGlassBorder = const Color.fromRGBO(180, 160, 120, 0.20);
-  static Color lightGlassHighlight = Colors.white.withValues(alpha: 0.80);
-  static Color lightMoodCardBg = const Color.fromRGBO(255, 252, 245, 0.70);
-  static Color lightCardBg = Colors.white.withValues(alpha: 0.65);
-  static Color lightCardBorder = const Color.fromRGBO(180, 160, 120, 0.20);
-  static Color lightInputBg = Colors.white.withValues(alpha: 0.50);
-  static Color lightInputBorder = const Color.fromRGBO(180, 160, 120, 0.20);
+  static const Color lightTextPrimary = Color(0xFF262626);
+  static Color lightTextSecondary = const Color(0xFF262626).withValues(alpha: 0.60);
+  static Color lightTextMuted = const Color(0xFF262626).withValues(alpha: 0.38);
+  static Color lightGlass = Colors.white.withValues(alpha: 0.60);
+  static Color lightGlassBorder = const Color.fromRGBO(219, 219, 219, 0.40);
+  static Color lightGlassHighlight = Colors.white.withValues(alpha: 0.85);
+  static Color lightMoodCardBg = const Color.fromRGBO(255, 255, 255, 0.75);
+  static Color lightCardBg = Colors.white.withValues(alpha: 0.70);
+  static Color lightCardBorder = const Color.fromRGBO(219, 219, 219, 0.35);
+  static Color lightInputBg = Colors.white.withValues(alpha: 0.60);
+  static Color lightInputBorder = const Color.fromRGBO(219, 219, 219, 0.40);
 
   // Legacy aliases for compatibility
   static const Color lightGoldLight = Color(0xFFBFA02A);
   static const Color lightGoldDark = Color(0xFF6B5210);
-  static const Color darkText1 = Color(0xFFF5F0E8);
+  static const Color darkText1 = Color(0xFFF5F5F5);
 
   // ── Helpers ──
   static bool isDark(BuildContext context) =>
@@ -457,8 +457,8 @@ class AppTheme {
   }
 }
 
-/// Gold dust background using pre-rendered PNG assets.
-/// Provides a minimalized gold dust effect on all screens.
+/// Solid color background (Instagram-style).
+/// Dark mode: black, Light mode: off-white (#FAFAFA).
 class GoldDustBackground extends StatelessWidget {
   final bool minimalized;
   const GoldDustBackground({super.key, this.minimalized = true});
@@ -468,16 +468,8 @@ class GoldDustBackground extends StatelessWidget {
     final dark = AppTheme.isDark(context);
     return Positioned.fill(
       child: IgnorePointer(
-        child: Opacity(
-          opacity: minimalized ? 0.5 : 1.0,
-          child: Image.asset(
-            dark
-                ? 'assets/backgrounds/bg_gold_dust_dark.png'
-                : 'assets/backgrounds/bg_gold_dust_light.png',
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
-          ),
+        child: ColoredBox(
+          color: dark ? AppTheme.darkBg : AppTheme.lightBg,
         ),
       ),
     );
@@ -495,7 +487,7 @@ class EnomScreenBackground extends StatefulWidget {
   const EnomScreenBackground({
     super.key,
     this.gradientVariant = 1,
-    this.particleCount = 20,
+    this.particleCount = 40,
     this.showParticles = true,
   });
 
@@ -564,17 +556,9 @@ class _EnomScreenBackgroundState extends State<EnomScreenBackground>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // 1. Full-screen gold dust PNG
-            Opacity(
-              opacity: 0.5,
-              child: Image.asset(
-                dark
-                    ? 'assets/backgrounds/bg_gold_dust_dark.png'
-                    : 'assets/backgrounds/bg_gold_dust_light.png',
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: double.infinity,
-              ),
+            // 1. Solid background color (Instagram-style)
+            ColoredBox(
+              color: dark ? AppTheme.darkBg : AppTheme.lightBg,
             ),
 
             // 2. Radial gradient glows

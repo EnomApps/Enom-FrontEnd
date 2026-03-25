@@ -143,7 +143,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       ),
       body: Stack(
         children: [
-          const EnomScreenBackground(gradientVariant: 2, particleCount: 8),
+          const EnomScreenBackground(gradientVariant: 2, particleCount: 30),
           SafeArea(
             child: RefreshIndicator(
               onRefresh: _loadPosts,

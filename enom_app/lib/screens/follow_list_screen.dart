@@ -148,7 +148,7 @@ class _FollowListScreenState extends State<FollowListScreen> {
       ),
       body: Stack(
         children: [
-          const EnomScreenBackground(gradientVariant: 2, particleCount: 8),
+          const EnomScreenBackground(gradientVariant: 2, particleCount: 30),
           SafeArea(
             child: _isLoading
                 ? Center(child: CircularProgressIndicator(color: AppTheme.goldColor(context)))

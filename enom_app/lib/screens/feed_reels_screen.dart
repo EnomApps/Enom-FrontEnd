@@ -9,13 +9,12 @@ import '../theme/app_theme.dart';
 import 'likes_list_sheet.dart';
 import 'threaded_comments_sheet.dart';
 
-/// TikTok / Instagram Reels style vertical video feed.
-/// Only video posts from the feed are shown here.
+/// TikTok / Instagram Reels style vertical feed for both images and videos.
 class FeedReelsScreen extends StatefulWidget {
-  /// List of feed posts that contain videos (already filtered).
+  /// List of all feed posts (images + videos).
   final List<Map<String, dynamic>> videoPosts;
 
-  /// Index of the video the user tapped on in the feed.
+  /// Index of the post the user tapped on in the feed.
   final int initialIndex;
 
   const FeedReelsScreen({
@@ -131,26 +130,19 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
 
     if (result.success) {
       _nextCursor = result.pagination?['next_cursor'] as String?;
-      final newVideoPosts = <Map<String, dynamic>>[];
+      final newPosts = <Map<String, dynamic>>[];
       for (final p in result.posts) {
         if (p is Map<String, dynamic>) {
+          // Only include posts with media (skip text-only)
           final media = p['media'] as List<dynamic>? ?? [];
-          final hasVideo = media.any((item) {
-            if (item is Map) {
-              final type = (item['type'] ?? item['mime_type'] ?? item['file_type'] ?? 'image').toString();
-              return type.contains('video');
-            }
-            return false;
-          });
-          if (hasVideo) {
-            // Avoid duplicates
-            final exists = _videoPosts.any((vp) => vp['id'] == p['id']);
-            if (!exists) newVideoPosts.add(p);
-          }
+          if (media.isEmpty) continue;
+          // Avoid duplicates
+          final exists = _videoPosts.any((vp) => vp['id'] == p['id']);
+          if (!exists) newPosts.add(p);
         }
       }
-      if (newVideoPosts.isNotEmpty) {
-        setState(() => _videoPosts.addAll(newVideoPosts));
+      if (newPosts.isNotEmpty) {
+        setState(() => _videoPosts.addAll(newPosts));
       }
     }
     _isLoadingMore = false;
@@ -205,6 +197,10 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
   bool _isPaused = false;
   bool _showPauseIcon = false;
 
+  // Media type detection
+  bool _isVideoPost = false;
+  List<String> _imageUrls = [];
+
   // Reaction state
   bool _isLiked = false;
   int _likesCount = 0;
@@ -217,6 +213,10 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
   bool _viewRecorded = false;
   bool _isOwner = false;
 
+  // Image page indicator
+  int _currentImageIndex = 0;
+  final PageController _imagePageController = PageController();
+
   @override
   void initState() {
     super.initState();
@@ -227,10 +227,35 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
     _isSaved = widget.post['is_saved'] as bool? ?? false;
     _viewsCount = widget.post['views_count'] as int? ?? 0;
     _isOwner = widget.post['is_owner'] as bool? ?? false;
-    _initVideo();
+    _detectMediaType();
+    if (_isVideoPost) {
+      _initVideo();
+    }
     if (widget.isActive) _recordView();
     if (!_isOwner) _checkFollowStatus();
     _loadCurrentUserId();
+  }
+
+  void _detectMediaType() {
+    final media = widget.post['media'] as List<dynamic>? ?? [];
+    _isVideoPost = false;
+    _imageUrls = [];
+
+    for (final item in media) {
+      if (item is Map) {
+        final type = (item['type'] ?? item['mime_type'] ?? item['file_type'] ?? 'image').toString();
+        final url = (item['url'] ?? item['file_url'] ?? item['path'] ?? item['file_path'] ?? item['media_url'] ?? '').toString();
+        final fullUrl = url.startsWith('http')
+            ? url
+            : '${ApiService.baseUrl}/${url.replaceAll(RegExp(r'^/'), '')}';
+
+        if (type.contains('video')) {
+          _isVideoPost = true;
+        } else {
+          _imageUrls.add(fullUrl);
+        }
+      }
+    }
   }
 
   void _initVideo() {
@@ -272,11 +297,13 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
     super.didUpdateWidget(oldWidget);
     if (widget.isActive != oldWidget.isActive) {
       if (widget.isActive) {
-        _controller?.play();
-        _isPaused = false;
+        if (_isVideoPost) {
+          _controller?.play();
+          _isPaused = false;
+        }
         _recordView();
       } else {
-        _controller?.pause();
+        if (_isVideoPost) _controller?.pause();
       }
     }
   }
@@ -284,11 +311,12 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
   @override
   void dispose() {
     _controller?.dispose();
+    _imagePageController.dispose();
     super.dispose();
   }
 
   void _togglePlayPause() {
-    if (_controller == null || !_initialized) return;
+    if (!_isVideoPost || _controller == null || !_initialized) return;
 
     setState(() {
       if (_controller!.value.isPlaying) {
@@ -394,8 +422,8 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // ── Video ──
-          _buildVideo(),
+          // ── Media (video or image) ──
+          _buildMedia(),
 
           // ── Gradient overlays for readability ──
           // Bottom gradient
@@ -438,8 +466,8 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
             ),
           ),
 
-          // ── Play/Pause icon overlay ──
-          if (_showPauseIcon)
+          // ── Play/Pause icon overlay (video only) ──
+          if (_isVideoPost && _showPauseIcon)
             Center(
               child: AnimatedOpacity(
                 opacity: _showPauseIcon ? 1.0 : 0.0,
@@ -586,8 +614,8 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
             ),
           ),
 
-          // ── Video progress bar at very bottom ──
-          if (_initialized && _controller != null)
+          // ── Video progress bar at very bottom (only for video posts) ──
+          if (_isVideoPost && _initialized && _controller != null)
             Positioned(
               bottom: 0,
               left: 0,
@@ -608,7 +636,93 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
     );
   }
 
-  Widget _buildVideo() {
+  Widget _buildMedia() {
+    // ── Image post ──
+    if (!_isVideoPost) {
+      if (_imageUrls.isEmpty) {
+        return const Center(
+          child: Icon(Icons.image_not_supported, size: 48, color: Colors.white54),
+        );
+      }
+
+      if (_imageUrls.length == 1) {
+        return SizedBox.expand(
+          child: Image.network(
+            _imageUrls[0],
+            fit: BoxFit.contain,
+            cacheWidth: 1080,
+            loadingBuilder: (_, child, progress) {
+              if (progress == null) return child;
+              return Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppTheme.gold1,
+                  value: progress.expectedTotalBytes != null
+                      ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
+                      : null,
+                ),
+              );
+            },
+            errorBuilder: (_, __, ___) => const Center(
+              child: Icon(Icons.broken_image, size: 48, color: Colors.white54),
+            ),
+          ),
+        );
+      }
+
+      // Multiple images — swipeable
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          PageView.builder(
+            controller: _imagePageController,
+            itemCount: _imageUrls.length,
+            onPageChanged: (i) => setState(() => _currentImageIndex = i),
+            itemBuilder: (_, i) => Image.network(
+              _imageUrls[i],
+              fit: BoxFit.contain,
+              cacheWidth: 1080,
+              loadingBuilder: (_, child, progress) {
+                if (progress == null) return child;
+                return Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppTheme.gold1,
+                  ),
+                );
+              },
+              errorBuilder: (_, __, ___) => const Center(
+                child: Icon(Icons.broken_image, size: 48, color: Colors.white54),
+              ),
+            ),
+          ),
+          // Page indicator dots
+          Positioned(
+            bottom: 100,
+            left: 0,
+            right: 80,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(_imageUrls.length, (i) {
+                return Container(
+                  width: _currentImageIndex == i ? 8 : 6,
+                  height: _currentImageIndex == i ? 8 : 6,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _currentImageIndex == i
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: 0.4),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // ── Video post ──
     if (_hasError) {
       return const Center(
         child: Column(
