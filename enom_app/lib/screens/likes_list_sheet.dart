@@ -57,9 +57,9 @@ class _LikesListSheetState extends State<LikesListSheet> {
   Color get _textColor =>
       widget.darkMode ? Colors.white : AppTheme.text1(context);
   Color get _text2Color =>
-      widget.darkMode ? Colors.white70 : AppTheme.text2(context);
+      widget.darkMode ? Colors.white : AppTheme.text2(context);
   Color get _mutedColor =>
-      widget.darkMode ? Colors.white38 : AppTheme.textMuted(context);
+      widget.darkMode ? Colors.white70 : AppTheme.textMuted(context);
   Color get _borderColor =>
       widget.darkMode ? Colors.white12 : AppTheme.glassBorder(context);
   Color get _avatarBgColor =>

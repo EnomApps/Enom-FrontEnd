@@ -190,8 +190,8 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
   Color get _bgColor => widget.darkMode ? const Color(0xFF1A1A1A) : AppTheme.bg(context);
   Color get _bg2Color => widget.darkMode ? const Color(0xFF222222) : AppTheme.bg2(context);
   Color get _textColor => widget.darkMode ? Colors.white : AppTheme.text1(context);
-  Color get _text2Color => widget.darkMode ? Colors.white70 : AppTheme.text2(context);
-  Color get _mutedColor => widget.darkMode ? Colors.white38 : AppTheme.textMuted(context);
+  Color get _text2Color => widget.darkMode ? Colors.white : AppTheme.text2(context);
+  Color get _mutedColor => widget.darkMode ? Colors.white70 : AppTheme.textMuted(context);
   Color get _borderColor => widget.darkMode ? Colors.white12 : AppTheme.glassBorder(context);
   Color get _inputBgColor => widget.darkMode ? const Color(0xFF333333) : AppTheme.glassBg(context);
   Color get _avatarBgColor => widget.darkMode ? Colors.grey[800]! : AppTheme.glassBg(context);

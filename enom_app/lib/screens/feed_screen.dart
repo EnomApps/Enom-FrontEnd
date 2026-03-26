@@ -326,103 +326,82 @@ class _FeedScreenState extends State<FeedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        const EnomScreenBackground(gradientVariant: 4, particleCount: 45),
-        SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('FEED', style: AppTheme.label(context, size: 12)),
-                    GestureDetector(
-                      onTap: _navigateToCreatePost,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: AppTheme.goldGradient2,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.gold1.withValues(alpha: 0.3),
-                              blurRadius: 12,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.add,
-                              size: 16,
-                              color: Color(0xFF1A1612),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Post',
-                              style: GoogleFonts.jost(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF1A1612),
-                              ),
-                            ),
-                          ],
+    return Scaffold(
+      backgroundColor: AppTheme.bg(context),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header — Instagram style
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'ENOM',
+                    style: GoogleFonts.cormorantGaramond(
+                      color: AppTheme.text1(context),
+                      fontSize: 26,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 4,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: _navigateToCreatePost,
+                        child: Icon(
+                          Icons.add_box_outlined,
+                          size: 26,
+                          color: AppTheme.text1(context),
                         ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ),
+            ),
 
-              // Feed list
-              Expanded(
-                child:
-                    _isLoading
-                        ? Center(
-                          child: CircularProgressIndicator(
-                            color: AppTheme.goldColor(context),
-                          ),
-                        )
-                        : _hasError
-                        ? _buildErrorState()
-                        : _posts.isEmpty
-                        ? _buildEmptyState()
-                        : RefreshIndicator(
-                          onRefresh: _onRefresh,
+            // Feed list
+            Expanded(
+              child:
+                  _isLoading
+                      ? Center(
+                        child: CircularProgressIndicator(
                           color: AppTheme.goldColor(context),
-                          child: ListView.builder(
-                            controller: _scrollController,
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 90),
-                            itemCount: _posts.length + (_isLoadingMore ? 1 : 0),
-                            itemBuilder: (context, index) {
-                              if (index == _posts.length) {
-                                return Padding(
-                                  padding: const EdgeInsets.all(24),
-                                  child: Center(
-                                    child: CircularProgressIndicator(
-                                      color: AppTheme.goldColor(context),
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                );
-                              }
-                              return _buildPostCard(index);
-                            },
-                          ),
                         ),
-              ),
-            ],
-          ),
+                      )
+                      : _hasError
+                      ? _buildErrorState()
+                      : _posts.isEmpty
+                      ? _buildEmptyState()
+                      : RefreshIndicator(
+                        onRefresh: _onRefresh,
+                        color: AppTheme.goldColor(context),
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.only(bottom: 90),
+                          itemCount: _posts.length + (_isLoadingMore ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            if (index == _posts.length) {
+                              return Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    color: AppTheme.goldColor(context),
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              );
+                            }
+                            return _buildPostCard(index);
+                          },
+                        ),
+                      ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -526,370 +505,298 @@ class _FeedScreenState extends State<FeedScreen> {
     // Record view when card is built (visible on screen)
     _recordView(postId);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color:
-              AppTheme.isDark(context)
-                  ? const Color(0xFF1A1610)
-                  : const Color(0xFFFFFCF5),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppTheme.glassBorder(context)),
-          boxShadow: [
-            BoxShadow(
-              color:
-                  AppTheme.isDark(context)
-                      ? Colors.black.withValues(alpha: 0.3)
-                      : const Color.fromRGBO(160, 140, 100, 0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // User header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 12, 0),
-              child: Row(
-                children: [
-                  // Avatar — tap to open user profile
-                  GestureDetector(
-                    onTap: isOwner ? null : () => _openUserProfile(user),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppTheme.goldColor(
-                            context,
-                          ).withValues(alpha: 0.4),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: ClipOval(
-                        child:
-                            userAvatar != null && userAvatar.isNotEmpty
-                                ? Image.network(
-                                  userAvatar.startsWith('http')
-                                      ? userAvatar
-                                      : '${ApiService.baseUrl}/$userAvatar',
-                                  width: 40,
-                                  height: 40,
-                                  fit: BoxFit.cover,
-                                  cacheWidth: 120,
-                                  loadingBuilder: (_, child, progress) {
-                                    if (progress == null) return child;
-                                    return Center(
-                                      child: SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 1.5,
-                                          color: AppTheme.goldColor(context),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  errorBuilder:
-                                      (_, __, ___) => _avatarFallback(userName),
-                                )
-                                : _avatarFallback(userName),
-                      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── User header (Instagram style) ──
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          child: Row(
+            children: [
+              // Avatar
+              GestureDetector(
+                onTap: isOwner ? null : () => _openUserProfile(user),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppTheme.goldColor(context).withValues(alpha: 0.5),
+                      width: 1.5,
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                userName,
-                                style: GoogleFonts.jost(
-                                  color: AppTheme.text1(context),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            if (!isOwner) ...[
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: () => _toggleFollow(index),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    gradient: isFollowing ? null : AppTheme.goldGradient2,
-                                    color: isFollowing ? AppTheme.glassBg(context) : null,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: isFollowing
-                                        ? Border.all(color: AppTheme.glassBorder(context))
-                                        : null,
-                                  ),
-                                  child: Text(
-                                    isFollowing ? 'Following' : 'Follow',
-                                    style: GoogleFonts.jost(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: isFollowing
-                                          ? AppTheme.text2(context)
-                                          : const Color(0xFF1A1612),
+                  child: ClipOval(
+                    child:
+                        userAvatar != null && userAvatar.isNotEmpty
+                            ? Image.network(
+                              userAvatar.startsWith('http')
+                                  ? userAvatar
+                                  : '${ApiService.baseUrl}/$userAvatar',
+                              width: 36,
+                              height: 36,
+                              fit: BoxFit.cover,
+                              cacheWidth: 108,
+                              loadingBuilder: (_, child, progress) {
+                                if (progress == null) return child;
+                                return Center(
+                                  child: SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 1.5,
+                                      color: AppTheme.goldColor(context),
                                     ),
                                   ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        Text(
-                          timeAgo,
-                          style: GoogleFonts.jost(
-                            color: AppTheme.textMuted(context),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (isOwner)
-                    PopupMenuButton<String>(
-                      icon: Icon(
-                        Icons.more_horiz,
-                        color: AppTheme.textMuted(context),
-                        size: 20,
-                      ),
-                      color: AppTheme.bg2(context),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      onSelected: (value) {
-                        if (value == 'edit') _editPost(index);
-                        if (value == 'delete') _deletePost(index);
-                      },
-                      itemBuilder:
-                          (ctx) => [
-                            PopupMenuItem(
-                              value: 'edit',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.edit_outlined,
-                                    color: AppTheme.goldColor(context),
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Edit Post',
-                                    style: TextStyle(
-                                      color: AppTheme.text1(context),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: 'delete',
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.delete_outline,
-                                    color: Colors.redAccent,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Delete Post',
-                                    style: TextStyle(
-                                      color: AppTheme.text1(context),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                    ),
-                ],
-              ),
-            ),
-
-            // Content
-            if (content.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: Text(
-                  content,
-                  style: GoogleFonts.jost(
-                    color: AppTheme.text1(context),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    height: 1.5,
+                                );
+                              },
+                              errorBuilder:
+                                  (_, __, ___) => _avatarFallback(userName),
+                            )
+                            : _avatarFallback(userName),
                   ),
                 ),
               ),
-
-            // Media
-            if (media.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _buildMediaGrid(media, post),
-            ],
-
-            // Reactions bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-              child: Row(
-                children: [
-                  // Like button + count
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      color: userReaction != null
-                          ? Colors.redAccent.withValues(alpha: 0.12)
-                          : AppTheme.glassBg(context),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: userReaction != null
-                            ? Colors.redAccent.withValues(alpha: 0.3)
-                            : AppTheme.glassBorder(context),
+              const SizedBox(width: 10),
+              // Username + time
+              Expanded(
+                child: GestureDetector(
+                  onTap: isOwner ? null : () => _openUserProfile(user),
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          userName,
+                          style: GoogleFonts.jost(
+                            color: AppTheme.text1(context),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Heart icon — tap to toggle like
-                        GestureDetector(
-                          onTap: () => _toggleReaction(index, 'like'),
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
-                            child: Icon(
-                              userReaction != null ? Icons.favorite : Icons.favorite_border,
-                              size: 18,
-                              color: userReaction != null ? Colors.redAccent : AppTheme.text2(context),
-                            ),
+                      if (timeAgo.isNotEmpty) ...[
+                        Text(
+                          ' · $timeAgo',
+                          style: GoogleFonts.jost(
+                            color: AppTheme.textMuted(context),
+                            fontSize: 13,
                           ),
                         ),
-                        // Count — tap to show likes list
-                        if (reactionsCount > 0)
-                          GestureDetector(
-                            onTap: () => LikesListSheet.show(context, post['id'] as int),
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(0, 8, 12, 8),
-                              child: Text(
-                                '$reactionsCount',
-                                style: GoogleFonts.jost(
-                                  color: userReaction != null ? Colors.redAccent : AppTheme.text2(context),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ),
                       ],
-                    ),
-                  ),
-                  // Comment button
-                  GestureDetector(
-                    onTap: () => _showComments(post),
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.glassBg(context),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppTheme.glassBorder(context)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.chat_bubble_outline, size: 16, color: AppTheme.text2(context)),
-                          if (commentsCount > 0) ...[
-                            const SizedBox(width: 4),
-                            Text(
-                              '$commentsCount',
-                              style: GoogleFonts.jost(
-                                color: AppTheme.text2(context),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                  // Save/Bookmark button
-                  GestureDetector(
-                    onTap: () => _toggleSave(index),
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSaved
-                            ? AppTheme.goldColor(context).withValues(alpha: 0.12)
-                            : AppTheme.glassBg(context),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isSaved
-                              ? AppTheme.goldColor(context).withValues(alpha: 0.3)
-                              : AppTheme.glassBorder(context),
+                      if (!isOwner) ...[
+                        Text(
+                          ' · ',
+                          style: GoogleFonts.jost(
+                            color: AppTheme.textMuted(context),
+                            fontSize: 13,
+                          ),
                         ),
-                      ),
-                      child: Icon(
-                        isSaved ? Icons.bookmark : Icons.bookmark_border,
-                        size: 18,
-                        color: isSaved ? AppTheme.goldColor(context) : AppTheme.text2(context),
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  // Views count
-                  if (viewsCount > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.visibility_outlined, size: 14, color: AppTheme.textMuted(context)),
-                          const SizedBox(width: 4),
-                          Text(
-                            _formatCount(viewsCount),
+                        GestureDetector(
+                          onTap: () => _toggleFollow(index),
+                          child: Text(
+                            isFollowing ? 'Following' : 'Follow',
                             style: GoogleFonts.jost(
-                              color: AppTheme.textMuted(context),
-                              fontSize: 11,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isFollowing
+                                  ? AppTheme.textMuted(context)
+                                  : AppTheme.goldColor(context),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              // More options
+              if (isOwner)
+                PopupMenuButton<String>(
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: AppTheme.text1(context),
+                    size: 20,
+                  ),
+                  color: AppTheme.bg2(context),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  onSelected: (value) {
+                    if (value == 'edit') _editPost(index);
+                    if (value == 'delete') _deletePost(index);
+                  },
+                  itemBuilder:
+                      (ctx) => [
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit_outlined, color: AppTheme.goldColor(context), size: 18),
+                              const SizedBox(width: 8),
+                              Text('Edit Post', style: TextStyle(color: AppTheme.text1(context))),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+                              const SizedBox(width: 8),
+                              Text('Delete Post', style: TextStyle(color: AppTheme.text1(context))),
+                            ],
+                          ),
+                        ),
+                      ],
+                )
+              else
+                GestureDetector(
+                  onTap: () {},
+                  child: Icon(Icons.more_vert, color: AppTheme.text1(context), size: 20),
+                ),
+            ],
+          ),
+        ),
+
+        // ── Media (full width, no padding, no rounded corners) ──
+        if (media.isNotEmpty)
+          _buildMediaGrid(media, post),
+
+        // ── Action icons bar (Instagram style) ──
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+          child: Row(
+            children: [
+              // Heart
+              GestureDetector(
+                onTap: () => _toggleReaction(index, 'like'),
+                child: Icon(
+                  userReaction != null ? Icons.favorite : Icons.favorite_border,
+                  size: 26,
+                  color: userReaction != null ? Colors.redAccent : AppTheme.text1(context),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Comment
+              GestureDetector(
+                onTap: () => _showComments(post),
+                child: Icon(
+                  Icons.chat_bubble_outline,
+                  size: 24,
+                  color: AppTheme.text1(context),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Share
+              GestureDetector(
+                onTap: () {},
+                child: Icon(
+                  Icons.send_outlined,
+                  size: 24,
+                  color: AppTheme.text1(context),
+                ),
+              ),
+              const Spacer(),
+              // Bookmark
+              GestureDetector(
+                onTap: () => _toggleSave(index),
+                child: Icon(
+                  isSaved ? Icons.bookmark : Icons.bookmark_border,
+                  size: 26,
+                  color: isSaved ? AppTheme.goldColor(context) : AppTheme.text1(context),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // ── Likes count ──
+        if (reactionsCount > 0)
+          GestureDetector(
+            onTap: () => LikesListSheet.show(context, post['id'] as int),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+              child: Text(
+                '$reactionsCount ${reactionsCount == 1 ? 'like' : 'likes'}',
+                style: GoogleFonts.jost(
+                  color: AppTheme.text1(context),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+
+        // ── Caption (username + content inline) ──
+        if (content.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
+            child: RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$userName ',
+                    style: GoogleFonts.jost(
+                      color: AppTheme.text1(context),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
-                  // Share button
-                  GestureDetector(
-                    onTap: () {},
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.glassBg(context),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppTheme.glassBorder(context)),
-                      ),
-                      child: Icon(
-                        Icons.share_outlined,
-                        size: 18,
-                        color: AppTheme.text2(context),
-                      ),
+                  ),
+                  TextSpan(
+                    text: content,
+                    style: GoogleFonts.jost(
+                      color: AppTheme.text1(context),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      height: 1.4,
                     ),
                   ),
                 ],
               ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
-          ],
+          ),
+
+        // ── View all comments link ──
+        if (commentsCount > 0)
+          GestureDetector(
+            onTap: () => _showComments(post),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
+              child: Text(
+                'View all $commentsCount comments',
+                style: GoogleFonts.jost(
+                  color: AppTheme.textMuted(context),
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ),
+
+        // ── Views count ──
+        if (viewsCount > 0)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
+            child: Text(
+              '${_formatCount(viewsCount)} views',
+              style: GoogleFonts.jost(
+                color: AppTheme.textMuted(context),
+                fontSize: 12,
+              ),
+            ),
+          ),
+
+        const SizedBox(height: 12),
+
+        // Thin divider between posts
+        Divider(
+          height: 0.5,
+          thickness: 0.5,
+          color: AppTheme.isDark(context)
+              ? Colors.white.withValues(alpha: 0.12)
+              : Colors.black.withValues(alpha: 0.08),
         ),
-      ),
+      ],
     );
   }
 
@@ -917,28 +824,15 @@ class _FeedScreenState extends State<FeedScreen> {
     final imageUrls = _getImageUrls(media);
 
     if (media.length == 1) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: _buildMediaItem(media[0], double.infinity, 240, imageUrls, post),
-        ),
-      );
+      return _buildMediaItem(media[0], imageUrls, post);
     }
 
-    return SizedBox(
-      height: 240,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: media.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder:
-            (_, i) => ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: _buildMediaItem(media[i], 280, 240, imageUrls, post),
-            ),
-      ),
+    // Multiple media: PageView with dot indicators
+    return _MediaCarousel(
+      media: media,
+      imageUrls: imageUrls,
+      post: post,
+      buildItem: (item) => _buildMediaItem(item, imageUrls, post),
     );
   }
 
@@ -972,25 +866,24 @@ class _FeedScreenState extends State<FeedScreen> {
 
   Widget _buildMediaItem(
     dynamic item,
-    double width,
-    double height,
     List<String> imageUrls,
     Map<String, dynamic> post,
   ) {
     final fullUrl = _getMediaUrl(item);
     final type = _getMediaType(item);
+    final screenWidth = MediaQuery.of(context).size.width;
 
     if (type.contains('video')) {
       return GestureDetector(
         onTap: () => _openReelsScreen(post),
         child: Container(
-          width: width == double.infinity ? double.infinity : width,
-          height: height,
+          width: double.infinity,
+          constraints: BoxConstraints(minHeight: screenWidth * 0.56),
           color: Colors.black,
           child: FeedInlineVideoPlayer(
             url: fullUrl,
-            width: width,
-            height: height,
+            width: screenWidth,
+            height: screenWidth * 0.56,
           ),
         ),
       );
@@ -999,8 +892,8 @@ class _FeedScreenState extends State<FeedScreen> {
     return GestureDetector(
       onTap: () => _openReelsScreen(post),
       child: Container(
-        width: width == double.infinity ? double.infinity : width,
-        height: height,
+        width: double.infinity,
+        constraints: BoxConstraints(minHeight: screenWidth * 0.56),
         color:
             AppTheme.isDark(context)
                 ? const Color(0xFF1A1A1A)
@@ -1009,22 +902,29 @@ class _FeedScreenState extends State<FeedScreen> {
           fullUrl,
           fit: BoxFit.cover,
           width: double.infinity,
-          height: height,
           loadingBuilder: (_, child, progress) {
             if (progress == null) return child;
-            return Center(
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppTheme.goldColor(context),
+            return SizedBox(
+              height: screenWidth,
+              child: Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppTheme.goldColor(context),
+                ),
               ),
             );
           },
           errorBuilder:
-              (_, __, ___) => Container(
-                color: AppTheme.glassBg(context),
-                child: Icon(
-                  Icons.broken_image_outlined,
-                  color: AppTheme.textMuted(context),
+              (_, __, ___) => SizedBox(
+                height: screenWidth * 0.56,
+                child: Container(
+                  color: AppTheme.glassBg(context),
+                  child: Center(
+                    child: Icon(
+                      Icons.broken_image_outlined,
+                      color: AppTheme.textMuted(context),
+                    ),
+                  ),
                 ),
               ),
         ),
@@ -1057,6 +957,60 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 }
 
+/// Carousel with page dots for multiple media items.
+class _MediaCarousel extends StatefulWidget {
+  final List<dynamic> media;
+  final List<String> imageUrls;
+  final Map<String, dynamic> post;
+  final Widget Function(dynamic item) buildItem;
+
+  const _MediaCarousel({
+    required this.media,
+    required this.imageUrls,
+    required this.post,
+    required this.buildItem,
+  });
+
+  @override
+  State<_MediaCarousel> createState() => _MediaCarouselState();
+}
+
+class _MediaCarouselState extends State<_MediaCarousel> {
+  int _current = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        AspectRatio(
+          aspectRatio: 1,
+          child: PageView.builder(
+            itemCount: widget.media.length,
+            onPageChanged: (i) => setState(() => _current = i),
+            itemBuilder: (_, i) => widget.buildItem(widget.media[i]),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(widget.media.length, (i) {
+            return Container(
+              width: _current == i ? 7 : 6,
+              height: _current == i ? 7 : 6,
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _current == i
+                    ? AppTheme.goldColor(context)
+                    : AppTheme.textMuted(context).withValues(alpha: 0.3),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+}
 
 class FullImageScreen extends StatefulWidget {
   final List<String> urls;
@@ -1096,7 +1050,7 @@ class _FullImageScreenState extends State<FullImageScreen> {
             widget.urls.length > 1
                 ? Text(
                   '${_currentIndex + 1} / ${widget.urls.length}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
                 )
                 : null,
         centerTitle: true,
@@ -1118,7 +1072,7 @@ class _FullImageScreenState extends State<FullImageScreen> {
                       (_, __, ___) => const Icon(
                         Icons.broken_image_outlined,
                         size: 48,
-                        color: Colors.white54,
+                        color: Colors.white70,
                       ),
                 ),
               ),
@@ -1199,45 +1153,53 @@ class _FeedInlineVideoPlayerState extends State<FeedInlineVideoPlayer> {
 
   Widget _buildContent(BuildContext context) {
     if (_hasError) {
-      return Center(
-        child: Icon(Icons.error_outline, size: 36, color: Colors.white54),
+      return SizedBox(
+        height: widget.height,
+        child: Center(
+          child: Icon(Icons.error_outline, size: 36, color: Colors.white70),
+        ),
       );
     }
 
     if (!_initialized) {
-      return Center(
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          color: AppTheme.goldColor(context),
+      return SizedBox(
+        height: widget.height,
+        child: Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppTheme.goldColor(context),
+          ),
         ),
       );
     }
 
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        IgnorePointer(
-          child: SizedBox.expand(
-            child: FittedBox(
-              fit: BoxFit.cover,
-              child: SizedBox(
-                width:
-                    _controller.value.size.width == 0
-                        ? 320
-                        : _controller.value.size.width,
-                height:
-                    _controller.value.size.height == 0
-                        ? 240
-                        : _controller.value.size.height,
-                child: VideoPlayer(_controller),
+    final videoWidth = _controller.value.size.width;
+    final videoHeight = _controller.value.size.height;
+    final aspectRatio = (videoWidth > 0 && videoHeight > 0)
+        ? videoWidth / videoHeight
+        : 16 / 9;
+
+    return AspectRatio(
+      aspectRatio: aspectRatio,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          IgnorePointer(
+            child: SizedBox.expand(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: videoWidth == 0 ? 320 : videoWidth,
+                  height: videoHeight == 0 ? 240 : videoHeight,
+                  child: VideoPlayer(_controller),
+                ),
               ),
             ),
           ),
-        ),
-        // Mute/Unmute toggle
-        Positioned(
-          right: 8,
-          bottom: 8,
+          // Mute/Unmute toggle
+          Positioned(
+            right: 8,
+            bottom: 8,
           child: GestureDetector(
             onTap: () {
               setState(() {
@@ -1254,12 +1216,13 @@ class _FeedInlineVideoPlayerState extends State<FeedInlineVideoPlayer> {
               child: Icon(
                 _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
                 size: 16,
-                color: Colors.white70,
+                color: Colors.white,
               ),
             ),
           ),
         ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1347,13 +1310,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       const Icon(
                         Icons.error_outline,
                         size: 48,
-                        color: Colors.white54,
+                        color: Colors.white70,
                       ),
                       const SizedBox(height: 12),
                       Text(
                         'Failed to load video',
                         style: GoogleFonts.jost(
-                          color: Colors.white54,
+                          color: Colors.white,
                           fontSize: 14,
                         ),
                       ),
@@ -1400,7 +1363,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               Text(
                                 _formatDuration(_controller.value.position),
                                 style: const TextStyle(
-                                  color: Colors.white70,
+                                  color: Colors.white,
                                   fontSize: 12,
                                 ),
                               ),
@@ -1420,7 +1383,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               Text(
                                 _formatDuration(_controller.value.duration),
                                 style: const TextStyle(
-                                  color: Colors.white70,
+                                  color: Colors.white,
                                   fontSize: 12,
                                 ),
                               ),

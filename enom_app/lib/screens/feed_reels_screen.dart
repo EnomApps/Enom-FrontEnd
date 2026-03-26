@@ -566,7 +566,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                   _buildActionButton(
                     icon: Icons.visibility_outlined,
                     label: _formatCount(_viewsCount),
-                    color: Colors.white70,
+                    color: Colors.white,
                     onTap: () {},
                   ),
                 ],
@@ -641,7 +641,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
     if (!_isVideoPost) {
       if (_imageUrls.isEmpty) {
         return const Center(
-          child: Icon(Icons.image_not_supported, size: 48, color: Colors.white54),
+          child: Icon(Icons.image_not_supported, size: 48, color: Colors.white70),
         );
       }
 
@@ -664,7 +664,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
               );
             },
             errorBuilder: (_, __, ___) => const Center(
-              child: Icon(Icons.broken_image, size: 48, color: Colors.white54),
+              child: Icon(Icons.broken_image, size: 48, color: Colors.white70),
             ),
           ),
         );
@@ -692,7 +692,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                 );
               },
               errorBuilder: (_, __, ___) => const Center(
-                child: Icon(Icons.broken_image, size: 48, color: Colors.white54),
+                child: Icon(Icons.broken_image, size: 48, color: Colors.white70),
               ),
             ),
           ),
@@ -728,11 +728,11 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, size: 48, color: Colors.white54),
+            Icon(Icons.error_outline, size: 48, color: Colors.white70),
             SizedBox(height: 12),
             Text(
               'Failed to load video',
-              style: TextStyle(color: Colors.white54, fontSize: 14),
+              style: TextStyle(color: Colors.white, fontSize: 14),
             ),
           ],
         ),
@@ -799,7 +799,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 1.5,
-                                color: Colors.white54,
+                                color: Colors.white70,
                               ),
                             ),
                           ),

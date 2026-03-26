@@ -577,61 +577,179 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       );
     }
 
-    final goldC = AppTheme.goldColor(context);
+    final userName = _user?['name'] as String? ?? '';
+    final userUsername = _user?['username'] as String? ?? '';
+    final bio = _user?['bio'] as String? ?? '';
+    final postsCount = _user?['posts_count'] as int? ?? _myPosts.length;
 
-    return Stack(
-      children: [
-        const EnomScreenBackground(gradientVariant: 2, particleCount: 35),
-        Column(
+    return Scaffold(
+      backgroundColor: AppTheme.bg(context),
+      body: SafeArea(
+        child: Column(
           children: [
-            // Profile header (always visible)
+            // ── Top bar: username + settings ──
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: Column(
+              padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+              child: Row(
                 children: [
-                  const SizedBox(height: 8),
-                  _buildProfileImage(),
-                  const SizedBox(height: 12),
                   Text(
-                    _user?['name'] as String? ?? '',
-                    style: AppTheme.heading(context, size: 18),
+                    userUsername.isNotEmpty ? userUsername : userName,
+                    style: GoogleFonts.jost(
+                      color: AppTheme.text1(context),
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  if ((_user?['username'] as String?)?.isNotEmpty == true) ...[
+                  const Icon(Icons.keyboard_arrow_down, size: 20),
+                  const Spacer(),
+                  IconButton(
+                    icon: Icon(Icons.menu, color: AppTheme.text1(context), size: 26),
+                    onPressed: () {},
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Profile header: avatar left + stats right ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Row(
+                children: [
+                  // Avatar
+                  _buildProfileImage(),
+                  const SizedBox(width: 24),
+                  // Stats row
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildStatItem('$postsCount', 'posts'),
+                        _buildStatItem('$_followersCount', 'followers', onTap: _openFollowersList),
+                        _buildStatItem('$_followingCount', 'following', onTap: _openFollowingList),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Name + bio ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (userName.isNotEmpty)
+                    Text(
+                      userName,
+                      style: GoogleFonts.jost(
+                        color: AppTheme.text1(context),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  if (bio.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
-                      '@${_user!['username']}',
-                      style: GoogleFonts.cormorantGaramond(
-                        color: goldC,
+                      bio,
+                      style: GoogleFonts.jost(
+                        color: AppTheme.text1(context),
                         fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.w400,
+                        height: 1.4,
                       ),
                     ),
                   ],
                 ],
               ),
             ),
-            // Tab bar
+
+            // ── Edit profile + Share profile buttons ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: _startEditing,
+                      child: Container(
+                        height: 36,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppTheme.isDark(context)
+                              ? Colors.white.withValues(alpha: 0.12)
+                              : Colors.black.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Edit profile',
+                          style: GoogleFonts.jost(
+                            color: AppTheme.text1(context),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Container(
+                      height: 36,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppTheme.isDark(context)
+                            ? Colors.white.withValues(alpha: 0.12)
+                            : Colors.black.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Share profile',
+                        style: GoogleFonts.jost(
+                          color: AppTheme.text1(context),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    height: 36,
+                    width: 36,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppTheme.isDark(context)
+                          ? Colors.white.withValues(alpha: 0.12)
+                          : Colors.black.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.person_add_outlined, size: 18, color: AppTheme.text1(context)),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Tab bar (icon-based like Instagram) ──
             TabBar(
               controller: _tabController,
-              indicatorColor: goldC,
-              indicatorWeight: 2.5,
-              labelColor: goldC,
+              indicatorColor: AppTheme.text1(context),
+              indicatorWeight: 1,
+              labelColor: AppTheme.text1(context),
               unselectedLabelColor: AppTheme.textMuted(context),
-              labelStyle: GoogleFonts.jost(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 1.5),
-              unselectedLabelStyle: GoogleFonts.jost(fontSize: 13, letterSpacing: 1.5),
-              tabs: const [
-                Tab(text: 'MY PROFILE'),
-                Tab(text: 'MY POSTS'),
-                Tab(text: 'SAVED'),
+              tabs: [
+                Tab(icon: Icon(Icons.grid_on, size: 24)),
+                Tab(icon: Icon(Icons.dynamic_feed_outlined, size: 24)),
+                Tab(icon: Icon(Icons.bookmark_border, size: 24)),
               ],
             ),
+
             // Tab content
             Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  // Tab 1: My Profile
+                  // Tab 1: My Profile (details + grid)
                   _buildProfileTabContent(l10n),
                   // Tab 2: My Posts
                   _buildMyPostsTab(),
@@ -642,7 +760,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             ),
           ],
         ),
-      ],
+      ),
     );
   }
 
@@ -659,8 +777,6 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 fontSize: 14,
               ),
             ),
-            const SizedBox(height: 20),
-            _buildStatsRow(),
             const SizedBox(height: 20),
             AppTheme.goldDivider(context),
             const SizedBox(height: 20),
@@ -889,23 +1005,25 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     return RefreshIndicator(
       onRefresh: _loadMyPosts,
       color: AppTheme.goldColor(context),
-      child: ListView.builder(
+      child: GridView.builder(
         controller: _postsScrollController,
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+        padding: const EdgeInsets.only(bottom: 90),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 1.5,
+          mainAxisSpacing: 1.5,
+        ),
         itemCount: _myPosts.length + (_isLoadingMorePosts ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == _myPosts.length) {
-            return Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: CircularProgressIndicator(
-                  color: AppTheme.goldColor(context),
-                  strokeWidth: 2,
-                ),
+            return Center(
+              child: CircularProgressIndicator(
+                color: AppTheme.goldColor(context),
+                strokeWidth: 2,
               ),
             );
           }
-          return _buildMyPostCard(index);
+          return _buildPostGridTile(index);
         },
       ),
     );
@@ -936,24 +1054,194 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     return RefreshIndicator(
       onRefresh: _loadSavedPosts,
       color: AppTheme.goldColor(context),
-      child: ListView.builder(
+      child: GridView.builder(
         controller: _savedScrollController,
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+        padding: const EdgeInsets.only(bottom: 90),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 1.5,
+          mainAxisSpacing: 1.5,
+        ),
         itemCount: _savedPosts.length + (_isLoadingMoreSaved ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == _savedPosts.length) {
-            return Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: CircularProgressIndicator(
-                  color: AppTheme.goldColor(context),
-                  strokeWidth: 2,
-                ),
+            return Center(
+              child: CircularProgressIndicator(
+                color: AppTheme.goldColor(context),
+                strokeWidth: 2,
               ),
             );
           }
-          return _buildSavedPostCard(index);
+          return _buildSavedGridTile(index);
         },
+      ),
+    );
+  }
+
+  Widget _buildPostGridTile(int index) {
+    final post = _myPosts[index];
+    final media = post['media'] as List<dynamic>? ?? [];
+    final content = post['content'] as String? ?? '';
+
+    if (media.isNotEmpty) {
+      final type = _getPostMediaType(media[0]);
+      final isVideo = type.contains('video');
+
+      // For videos: try to find an image in the same post, otherwise show placeholder
+      // For images: show the image directly
+      String? imageUrl;
+      if (isVideo) {
+        // Check if there's a thumbnail or an image in the media list
+        for (final m in media) {
+          if (!_getPostMediaType(m).contains('video')) {
+            imageUrl = _getPostMediaUrl(m);
+            break;
+          }
+        }
+      } else {
+        imageUrl = _getPostMediaUrl(media[0]);
+      }
+
+      return GestureDetector(
+        onTap: () => _openPostDetail(index),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (imageUrl != null)
+              Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                cacheWidth: 300,
+                errorBuilder: (_, __, ___) => Container(
+                  color: AppTheme.bg2(context),
+                  child: Icon(Icons.broken_image_outlined, color: AppTheme.textMuted(context)),
+                ),
+              )
+            else
+              Container(
+                color: AppTheme.isDark(context) ? const Color(0xFF1A1A1A) : const Color(0xFFE0E0E0),
+                child: Center(
+                  child: Icon(
+                    Icons.videocam_outlined,
+                    color: AppTheme.textMuted(context),
+                    size: 32,
+                  ),
+                ),
+              ),
+            if (isVideo)
+              const Positioned(
+                top: 6,
+                right: 6,
+                child: Icon(Icons.play_circle_fill, color: Colors.white, size: 22),
+              ),
+            if (!isVideo && media.length > 1)
+              const Positioned(
+                top: 6,
+                right: 6,
+                child: Icon(Icons.collections, color: Colors.white, size: 18),
+              ),
+          ],
+        ),
+      );
+    }
+
+    // Text-only post
+    return GestureDetector(
+      onTap: () => _openPostDetail(index),
+      child: Container(
+        color: AppTheme.bg2(context),
+        padding: const EdgeInsets.all(8),
+        child: Center(
+          child: Text(
+            content,
+            style: GoogleFonts.jost(color: AppTheme.text1(context), fontSize: 12),
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSavedGridTile(int index) {
+    final post = _savedPosts[index];
+    final media = post['media'] as List<dynamic>? ?? [];
+    final content = post['content'] as String? ?? '';
+
+    if (media.isNotEmpty) {
+      final type = _getPostMediaType(media[0]);
+      final isVideo = type.contains('video');
+
+      String? imageUrl;
+      if (isVideo) {
+        for (final m in media) {
+          if (!_getPostMediaType(m).contains('video')) {
+            imageUrl = _getPostMediaUrl(m);
+            break;
+          }
+        }
+      } else {
+        imageUrl = _getPostMediaUrl(media[0]);
+      }
+
+      return GestureDetector(
+        onTap: () => _openSavedPostDetail(index),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (imageUrl != null)
+              Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                cacheWidth: 300,
+                errorBuilder: (_, __, ___) => Container(
+                  color: AppTheme.bg2(context),
+                  child: Icon(Icons.broken_image_outlined, color: AppTheme.textMuted(context)),
+                ),
+              )
+            else
+              Container(
+                color: AppTheme.isDark(context) ? const Color(0xFF1A1A1A) : const Color(0xFFE0E0E0),
+                child: Center(
+                  child: Icon(
+                    Icons.videocam_outlined,
+                    color: AppTheme.textMuted(context),
+                    size: 32,
+                  ),
+                ),
+              ),
+            if (isVideo)
+              const Positioned(
+                top: 6,
+                right: 6,
+                child: Icon(Icons.play_circle_fill, color: Colors.white, size: 22),
+              ),
+            if (!isVideo && media.length > 1)
+              const Positioned(
+                top: 6,
+                right: 6,
+                child: Icon(Icons.collections, color: Colors.white, size: 18),
+              ),
+          ],
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => _openSavedPostDetail(index),
+      child: Container(
+        color: AppTheme.bg2(context),
+        padding: const EdgeInsets.all(8),
+        child: Center(
+          child: Text(
+            content,
+            style: GoogleFonts.jost(color: AppTheme.text1(context), fontSize: 12),
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ),
       ),
     );
   }
@@ -1444,15 +1732,15 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     if (hasPicked) {
       imageWidget = Image.memory(
         _pickedImageBytes!,
-        width: 104,
-        height: 104,
+        width: 86,
+        height: 86,
         fit: BoxFit.cover,
       );
     } else if (hasNetworkImage) {
       imageWidget = Image.network(
         profileImageUrl,
-        width: 104,
-        height: 104,
+        width: 86,
+        height: 86,
         fit: BoxFit.cover,
         cacheWidth: 300,
         loadingBuilder: (context, child, loadingProgress) {
@@ -1480,8 +1768,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       );
     } else {
       imageWidget = Container(
-        width: 104,
-        height: 104,
+        width: 86,
+        height: 86,
         color: AppTheme.bg2(context),
         child: Icon(Icons.person, size: 52, color: goldC),
       );
@@ -1490,8 +1778,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     return Stack(
       children: [
         Container(
-          width: 114,
-          height: 114,
+          width: 96,
+          height: 96,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(
@@ -1537,45 +1825,30 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildStatsRow() {
-    final followersCount = _followersCount;
-    final followingCount = _followingCount;
-    final postsCount = _user?['posts_count'] as int? ?? _myPosts.length;
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildStatItem('$postsCount', 'Posts'),
-        _buildStatDivider(),
-        _buildStatItem('$followersCount', 'Followers', onTap: _openFollowersList),
-        _buildStatDivider(),
-        _buildStatItem('$followingCount', 'Following', onTap: _openFollowingList),
-      ],
-    );
-  }
-
   Widget _buildStatItem(String value, String label, {VoidCallback? onTap}) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Column(
-          children: [
-            Text(value, style: AppTheme.heading(context, size: 16)),
-            const SizedBox(height: 2),
-            Text(label, style: AppTheme.label(context)),
-          ],
-        ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: GoogleFonts.jost(
+              color: AppTheme.text1(context),
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Text(
+            label,
+            style: GoogleFonts.jost(
+              color: AppTheme.text1(context),
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildStatDivider() {
-    return Container(
-      width: 1,
-      height: 28,
-      color: AppTheme.cardBorder(context),
     );
   }
 

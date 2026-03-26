@@ -141,8 +141,68 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 children: [
                   const Spacer(flex: 2),
 
-                  // E logo circle
-                  AppTheme.logo(context, size: 64),
+                  // E logo circle with sunrise rays
+                  SizedBox(
+                    width: 220,
+                    height: 220,
+                    child: AnimatedBuilder(
+                      animation: _orbController,
+                      builder: (context, child) {
+                        return Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Outer soft glow
+                            Container(
+                              width: 200,
+                              height: 200,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: RadialGradient(
+                                  colors: [
+                                    AppTheme.gold1.withValues(alpha: dark ? 0.18 : 0.12),
+                                    AppTheme.gold2.withValues(alpha: dark ? 0.08 : 0.05),
+                                    Colors.transparent,
+                                  ],
+                                  stops: const [0.0, 0.5, 1.0],
+                                ),
+                              ),
+                            ),
+                            // Rotating sun rays
+                            Transform.rotate(
+                              angle: _orbController.value * 2 * pi,
+                              child: CustomPaint(
+                                size: const Size(220, 220),
+                                painter: _SunRaysPainter(
+                                  color: AppTheme.goldColor(context),
+                                  rayCount: 24,
+                                  innerRadius: 38,
+                                  outerRadius: 110,
+                                  pulse: sin(_orbController.value * 2 * pi) * 0.15 + 0.85,
+                                ),
+                              ),
+                            ),
+                            // Inner warm glow behind logo
+                            Container(
+                              width: 90,
+                              height: 90,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.gold2.withValues(alpha: dark ? 0.35 : 0.25),
+                                    blurRadius: 30,
+                                    spreadRadius: 8,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // The logo itself
+                            AppTheme.logo(context, size: 64),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
                   const SizedBox(height: 16),
 
                   // ENOM logo text
@@ -392,4 +452,59 @@ class _GlassOrbButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Paints radiating sun rays from center — sunrise effect behind the logo.
+class _SunRaysPainter extends CustomPainter {
+  final Color color;
+  final int rayCount;
+  final double innerRadius;
+  final double outerRadius;
+  final double pulse;
+
+  _SunRaysPainter({
+    required this.color,
+    this.rayCount = 24,
+    this.innerRadius = 38,
+    this.outerRadius = 110,
+    this.pulse = 1.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final angleStep = (2 * pi) / rayCount;
+    final rayWidth = angleStep * 0.35;
+
+    for (int i = 0; i < rayCount; i++) {
+      final angle = i * angleStep;
+      final opacity = (0.12 + 0.10 * sin(angle * 3)) * pulse;
+      final currentOuter = outerRadius * (0.85 + 0.15 * sin(angle * 5)) * pulse;
+
+      final path = Path();
+      path.moveTo(
+        center.dx + innerRadius * cos(angle - rayWidth),
+        center.dy + innerRadius * sin(angle - rayWidth),
+      );
+      path.lineTo(
+        center.dx + currentOuter * cos(angle),
+        center.dy + currentOuter * sin(angle),
+      );
+      path.lineTo(
+        center.dx + innerRadius * cos(angle + rayWidth),
+        center.dy + innerRadius * sin(angle + rayWidth),
+      );
+      path.close();
+
+      final paint = Paint()
+        ..color = color.withValues(alpha: opacity.clamp(0.0, 1.0))
+        ..style = PaintingStyle.fill
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SunRaysPainter oldDelegate) =>
+      oldDelegate.pulse != pulse;
 }

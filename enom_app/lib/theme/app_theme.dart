@@ -37,9 +37,9 @@ class AppTheme {
   static const Color darkBg = Color(0xFF000000);
   static const Color darkBg2 = Color(0xFF121212);
   static const Color darkNavBg = Color(0xD9000000); // rgba(0,0,0,0.85)
-  static const Color darkTextPrimary = Color(0xFFF5F5F5);
-  static Color darkTextSecondary = const Color(0xFFF5F5F5).withValues(alpha: 0.65);
-  static Color darkTextMuted = const Color(0xFFF5F5F5).withValues(alpha: 0.40);
+  static const Color darkTextPrimary = Color(0xFFFFFFFF);
+  static Color darkTextSecondary = const Color(0xFFFFFFFF).withValues(alpha: 0.88);
+  static Color darkTextMuted = const Color(0xFFFFFFFF).withValues(alpha: 0.68);
   static Color darkGlass = Colors.white.withValues(alpha: 0.08);
   static Color darkGlassBorder = Colors.white.withValues(alpha: 0.12);
   static Color darkGlassHighlight = Colors.white.withValues(alpha: 0.15);
@@ -54,9 +54,9 @@ class AppTheme {
   static const Color lightBg2 = Color(0xFFEFEFEF);
   static const Color lightNavBg = Color(0xD9FAFAFA); // rgba(250,250,250,0.85)
   static const Color lightGold = Color(0xFF8C6D14);
-  static const Color lightTextPrimary = Color(0xFF262626);
-  static Color lightTextSecondary = const Color(0xFF262626).withValues(alpha: 0.60);
-  static Color lightTextMuted = const Color(0xFF262626).withValues(alpha: 0.38);
+  static const Color lightTextPrimary = Color(0xFF1A1A1A);
+  static Color lightTextSecondary = const Color(0xFF1A1A1A).withValues(alpha: 0.82);
+  static Color lightTextMuted = const Color(0xFF1A1A1A).withValues(alpha: 0.62);
   static Color lightGlass = Colors.white.withValues(alpha: 0.60);
   static Color lightGlassBorder = const Color.fromRGBO(219, 219, 219, 0.40);
   static Color lightGlassHighlight = Colors.white.withValues(alpha: 0.85);
@@ -69,7 +69,7 @@ class AppTheme {
   // Legacy aliases for compatibility
   static const Color lightGoldLight = Color(0xFFBFA02A);
   static const Color lightGoldDark = Color(0xFF6B5210);
-  static const Color darkText1 = Color(0xFFF5F5F5);
+  static const Color darkText1 = Color(0xFFFFFFFF);
 
   // ── Helpers ──
   static bool isDark(BuildContext context) =>

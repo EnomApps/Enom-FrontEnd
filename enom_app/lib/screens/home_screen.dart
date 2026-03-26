@@ -734,7 +734,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         style: GoogleFonts.jost(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
-                          color: Colors.white70,
+                          color: Colors.white,
                           letterSpacing: 2,
                         ),
                       ),
@@ -804,7 +804,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 ? 'Detecting: ${_liveMood!.mood}'
                                 : 'Looking for face...',
                             style: GoogleFonts.jost(
-                              color: Colors.white70,
+                              color: Colors.white,
                               fontSize: 13,
                               fontWeight: FontWeight.w400,
                             ),
