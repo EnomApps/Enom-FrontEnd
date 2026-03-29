@@ -55,6 +55,7 @@ class UploadManager {
   void startUpload({
     String? content,
     String visibility = 'public',
+    List<String>? hashtags,
     List<Uint8List>? mediaBytes,
     List<String>? mediaNames,
     List<String>? mediaTypes,
@@ -67,6 +68,7 @@ class UploadManager {
     _doUpload(
       content: content,
       visibility: visibility,
+      hashtags: hashtags,
       mediaBytes: mediaBytes,
       mediaNames: mediaNames,
       mediaTypes: mediaTypes,
@@ -77,6 +79,7 @@ class UploadManager {
   Future<void> _doUpload({
     String? content,
     String visibility = 'public',
+    List<String>? hashtags,
     List<Uint8List>? mediaBytes,
     List<String>? mediaNames,
     List<String>? mediaTypes,
@@ -157,6 +160,13 @@ class UploadManager {
         if (content != null && content.isNotEmpty) 'content': content,
         'visibility': visibility,
       };
+
+      // Add hashtags as individual fields: hashtags[0], hashtags[1], etc.
+      if (hashtags != null && hashtags.isNotEmpty) {
+        for (int i = 0; i < hashtags.length; i++) {
+          fields['hashtags[$i]'] = hashtags[i];
+        }
+      }
 
       // Build multipart request
       final request = http.MultipartRequest(

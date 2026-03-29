@@ -16,11 +16,12 @@ class CreatePostScreen extends StatefulWidget {
 }
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
-  final TextEditingController _contentController = TextEditingController();
+  final _HashtagTextEditingController _contentController = _HashtagTextEditingController();
   final List<_MediaFile> _mediaFiles = [];
   String _visibility = 'public';
 
   static const int _maxMedia = 10;
+  static const int _maxHashtags = 5;
 
   @override
   void dispose() {
@@ -30,6 +31,19 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   bool get _canPost =>
       _contentController.text.trim().isNotEmpty || _mediaFiles.isNotEmpty;
+
+  /// Extract hashtags from content text (max 5).
+  List<String> _extractHashtags() {
+    final regex = RegExp(r'#(\w+)');
+    final matches = regex.allMatches(_contentController.text);
+    return matches.map((m) => m.group(1)!).toSet().take(_maxHashtags).toList();
+  }
+
+  /// Count hashtags currently in text.
+  int get _hashtagCount {
+    final regex = RegExp(r'#\w+');
+    return regex.allMatches(_contentController.text).map((m) => m.group(0)).toSet().length;
+  }
 
   Future<bool> _requestMediaPermission({bool isVideo = false}) async {
     PermissionStatus status;
@@ -182,10 +196,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   void _createPost() {
     if (!_canPost) return;
 
+    if (_hashtagCount > _maxHashtags) {
+      AppTheme.showSnackBar(context, 'Maximum $_maxHashtags hashtags allowed', isError: true);
+      return;
+    }
+
+    final hashtags = _extractHashtags();
+
     // Start background compress + upload via UploadManager
     UploadManager.instance.startUpload(
       content: _contentController.text.trim(),
       visibility: _visibility,
+      hashtags: hashtags,
       mediaBytes: _mediaFiles.isNotEmpty ? _mediaFiles.map((f) => f.bytes).toList() : null,
       mediaNames: _mediaFiles.isNotEmpty ? _mediaFiles.map((f) => f.name).toList() : null,
       mediaTypes: _mediaFiles.isNotEmpty ? _mediaFiles.map((f) => f.type).toList() : null,
@@ -256,25 +278,43 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: AppTheme.glassBorder(context)),
                     ),
-                    child: TextField(
-                      controller: _contentController,
-                      onChanged: (_) => setState(() {}),
-                      maxLines: null,
-                      minLines: 6,
-                      style: GoogleFonts.jost(
-                        color: AppTheme.text1(context),
-                        fontSize: 16,
-                        height: 1.6,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: "What's on your mind?",
-                        hintStyle: GoogleFonts.jost(
-                          color: AppTheme.textMuted(context),
-                          fontSize: 16,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: _contentController,
+                          onChanged: (_) => setState(() {}),
+                          maxLines: null,
+                          minLines: 6,
+                          style: GoogleFonts.jost(
+                            color: AppTheme.text1(context),
+                            fontSize: 16,
+                            height: 1.6,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: "What's on your mind?",
+                            hintStyle: GoogleFonts.jost(
+                              color: AppTheme.textMuted(context),
+                              fontSize: 16,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.all(20),
+                          ),
                         ),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.all(20),
-                      ),
+                        if (_hashtagCount > 0)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                            child: Text(
+                              '$_hashtagCount / $_maxHashtags hashtags',
+                              style: GoogleFonts.jost(
+                                fontSize: 12,
+                                color: _hashtagCount > _maxHashtags
+                                    ? Colors.redAccent
+                                    : AppTheme.textMuted(context),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -755,4 +795,46 @@ class _MediaFile {
   final String? filePath;
 
   _MediaFile({required this.bytes, required this.name, required this.type, this.filePath});
+}
+
+/// Custom TextEditingController that highlights #hashtags in blue.
+class _HashtagTextEditingController extends TextEditingController {
+  static final _hashtagRegex = RegExp(r'#\w+');
+
+  @override
+  TextSpan buildTextSpan({
+    required BuildContext context,
+    TextStyle? style,
+    required bool withComposing,
+  }) {
+    final text = this.text;
+    final children = <TextSpan>[];
+    int lastEnd = 0;
+
+    for (final match in _hashtagRegex.allMatches(text)) {
+      if (match.start > lastEnd) {
+        children.add(TextSpan(
+          text: text.substring(lastEnd, match.start),
+          style: style,
+        ));
+      }
+      children.add(TextSpan(
+        text: match.group(0),
+        style: style?.copyWith(
+          color: const Color(0xFF3897F0),
+          fontWeight: FontWeight.w600,
+        ),
+      ));
+      lastEnd = match.end;
+    }
+
+    if (lastEnd < text.length) {
+      children.add(TextSpan(
+        text: text.substring(lastEnd),
+        style: style,
+      ));
+    }
+
+    return TextSpan(children: children, style: style);
+  }
 }

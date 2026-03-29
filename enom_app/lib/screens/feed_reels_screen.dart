@@ -7,7 +7,9 @@ import '../services/post_service.dart';
 import '../services/social_service.dart';
 import '../theme/app_theme.dart';
 import 'likes_list_sheet.dart';
+import 'share_sheet.dart';
 import 'threaded_comments_sheet.dart';
+import 'user_profile_screen.dart';
 
 /// TikTok / Instagram Reels style vertical feed for both images and videos.
 class FeedReelsScreen extends StatefulWidget {
@@ -17,10 +19,18 @@ class FeedReelsScreen extends StatefulWidget {
   /// Index of the post the user tapped on in the feed.
   final int initialIndex;
 
+  /// Whether to show the back arrow (false when used as a tab).
+  final bool showBackButton;
+
+  /// Extra bottom padding to account for bottom nav bar when used as a tab.
+  final double bottomPadding;
+
   const FeedReelsScreen({
     super.key,
     required this.videoPosts,
     required this.initialIndex,
+    this.showBackButton = true,
+    this.bottomPadding = 0,
   });
 
   @override
@@ -83,6 +93,7 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
                 post: _videoPosts[index],
                 isActive: index == _currentIndex,
                 onCommentTap: (onCommentAdded) => _showComments(_videoPosts[index], onCommentAdded),
+                bottomPadding: widget.bottomPadding,
               );
             },
           ),
@@ -94,14 +105,15 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
             right: 16,
             child: Row(
               children: [
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(
-                    Icons.arrow_back_ios_rounded,
-                    color: Colors.white,
-                    size: 22,
+                if (widget.showBackButton)
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                   ),
-                ),
                 const Spacer(),
                 Text(
                   'Reels',
@@ -179,11 +191,13 @@ class _ReelVideoPage extends StatefulWidget {
   final Map<String, dynamic> post;
   final bool isActive;
   final void Function(VoidCallback onCommentAdded) onCommentTap;
+  final double bottomPadding;
 
   const _ReelVideoPage({
     required this.post,
     required this.isActive,
     required this.onCommentTap,
+    this.bottomPadding = 0,
   });
 
   @override
@@ -490,7 +504,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
           // ── Right side action buttons (TikTok style) ──
           Positioned(
             right: 12,
-            bottom: 120,
+            bottom: 120 + widget.bottomPadding,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -557,7 +571,11 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                   icon: Icons.share_outlined,
                   label: 'Share',
                   color: Colors.white,
-                  onTap: () {},
+                  onTap: () => ShareSheet.show(
+                    context,
+                    widget.post['id'] as int,
+                    darkMode: true,
+                  ),
                 ),
 
                 // Views count
@@ -578,23 +596,32 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
           Positioned(
             left: 16,
             right: 80,
-            bottom: 40,
+            bottom: 40 + widget.bottomPadding,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Username
-                Row(
-                  children: [
-                    Text(
-                      '@$userName',
-                      style: GoogleFonts.jost(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                GestureDetector(
+                  onTap: _isOwner
+                      ? null
+                      : () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => UserProfileScreen(user: user),
+                            ),
+                          ),
+                  child: Row(
+                    children: [
+                      Text(
+                        '@$userName',
+                        style: GoogleFonts.jost(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 if (content.isNotEmpty) ...[
                   const SizedBox(height: 8),
@@ -617,7 +644,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
           // ── Video progress bar at very bottom (only for video posts) ──
           if (_isVideoPost && _initialized && _controller != null)
             Positioned(
-              bottom: 0,
+              bottom: widget.bottomPadding,
               left: 0,
               right: 0,
               child: VideoProgressIndicator(
@@ -761,8 +788,15 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
   }
 
   Widget _buildProfileAvatar(String? avatarUrl, String name) {
+    final user = widget.post['user'] as Map<String, dynamic>? ?? {};
     return GestureDetector(
-      onTap: _isOwner ? null : _toggleFollow,
+      onTap: _isOwner
+          ? null
+          : () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => UserProfileScreen(user: user),
+                ),
+              ),
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,

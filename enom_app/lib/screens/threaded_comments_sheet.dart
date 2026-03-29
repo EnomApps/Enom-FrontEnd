@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../theme/app_theme.dart';
+import 'user_profile_screen.dart';
 
 /// Reusable threaded comments bottom sheet.
 /// Supports nested replies (parent_id), reply UI, and works in both
@@ -135,13 +136,11 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
       _replyToName = userName;
       _replyRootId = rootId;
     });
-    // Pre-fill @mention when replying to a reply (not the top-level comment itself)
-    if (commentId != rootId) {
-      _commentController.text = '@$userName ';
-      _commentController.selection = TextSelection.fromPosition(
-        TextPosition(offset: _commentController.text.length),
-      );
-    }
+    // Pre-fill @mention for all replies so the tagged user is visible in the input
+    _commentController.text = '@$userName ';
+    _commentController.selection = TextSelection.fromPosition(
+      TextPosition(offset: _commentController.text.length),
+    );
     _focusNode.requestFocus();
   }
 
@@ -366,38 +365,45 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Avatar — same pattern as profile screen
-          Container(
-            width: avatarSize,
-            height: avatarSize,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: _avatarBgColor,
-              border: widget.darkMode ? null : Border.all(color: _borderColor),
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => UserProfileScreen(user: user),
+              ),
             ),
-            child: ClipOval(
-              child: userAvatar != null && userAvatar.isNotEmpty
-                  ? Image.network(
-                      userAvatar,
-                      width: avatarSize,
-                      height: avatarSize,
-                      fit: BoxFit.cover,
-                      cacheWidth: 120,
-                      loadingBuilder: (_, child, progress) {
-                        if (progress == null) return child;
-                        return Center(
-                          child: SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 1.5,
-                              color: AppTheme.gold1,
+            child: Container(
+              width: avatarSize,
+              height: avatarSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _avatarBgColor,
+                border: widget.darkMode ? null : Border.all(color: _borderColor),
+              ),
+              child: ClipOval(
+                child: userAvatar != null && userAvatar.isNotEmpty
+                    ? Image.network(
+                        userAvatar,
+                        width: avatarSize,
+                        height: avatarSize,
+                        fit: BoxFit.cover,
+                        cacheWidth: 120,
+                        loadingBuilder: (_, child, progress) {
+                          if (progress == null) return child;
+                          return Center(
+                            child: SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.5,
+                                color: AppTheme.gold1,
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                      errorBuilder: (_, __, ___) => _avatarFallback(name, isReply),
-                    )
-                  : _avatarFallback(name, isReply),
+                          );
+                        },
+                        errorBuilder: (_, __, ___) => _avatarFallback(name, isReply),
+                      )
+                    : _avatarFallback(name, isReply),
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -408,12 +414,19 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
                 // Name + time
                 Row(
                   children: [
-                    Text(
-                      name,
-                      style: GoogleFonts.jost(
-                        color: _text2Color,
-                        fontSize: isReply ? 12 : 13,
-                        fontWeight: FontWeight.w600,
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => UserProfileScreen(user: user),
+                        ),
+                      ),
+                      child: Text(
+                        name,
+                        style: GoogleFonts.jost(
+                          color: _text2Color,
+                          fontSize: isReply ? 12 : 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     if (timeAgo.isNotEmpty) ...[

@@ -15,6 +15,7 @@ import 'feed_screen.dart';
 import 'feed_reels_screen.dart';
 import 'follow_list_screen.dart';
 import 'likes_list_sheet.dart';
+import 'settings_screen.dart';
 import 'welcome_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -567,6 +568,117 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     }
   }
 
+  void _openMenuDrawer() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.45,
+        minChildSize: 0.3,
+        maxChildSize: 0.7,
+        builder: (_, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: AppTheme.bg(context),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            border: Border.all(color: AppTheme.glassBorder(context)),
+          ),
+          child: Column(
+            children: [
+              // Handle
+              Container(
+                margin: const EdgeInsets.only(top: 10, bottom: 6),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppTheme.textMuted(context),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Menu',
+                  style: GoogleFonts.jost(
+                    color: AppTheme.text1(context),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Divider(color: AppTheme.glassBorder(context), height: 1),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  children: [
+                    _menuItem(
+                      icon: Icons.settings_outlined,
+                      label: 'Settings',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                        );
+                      },
+                    ),
+                    _menuItem(
+                      icon: Icons.bookmark_border,
+                      label: 'Saved Posts',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        // Switch to saved tab (tab index 1 in profile)
+                      },
+                    ),
+                    _menuItem(
+                      icon: Icons.bar_chart_outlined,
+                      label: 'Your Activity',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                    const Divider(),
+                    _menuItem(
+                      icon: Icons.logout,
+                      label: 'Logout',
+                      color: Colors.redAccent,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _handleLogout();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _menuItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    final itemColor = color ?? AppTheme.text1(context);
+    return ListTile(
+      leading: Icon(icon, color: itemColor, size: 24),
+      title: Text(
+        label,
+        style: GoogleFonts.jost(
+          color: itemColor,
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -604,7 +716,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   const Spacer(),
                   IconButton(
                     icon: Icon(Icons.menu, color: AppTheme.text1(context), size: 26),
-                    onPressed: () {},
+                    onPressed: () => _openMenuDrawer(),
                   ),
                 ],
               ),
@@ -1087,15 +1199,22 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       final type = _getPostMediaType(media[0]);
       final isVideo = type.contains('video');
 
-      // For videos: try to find an image in the same post, otherwise show placeholder
+      // For videos: use thumbnail_url from API, fallback to first non-video media
       // For images: show the image directly
       String? imageUrl;
       if (isVideo) {
-        // Check if there's a thumbnail or an image in the media list
-        for (final m in media) {
-          if (!_getPostMediaType(m).contains('video')) {
-            imageUrl = _getPostMediaUrl(m);
-            break;
+        // Check thumbnail_url first (backend-generated thumbnail)
+        final videoItem = media[0];
+        if (videoItem is Map && videoItem['thumbnail_url'] != null && (videoItem['thumbnail_url'] as String).isNotEmpty) {
+          final thumb = videoItem['thumbnail_url'] as String;
+          imageUrl = thumb.startsWith('http') ? thumb : '${ApiService.baseUrl}/${thumb.replaceAll(RegExp(r'^/'), '')}';
+        } else {
+          // Fallback: find a non-video image in the media list
+          for (final m in media) {
+            if (!_getPostMediaType(m).contains('video')) {
+              imageUrl = _getPostMediaUrl(m);
+              break;
+            }
           }
         }
       } else {
@@ -1175,10 +1294,17 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
 
       String? imageUrl;
       if (isVideo) {
-        for (final m in media) {
-          if (!_getPostMediaType(m).contains('video')) {
-            imageUrl = _getPostMediaUrl(m);
-            break;
+        // Check thumbnail_url first (backend-generated thumbnail)
+        final videoItem = media[0];
+        if (videoItem is Map && videoItem['thumbnail_url'] != null && (videoItem['thumbnail_url'] as String).isNotEmpty) {
+          final thumb = videoItem['thumbnail_url'] as String;
+          imageUrl = thumb.startsWith('http') ? thumb : '${ApiService.baseUrl}/${thumb.replaceAll(RegExp(r'^/'), '')}';
+        } else {
+          for (final m in media) {
+            if (!_getPostMediaType(m).contains('video')) {
+              imageUrl = _getPostMediaUrl(m);
+              break;
+            }
           }
         }
       } else {

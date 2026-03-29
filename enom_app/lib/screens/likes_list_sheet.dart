@@ -3,25 +3,35 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../theme/app_theme.dart';
+import 'user_profile_screen.dart';
 
 /// Instagram-style bottom sheet showing who liked/reacted to a post.
 class LikesListSheet extends StatefulWidget {
   final int postId;
   final bool darkMode;
 
+  /// Called when the current user unlikes the post from this sheet.
+  final VoidCallback? onUnliked;
+
   const LikesListSheet({
     super.key,
     required this.postId,
     this.darkMode = false,
+    this.onUnliked,
   });
 
   /// Show the likes list as a bottom sheet.
-  static void show(BuildContext context, int postId, {bool darkMode = false}) {
+  static void show(BuildContext context, int postId,
+      {bool darkMode = false, VoidCallback? onUnliked}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => LikesListSheet(postId: postId, darkMode: darkMode),
+      builder: (_) => LikesListSheet(
+        postId: postId,
+        darkMode: darkMode,
+        onUnliked: onUnliked,
+      ),
     );
   }
 
@@ -32,11 +42,21 @@ class LikesListSheet extends StatefulWidget {
 class _LikesListSheetState extends State<LikesListSheet> {
   List<Map<String, dynamic>> _reactions = [];
   bool _isLoading = true;
+  int? _currentUserId;
 
   @override
   void initState() {
     super.initState();
+    _loadCurrentUser();
     _loadReactions();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    final user = await ApiService.getUser();
+    if (!mounted) return;
+    setState(() {
+      _currentUserId = user?['id'] as int?;
+    });
   }
 
   Future<void> _loadReactions() async {
@@ -49,6 +69,23 @@ class _LikesListSheetState extends State<LikesListSheet> {
           .whereType<Map<String, dynamic>>()
           .toList();
     });
+
+    debugPrint('[LikesListSheet] loaded ${_reactions.length} reactions: $_reactions');
+  }
+
+  Future<void> _unlikePost(int index) async {
+    final reaction = _reactions[index];
+    setState(() {
+      _reactions.removeAt(index);
+    });
+
+    await PostService.toggleReaction(widget.postId, 'like');
+    widget.onUnliked?.call();
+
+    if (!mounted) return;
+    if (_reactions.isEmpty) {
+      Navigator.of(context).pop();
+    }
   }
 
   // ── Color helpers ──
@@ -150,7 +187,7 @@ class _LikesListSheetState extends State<LikesListSheet> {
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             itemCount: _reactions.length,
                             itemBuilder: (_, i) =>
-                                _buildReactionTile(_reactions[i]),
+                                _buildReactionTile(_reactions[i], i),
                           ),
               ),
             ],
@@ -160,10 +197,12 @@ class _LikesListSheetState extends State<LikesListSheet> {
     );
   }
 
-  Widget _buildReactionTile(Map<String, dynamic> reaction) {
-    final user = reaction['user'] as Map<String, dynamic>? ?? {};
-    final name = user['name'] as String? ?? 'Anonymous';
-    final username = user['username'] as String? ?? '';
+  Widget _buildReactionTile(Map<String, dynamic> reaction, int index) {
+    // Support both nested user object and flat structure
+    final user = reaction['user'] as Map<String, dynamic>? ?? reaction;
+    final name = (user['name'] ?? reaction['name'] ?? 'Anonymous') as String;
+    final username = (user['username'] ?? reaction['username'] ?? '') as String;
+    final userId = (user['id'] ?? reaction['user_id']) as int?;
     var avatar =
         (user['profile_image_url'] ?? user['profile_image']) as String?;
     // Same URL pattern as profile screen
@@ -172,13 +211,20 @@ class _LikesListSheetState extends State<LikesListSheet> {
     }
     final reactionType = reaction['type'] as String? ?? 'like';
     final emoji = _getReactionEmoji(reactionType);
+    final isCurrentUser = _currentUserId != null && userId == _currentUserId;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
         children: [
           // Avatar with reaction badge
-          Stack(
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => UserProfileScreen(user: user),
+              ),
+            ),
+            child: Stack(
             clipBehavior: Clip.none,
             children: [
               Container(
@@ -236,31 +282,58 @@ class _LikesListSheetState extends State<LikesListSheet> {
               ),
             ],
           ),
+          ),
           const SizedBox(width: 12),
           // Name + username
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: GoogleFonts.jost(
-                    color: _textColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => UserProfileScreen(user: user),
                 ),
-                if (username.isNotEmpty)
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    '@$username',
+                    name,
                     style: GoogleFonts.jost(
-                      color: _text2Color,
-                      fontSize: 12,
+                      color: _textColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-              ],
+                  if (username.isNotEmpty)
+                    Text(
+                      '@$username',
+                      style: GoogleFonts.jost(
+                        color: _text2Color,
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
+          // Unlike button — only for current user's like
+          if (isCurrentUser)
+            GestureDetector(
+              onTap: () => _unlikePost(index),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _mutedColor.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Icon(
+                  Icons.favorite,
+                  size: 20,
+                  color: Colors.redAccent,
+                ),
+              ),
+            ),
         ],
       ),
     );

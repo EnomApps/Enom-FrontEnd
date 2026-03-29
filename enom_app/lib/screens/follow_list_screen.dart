@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../services/social_service.dart';
 import '../theme/app_theme.dart';
+import 'user_profile_screen.dart';
 
 /// Screen that shows a list of followers or following users.
 class FollowListScreen extends StatefulWidget {
@@ -212,65 +213,83 @@ class _FollowListScreenState extends State<FollowListScreen> {
       child: Row(
         children: [
           // Avatar
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppTheme.goldColor(context).withValues(alpha: 0.4),
-                width: 1.5,
+          GestureDetector(
+            onTap: isMe
+                ? null
+                : () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => UserProfileScreen(user: user),
+                      ),
+                    ),
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppTheme.goldColor(context).withValues(alpha: 0.4),
+                  width: 1.5,
+                ),
               ),
-            ),
-            child: ClipOval(
-              child: avatar != null && avatar.isNotEmpty
-                  ? Image.network(
-                      avatar.startsWith('http') ? avatar : '${ApiService.baseUrl}/$avatar',
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                      cacheWidth: 144,
-                      loadingBuilder: (_, child, progress) {
-                        if (progress == null) return child;
-                        return Center(
-                          child: SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 1.5,
-                              color: AppTheme.goldColor(context),
+              child: ClipOval(
+                child: avatar != null && avatar.isNotEmpty
+                    ? Image.network(
+                        avatar.startsWith('http') ? avatar : '${ApiService.baseUrl}/$avatar',
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                        cacheWidth: 144,
+                        loadingBuilder: (_, child, progress) {
+                          if (progress == null) return child;
+                          return Center(
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.5,
+                                color: AppTheme.goldColor(context),
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                      errorBuilder: (_, __, ___) => _avatarFallback(name),
-                    )
-                  : _avatarFallback(name),
+                          );
+                        },
+                        errorBuilder: (_, __, ___) => _avatarFallback(name),
+                      )
+                    : _avatarFallback(name),
+              ),
             ),
           ),
           const SizedBox(width: 12),
           // Name & username
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: GoogleFonts.jost(
-                    color: AppTheme.text1(context),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (username.isNotEmpty)
+            child: GestureDetector(
+              onTap: isMe
+                  ? null
+                  : () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => UserProfileScreen(user: user),
+                        ),
+                      ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    '@$username',
+                    name,
                     style: GoogleFonts.jost(
-                      color: AppTheme.textMuted(context),
-                      fontSize: 12,
+                      color: AppTheme.text1(context),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-              ],
+                  if (username.isNotEmpty)
+                    Text(
+                      '@$username',
+                      style: GoogleFonts.jost(
+                        color: AppTheme.textMuted(context),
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
           // Follow/Unfollow button

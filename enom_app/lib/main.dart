@@ -3,14 +3,28 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'firebase_options.dart';
 import 'l10n/app_localizations.dart';
 import 'models/language_model.dart';
 import 'screens/splash_screen.dart';
+import 'services/notification_service.dart';
 import 'services/upload_manager.dart';
 import 'theme/app_theme.dart';
 
+/// Handle background messages (must be top-level function)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint('[FCM] Background message: ${message.messageId}');
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  await NotificationService.init();
   await UploadManager.instance.init();
   // Make system nav bar transparent so content doesn't get hidden behind it
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);

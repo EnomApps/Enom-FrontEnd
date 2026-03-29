@@ -8,8 +8,9 @@ class PostService {
   static Future<({bool success, List<dynamic> posts, Map<String, dynamic>? pagination})> getFeed({
     String? cursor,
     int? userId,
+    int perPage = 10,
   }) async {
-    String endpoint = '/api/posts?per_page=5';
+    String endpoint = '/api/posts?per_page=$perPage';
     if (cursor != null) endpoint += '&cursor=$cursor';
     if (userId != null) endpoint += '&user_id=$userId';
 
@@ -235,9 +236,22 @@ class PostService {
     final status = result['statusCode'] as int;
     final body = result['body'];
 
+    debugPrint('[getReactions] postId=$postId status=$status body=$body');
+
     if (status == 200 && body is Map<String, dynamic>) {
-      final reactions = body['data'] as List<dynamic>? ?? [];
-      return (success: true, reactions: reactions);
+      // Try common response structures: data, reactions, likes
+      final reactions = body['data'] ?? body['reactions'] ?? body['likes'] ?? [];
+      if (reactions is List) {
+        return (success: true, reactions: reactions);
+      }
+      // If data is a map with nested list (e.g. { data: { reactions: [...] } })
+      if (reactions is Map<String, dynamic>) {
+        final nested = reactions['reactions'] ?? reactions['likes'] ?? reactions['data'] ?? [];
+        if (nested is List) {
+          return (success: true, reactions: nested);
+        }
+      }
+      return (success: true, reactions: <dynamic>[]);
     }
 
     // Some APIs return a direct list
@@ -246,6 +260,22 @@ class PostService {
     }
 
     return (success: false, reactions: <dynamic>[]);
+  }
+
+  /// Get shareable link for a post.
+  static Future<({bool success, String link})> getShareLink(int postId) async {
+    final result = await ApiService.get('/api/posts/$postId/share-link', auth: true);
+    final status = result['statusCode'] as int;
+    final body = result['body'];
+
+    debugPrint('[getShareLink] postId=$postId status=$status body=$body');
+
+    if (status == 200 && body is Map<String, dynamic>) {
+      final link = (body['share_url'] ?? body['link'] ?? body['url'] ?? body['share_link'] ?? body['data'] ?? '') as String;
+      return (success: true, link: link);
+    }
+
+    return (success: false, link: '');
   }
 
   /// Delete a comment by id.

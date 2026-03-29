@@ -11,23 +11,42 @@ class SettingsScreen extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final currentThemeMode = EnomApp.getThemeMode(context);
 
-    return Stack(
-      children: [
-        const EnomScreenBackground(gradientVariant: 2, particleCount: 35),
-        SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              _buildSectionTitle(context, l10n.translate('appearance')),
-              const SizedBox(height: 12),
-              _buildThemeCard(context, l10n, currentThemeMode),
-              const SizedBox(height: 32),
-            ],
-          ),
+    return Scaffold(
+      backgroundColor: AppTheme.bg(context),
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: AppTheme.text1(context)),
+          onPressed: () => Navigator.pop(context),
         ),
-      ],
+        title: Text(
+          'SETTINGS',
+          style: AppTheme.label(context, size: 12),
+        ),
+        centerTitle: true,
+      ),
+      body: Stack(
+        children: [
+          const EnomScreenBackground(gradientVariant: 2, particleCount: 35),
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  _buildSectionTitle(context, l10n.translate('appearance')),
+                  const SizedBox(height: 12),
+                  _buildThemeCard(context, l10n, currentThemeMode),
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

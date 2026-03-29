@@ -14,6 +14,8 @@ import 'welcome_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
 import 'feed_screen.dart';
+import 'reels_tab.dart';
+import 'search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,6 +26,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
+  final GlobalKey _feedKey = GlobalKey();
   Map<String, dynamic>? _user;
   bool _isLoggingOut = false;
   String _selectedMood = 'Happy';
@@ -201,28 +204,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         automaticallyImplyLeading: false,
         title: Row(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppTheme.goldColor(context),
-                  width: 1.5,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  'E',
-                  style: GoogleFonts.cormorantGaramond(
-                    color: AppTheme.goldColor(context),
-                    fontSize: 16,
-                    fontStyle: FontStyle.italic,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
+            AppTheme.logo(context, size: 36),
             const SizedBox(width: 10),
             Text(
               'ENOM',
@@ -267,7 +249,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               child: BottomNavigationBar(
                 currentIndex: _currentIndex,
-                onTap: (index) => setState(() => _currentIndex = index),
+                onTap: (index) {
+                  if (index == 0 && _currentIndex == 0) {
+                    // Re-tapped home tab — scroll to top and refresh
+                    try {
+                      (_feedKey.currentState as dynamic).scrollToTopAndRefresh();
+                    } catch (_) {}
+                  }
+                  setState(() => _currentIndex = index);
+                },
                 selectedItemColor: AppTheme.goldColor(context),
                 unselectedItemColor: AppTheme.textMuted(context),
                 backgroundColor: Colors.transparent,
@@ -279,24 +269,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     GoogleFonts.jost(fontSize: 9, letterSpacing: 2),
                 items: [
                   BottomNavigationBarItem(
-                    icon: const Icon(Icons.spa_outlined),
-                    activeIcon: const Icon(Icons.spa),
+                    icon: const Icon(Icons.home_outlined),
+                    activeIcon: const Icon(Icons.home),
                     label: l10n.translate('home').toUpperCase(),
                   ),
                   BottomNavigationBarItem(
-                    icon: const Icon(Icons.explore_outlined),
-                    activeIcon: const Icon(Icons.explore),
-                    label: 'DISCOVER',
+                    icon: const Icon(Icons.play_circle_outline),
+                    activeIcon: const Icon(Icons.play_circle_filled),
+                    label: 'REELS',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: const Icon(Icons.bar_chart_outlined),
+                    activeIcon: const Icon(Icons.bar_chart),
+                    label: 'STATS',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: const Icon(Icons.search_outlined),
+                    activeIcon: const Icon(Icons.search),
+                    label: 'SEARCH',
                   ),
                   BottomNavigationBarItem(
                     icon: const Icon(Icons.person_outline_rounded),
                     activeIcon: const Icon(Icons.person_rounded),
                     label: 'PROFILE',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: const Icon(Icons.tune_outlined),
-                    activeIcon: const Icon(Icons.tune),
-                    label: 'SETTINGS',
                   ),
                 ],
               ),
@@ -310,15 +305,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildBody(AppLocalizations l10n) {
     switch (_currentIndex) {
       case 0:
-        return _buildHomeTab(l10n);
+        return FeedScreen(key: _feedKey);
       case 1:
-        return const FeedScreen();
+        return const ReelsTab();
       case 2:
-        return _buildProfileTab(l10n);
-      case 3:
-        return _buildSettingsTab(l10n);
-      default:
         return _buildHomeTab(l10n);
+      case 3:
+        return const SearchScreen();
+      case 4:
+        return _buildProfileTab(l10n);
+      default:
+        return const FeedScreen();
     }
   }
 

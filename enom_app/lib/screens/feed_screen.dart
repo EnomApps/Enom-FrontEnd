@@ -13,6 +13,7 @@ import 'edit_post_screen.dart';
 import 'feed_reels_screen.dart';
 import 'threaded_comments_sheet.dart';
 import 'likes_list_sheet.dart';
+import 'share_sheet.dart';
 import 'user_profile_screen.dart';
 
 class FeedScreen extends StatefulWidget {
@@ -52,6 +53,18 @@ class _FeedScreenState extends State<FeedScreen> {
     _uploadSub?.cancel();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Scroll to top and refresh — called when user re-taps the Home tab.
+  void scrollToTopAndRefresh() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+    _onRefresh();
   }
 
   void _onScroll() {
@@ -661,6 +674,37 @@ class _FeedScreenState extends State<FeedScreen> {
         if (media.isNotEmpty)
           _buildMediaGrid(media, post),
 
+        // ── Caption ABOVE actions for text-only posts ──
+        if (media.isEmpty && content.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+            child: RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$userName ',
+                    style: GoogleFonts.jost(
+                      color: AppTheme.text1(context),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  TextSpan(
+                    text: content,
+                    style: GoogleFonts.jost(
+                      color: AppTheme.text1(context),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+
         // ── Action icons bar (Instagram style) ──
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
@@ -688,7 +732,7 @@ class _FeedScreenState extends State<FeedScreen> {
               const SizedBox(width: 16),
               // Share
               GestureDetector(
-                onTap: () {},
+                onTap: () => ShareSheet.show(context, post['id'] as int),
                 child: Icon(
                   Icons.send_outlined,
                   size: 24,
@@ -726,8 +770,8 @@ class _FeedScreenState extends State<FeedScreen> {
             ),
           ),
 
-        // ── Caption (username + content inline) ──
-        if (content.isNotEmpty)
+        // ── Caption BELOW actions for posts with media ──
+        if (media.isNotEmpty && content.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
             child: RichText(

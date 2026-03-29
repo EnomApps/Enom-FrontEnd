@@ -485,11 +485,36 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final fullUrl = url.startsWith('http') ? url : '${ApiService.baseUrl}/${url.replaceAll(RegExp(r'^/'), '')}';
 
     if (type.contains('video')) {
-      return Container(
-        width: 240,
-        height: 200,
-        color: Colors.black,
-        child: const Center(child: Icon(Icons.play_circle_outline, size: 48, color: Colors.white54)),
+      // Use thumbnail_url from API if available
+      String? thumbUrl;
+      if (item is Map && item['thumbnail_url'] != null && (item['thumbnail_url'] as String).isNotEmpty) {
+        final thumb = item['thumbnail_url'] as String;
+        thumbUrl = thumb.startsWith('http') ? thumb : '${ApiService.baseUrl}/${thumb.replaceAll(RegExp(r'^/'), '')}';
+      }
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          if (thumbUrl != null)
+            Image.network(
+              thumbUrl,
+              width: 240,
+              height: 200,
+              fit: BoxFit.cover,
+              cacheWidth: 300,
+              errorBuilder: (_, __, ___) => Container(
+                width: 240, height: 200,
+                color: Colors.black,
+                child: const Center(child: Icon(Icons.play_circle_outline, size: 48, color: Colors.white54)),
+              ),
+            )
+          else
+            Container(
+              width: 240,
+              height: 200,
+              color: Colors.black,
+            ),
+          const Center(child: Icon(Icons.play_circle_fill, size: 40, color: Colors.white70)),
+        ],
       );
     }
 
