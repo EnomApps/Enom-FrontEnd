@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "1087176807182",
-    "project_id": "enomapp-c0b54",
-    "storage_bucket": "enomapp-c0b54.firebasestorage.app"
+    "project_number": "241964969065",
+    "project_id": "enomai",
+    "storage_bucket": "enomai.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1087176807182:android:cb2c96a7e5cf79c85bfd5f",
+        "mobilesdk_app_id": "1:241964969065:android:f1a2a8ec86028e1c7746f8",
         "android_client_info": {
           "package_name": "com.enom.enom_app"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCeljuDTd3ZI2u6_6KPs85xQZVITK-0HEI"
+          "current_key": "AIzaSyDxp-YFyAEI-2G3p2A0X6AOdljkkA93HqY"
         }
       ],
       "services": {

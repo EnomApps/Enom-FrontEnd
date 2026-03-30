@@ -1,5 +1,7 @@
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 import 'api_service.dart';
+import 'notification_service.dart';
 
 class AuthService {
   /// Register a new user. Sends OTP to email.
@@ -87,9 +89,15 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    // Get FCM token and platform for push notifications
+    final deviceToken = await NotificationService.getToken();
+    final platform = Platform.isAndroid ? 'android' : Platform.isIOS ? 'ios' : 'web';
+
     final result = await ApiService.post('/api/auth/login', {
       'email': email,
       'password': password,
+      if (deviceToken != null) 'device_token': deviceToken,
+      'platform': platform,
     });
 
     final statusCode = result['statusCode'] as int;
@@ -203,10 +211,13 @@ class AuthService {
     );
   }
 
-  /// Logout — revokes the token.
+  /// Logout — revokes the token and unregisters device.
   static Future<({bool success, String message})> logout() async {
     try {
-      await ApiService.post('/api/auth/logout', {}, auth: true);
+      final deviceToken = await NotificationService.getToken();
+      await ApiService.post('/api/auth/logout', {
+        if (deviceToken != null) 'device_token': deviceToken,
+      }, auth: true);
     } catch (_) {
       // Even if API call fails, clear local data
     }

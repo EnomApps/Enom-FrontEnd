@@ -47,28 +47,30 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBiFruCrVaxEpRtZnHIJsvfvP0VIro84XI',
-    appId: '1:1087176807182:web:c2b8fa822fb65cfe5bfd5f',
-    messagingSenderId: '1087176807182',
-    projectId: 'enomapp-c0b54',
-    authDomain: 'enomapp-c0b54.firebaseapp.com',
-    storageBucket: 'enomapp-c0b54.firebasestorage.app',
+    apiKey: 'AIzaSyBzu4tcxeczP7fd8DuhFx8hAhK9zxt9rps',
+    appId: '1:241964969065:web:9aa7584385bf50147746f8',
+    messagingSenderId: '241964969065',
+    projectId: 'enomai',
+    authDomain: 'enomai.firebaseapp.com',
+    storageBucket: 'enomai.firebasestorage.app',
+    measurementId: 'G-QGTMPC5NVP',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCeljuDTd3ZI2u6_6KPs85xQZVITK-0HEI',
-    appId: '1:1087176807182:android:cb2c96a7e5cf79c85bfd5f',
-    messagingSenderId: '1087176807182',
-    projectId: 'enomapp-c0b54',
-    storageBucket: 'enomapp-c0b54.firebasestorage.app',
+    apiKey: 'AIzaSyDxp-YFyAEI-2G3p2A0X6AOdljkkA93HqY',
+    appId: '1:241964969065:android:f1a2a8ec86028e1c7746f8',
+    messagingSenderId: '241964969065',
+    projectId: 'enomai',
+    storageBucket: 'enomai.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyD1KhtHF-2iPizms6og6YGAqvI0KLmx_Go',
-    appId: '1:1087176807182:ios:ed7e929b1ddab8ac5bfd5f',
-    messagingSenderId: '1087176807182',
-    projectId: 'enomapp-c0b54',
-    storageBucket: 'enomapp-c0b54.firebasestorage.app',
+    apiKey: 'AIzaSyC1vTGb_AhJz9PqHak66qRCmpMqqfmUuGQ',
+    appId: '1:241964969065:ios:1f6dec927def72387746f8',
+    messagingSenderId: '241964969065',
+    projectId: 'enomai',
+    storageBucket: 'enomai.firebasestorage.app',
     iosBundleId: 'com.enom.enomApp',
   );
+
 }
