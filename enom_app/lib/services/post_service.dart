@@ -152,16 +152,21 @@ class PostService {
 
   /// Toggle a reaction on a post. Type: like, love, haha, wow.
   static Future<({bool success, String message})> toggleReaction(int postId, String type) async {
-    final result = await ApiService.post(
-      '/api/posts/$postId/reactions',
-      {'type': type},
-      auth: true,
-    );
-    final status = result['statusCode'] as int;
-    final body = result['body'];
-    final msg = body is Map ? (body['message'] as String? ?? '') : '';
+    // Use /like for simple likes, /react for other reaction types
+    final endpoint = type == 'like'
+        ? '/api/posts/$postId/like'
+        : '/api/posts/$postId/react';
+    final body = type == 'like' ? <String, dynamic>{} : {'type': type};
 
-    return (success: status == 200, message: msg);
+    final result = await ApiService.post(endpoint, body, auth: true);
+    final status = result['statusCode'] as int;
+    final resBody = result['body'];
+    final msg = resBody is Map ? (resBody['message'] as String? ?? '') : '';
+
+    debugPrint('[PostService.toggleReaction] postId=$postId type=$type endpoint=$endpoint status=$status body=$resBody');
+
+    // Accept both 200 and 201 as success
+    return (success: status == 200 || status == 201, message: msg);
   }
 
   /// Get paginated comments for a post.
@@ -232,7 +237,7 @@ class PostService {
 
   /// Get the list of users who reacted to a post.
   static Future<({bool success, List<dynamic> reactions})> getReactions(int postId) async {
-    final result = await ApiService.get('/api/posts/$postId/reactions', auth: true);
+    final result = await ApiService.get('/api/posts/$postId/likes', auth: true);
     final status = result['statusCode'] as int;
     final body = result['body'];
 

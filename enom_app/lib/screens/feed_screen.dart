@@ -35,6 +35,10 @@ class _FeedScreenState extends State<FeedScreen> {
   StreamSubscription<bool>? _uploadSub;
   final Set<int> _viewedPostIds = {}; // Track which posts have been viewed
 
+  // Local cache: postId → reaction type (e.g. 'like') for posts the user has liked
+  // This compensates for the backend not returning user_reaction in the feed.
+  static final Map<int, String?> _likeCache = {};
+
   @override
   void initState() {
     super.initState();
@@ -88,7 +92,10 @@ class _FeedScreenState extends State<FeedScreen> {
       setState(() {
         _posts.clear();
         for (final p in result.posts) {
-          if (p is Map<String, dynamic>) _posts.add(p);
+          if (p is Map<String, dynamic>) {
+            _applyLikeCache(p);
+            _posts.add(p);
+          }
         }
         _nextCursor = result.pagination?['next_cursor'] as String?;
         _isLoading = false;
@@ -136,6 +143,7 @@ class _FeedScreenState extends State<FeedScreen> {
       setState(() {
         for (final p in result.posts) {
           if (p is Map<String, dynamic>) {
+            _applyLikeCache(p);
             _posts.add(p);
             newPosts.add(p);
           }
@@ -173,6 +181,22 @@ class _FeedScreenState extends State<FeedScreen> {
     final user = await ApiService.getUser();
     if (user != null && mounted) {
       setState(() => _currentUserId = user['id'] as int?);
+    }
+  }
+
+  /// Apply cached like state to a post if the backend didn't return it.
+  void _applyLikeCache(Map<String, dynamic> post) {
+    final postId = post['id'] as int?;
+    if (postId == null) return;
+    // If the backend returned a user_reaction, trust it and update our cache
+    if (post['user_reaction'] != null) {
+      _likeCache[postId] = post['user_reaction'] as String;
+    } else if (_likeCache.containsKey(postId)) {
+      // Backend didn't return it but we have a cached value
+      final cached = _likeCache[postId];
+      if (cached != null) {
+        post['user_reaction'] = cached;
+      }
     }
   }
 
@@ -220,6 +244,10 @@ class _FeedScreenState extends State<FeedScreen> {
     final post = _posts[index];
     final postId = post['id'] as int;
 
+    // Save previous state for rollback
+    final prevReaction = post['user_reaction'];
+    final prevCount = post['reactions_count'] as int? ?? 0;
+
     // Optimistic update
     setState(() {
       final userReaction = post['user_reaction'];
@@ -234,7 +262,18 @@ class _FeedScreenState extends State<FeedScreen> {
       }
     });
 
-    await PostService.toggleReaction(postId, type);
+    final result = await PostService.toggleReaction(postId, type);
+    if (result.success) {
+      // Update local cache with current state
+      _likeCache[postId] = post['user_reaction'] as String?;
+    } else if (mounted) {
+      // Revert on failure
+      setState(() {
+        post['user_reaction'] = prevReaction;
+        post['reactions_count'] = prevCount;
+      });
+      debugPrint('[Feed] toggleReaction FAILED for postId=$postId: ${result.message}');
+    }
   }
 
   Future<void> _editPost(int index) async {

@@ -43,7 +43,7 @@ class AppLocalizations {
   }
 
   /// RTL language codes
-  static const Set<String> rtlLanguages = {'ar', 'fa', 'he', 'ur', 'sd'};
+  static const Set<String> rtlLanguages = {'ar', 'fa', 'he', 'ur', 'sd', 'prs', 'ps'};
 
   static bool isRTL(String languageCode) =>
       rtlLanguages.contains(languageCode);

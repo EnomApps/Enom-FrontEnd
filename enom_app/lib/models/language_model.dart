@@ -50,9 +50,17 @@ class LanguageModel {
 
     // --- African ---
     LanguageModel(code: 'sw', name: 'Swahili', nativeName: 'Kiswahili', flag: '🇰🇪'),
+    LanguageModel(code: 'ha', name: 'Hausa', nativeName: 'Hausa', flag: '🇳🇬'),
+    LanguageModel(code: 'am', name: 'Amharic', nativeName: 'አማርኛ', flag: '🇪🇹'),
+    LanguageModel(code: 'yo', name: 'Yoruba', nativeName: 'Yorùbá', flag: '🇳🇬'),
+    LanguageModel(code: 'ig', name: 'Igbo', nativeName: 'Igbo', flag: '🇳🇬'),
+    LanguageModel(code: 'om', name: 'Oromo', nativeName: 'Afaan Oromoo', flag: '🇪🇹'),
+    LanguageModel(code: 'zu', name: 'Zulu', nativeName: 'isiZulu', flag: '🇿🇦'),
 
     // --- Middle Eastern / Central Asian ---
     LanguageModel(code: 'tr', name: 'Turkish', nativeName: 'Türkçe', flag: '🇹🇷'),
+    LanguageModel(code: 'prs', name: 'Dari', nativeName: 'دری', flag: '🇦🇫', isRTL: true),
+    LanguageModel(code: 'ps', name: 'Pashto', nativeName: 'پښتو', flag: '🇦🇫', isRTL: true),
 
     // --- Southeast Asian ---
     LanguageModel(code: 'ms', name: 'Malay', nativeName: 'Bahasa Melayu', flag: '🇲🇾'),
@@ -60,11 +68,26 @@ class LanguageModel {
     LanguageModel(code: 'th', name: 'Thai', nativeName: 'ไทย', flag: '🇹🇭'),
     LanguageModel(code: 'vi', name: 'Vietnamese', nativeName: 'Tiếng Việt', flag: '🇻🇳'),
     LanguageModel(code: 'fil', name: 'Filipino', nativeName: 'Filipino', flag: '🇵🇭'),
+    LanguageModel(code: 'tl', name: 'Tagalog', nativeName: 'Tagalog', flag: '🇵🇭'),
+    LanguageModel(code: 'my', name: 'Burmese', nativeName: 'ဗမာစာ', flag: '🇲🇲'),
+    LanguageModel(code: 'km', name: 'Khmer', nativeName: 'ខ្មែរ', flag: '🇰🇭'),
+    LanguageModel(code: 'lo', name: 'Lao', nativeName: 'ລາວ', flag: '🇱🇦'),
+    LanguageModel(code: 'tet', name: 'Tetum', nativeName: 'Tetun', flag: '🇹🇱'),
+
+    // --- South Asian ---
+    LanguageModel(code: 'si', name: 'Sinhalese', nativeName: 'සිංහල', flag: '🇱🇰'),
 
     // --- East Asian ---
     LanguageModel(code: 'ja', name: 'Japanese', nativeName: '日本語', flag: '🇯🇵'),
     LanguageModel(code: 'ko', name: 'Korean', nativeName: '한국어', flag: '🇰🇷'),
     LanguageModel(code: 'zh', name: 'Chinese', nativeName: '中文', flag: '🇨🇳'),
+
+    // --- Pacific / Oceanian ---
+    LanguageModel(code: 'sm', name: 'Samoan', nativeName: 'Gagana Sāmoa', flag: '🇼🇸'),
+    LanguageModel(code: 'to', name: 'Tongan', nativeName: 'Lea Fakatonga', flag: '🇹🇴'),
+    LanguageModel(code: 'mi', name: 'Maori', nativeName: 'Te Reo Māori', flag: '🇳🇿'),
+    LanguageModel(code: 'haw', name: 'Hawaiian', nativeName: 'ʻŌlelo Hawaiʻi', flag: '🇺🇸'),
+    LanguageModel(code: 'ty', name: 'Tahitian', nativeName: 'Reo Tahiti', flag: '🇵🇫'),
 
     // --- European ---
     LanguageModel(code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸'),
@@ -84,6 +107,12 @@ class LanguageModel {
     LanguageModel(code: 'no', name: 'Norwegian', nativeName: 'Norsk', flag: '🇳🇴'),
     LanguageModel(code: 'da', name: 'Danish', nativeName: 'Dansk', flag: '🇩🇰'),
     LanguageModel(code: 'fi', name: 'Finnish', nativeName: 'Suomi', flag: '🇫🇮'),
+    LanguageModel(code: 'sk', name: 'Slovak', nativeName: 'Slovenčina', flag: '🇸🇰'),
+    LanguageModel(code: 'sq', name: 'Albanian', nativeName: 'Shqip', flag: '🇦🇱'),
+    LanguageModel(code: 'sr', name: 'Serbian', nativeName: 'Српски', flag: '🇷🇸'),
+    LanguageModel(code: 'et', name: 'Estonian', nativeName: 'Eesti', flag: '🇪🇪'),
+    LanguageModel(code: 'bg', name: 'Bulgarian', nativeName: 'Български', flag: '🇧🇬'),
+    LanguageModel(code: 'be', name: 'Belarusian', nativeName: 'Беларуская', flag: '🇧🇾'),
   ];
 
   static List<Locale> get supportedLocales =>

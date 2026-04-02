@@ -411,6 +411,10 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
   Future<void> _toggleLike() async {
     final postId = widget.post['id'] as int;
 
+    // Save previous state for rollback
+    final wasLiked = _isLiked;
+    final prevCount = _likesCount;
+
     setState(() {
       if (_isLiked) {
         _isLiked = false;
@@ -421,7 +425,15 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
       }
     });
 
-    await PostService.toggleReaction(postId, 'like');
+    final result = await PostService.toggleReaction(postId, 'like');
+    if (!result.success && mounted) {
+      // Revert on failure
+      setState(() {
+        _isLiked = wasLiked;
+        _likesCount = prevCount;
+      });
+      debugPrint('[Reels] toggleReaction FAILED for postId=$postId: ${result.message}');
+    }
   }
 
   @override
