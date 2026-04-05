@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:video_player/video_player.dart';
 import '../services/upload_manager.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 
 class CreatePostScreen extends StatefulWidget {
@@ -60,38 +61,41 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     if (status.isGranted || status.isLimited) return true;
 
     if (status.isPermanentlyDenied && mounted) {
+      final l10n = AppLocalizations.of(context)!;
       final open = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: AppTheme.bg2(context),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('Permission Required',
+          title: Text(l10n.translate('permission_required'),
               style: GoogleFonts.jost(color: AppTheme.text1(context), fontWeight: FontWeight.w600)),
           content: Text(
-              'Please allow access to your ${isVideo ? 'videos' : 'photos'} in Settings.',
+              l10n.translate(isVideo ? 'permission_media_videos' : 'permission_media_photos'),
               style: GoogleFonts.jost(color: AppTheme.textMuted(context))),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel', style: GoogleFonts.jost(color: AppTheme.textMuted(context))),
+              child: Text(l10n.translate('cancel'), style: GoogleFonts.jost(color: AppTheme.textMuted(context))),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Open Settings', style: GoogleFonts.jost(color: AppTheme.goldColor(context))),
+              child: Text(l10n.translate('open_settings'), style: GoogleFonts.jost(color: AppTheme.goldColor(context))),
             ),
           ],
         ),
       );
       if (open == true) await openAppSettings();
     } else if (mounted) {
-      AppTheme.showSnackBar(context, 'Permission denied', isError: true);
+      final l10n = AppLocalizations.of(context)!;
+      AppTheme.showSnackBar(context, l10n.translate('permission_denied'), isError: true);
     }
     return false;
   }
 
   Future<void> _pickImages() async {
     if (_mediaFiles.length >= _maxMedia) {
-      AppTheme.showSnackBar(context, 'Maximum $_maxMedia media files allowed', isError: true);
+      final l10n = AppLocalizations.of(context)!;
+      AppTheme.showSnackBar(context, l10n.translate('max_media_allowed').replaceAll('{count}', '$_maxMedia'), isError: true);
       return;
     }
 
@@ -127,7 +131,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   Future<void> _pickVideo() async {
     if (_mediaFiles.length >= _maxMedia) {
-      AppTheme.showSnackBar(context, 'Maximum $_maxMedia media files allowed', isError: true);
+      final l10n = AppLocalizations.of(context)!;
+      AppTheme.showSnackBar(context, l10n.translate('max_media_allowed').replaceAll('{count}', '$_maxMedia'), isError: true);
       return;
     }
 
@@ -162,12 +167,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
       // Ask if user wants to add more videos
       if (_mediaFiles.length < _maxMedia) {
+        final l10n = AppLocalizations.of(context)!;
         final addMore = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
             backgroundColor: AppTheme.moodCardBg(context),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Text('Add another video?',
+            title: Text(l10n.translate('add_another_video'),
                 style: GoogleFonts.jost(color: AppTheme.text1(context), fontWeight: FontWeight.w600)),
             content: Text(
                 '${_mediaFiles.length} of $_maxMedia media added.',
@@ -175,11 +181,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: Text('Done', style: GoogleFonts.jost(color: AppTheme.textMuted(context))),
+                child: Text(l10n.translate('done'), style: GoogleFonts.jost(color: AppTheme.textMuted(context))),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                child: Text('Add More', style: GoogleFonts.jost(color: AppTheme.goldColor(context))),
+                child: Text(l10n.translate('add_more'), style: GoogleFonts.jost(color: AppTheme.goldColor(context))),
               ),
             ],
           ),
@@ -197,7 +203,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     if (!_canPost) return;
 
     if (_hashtagCount > _maxHashtags) {
-      AppTheme.showSnackBar(context, 'Maximum $_maxHashtags hashtags allowed', isError: true);
+      final l10n = AppLocalizations.of(context)!;
+      AppTheme.showSnackBar(context, l10n.translate('max_hashtags_allowed').replaceAll('{count}', '$_maxHashtags'), isError: true);
       return;
     }
 
@@ -220,6 +227,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: AppTheme.bg(context),
       extendBodyBehindAppBar: true,
@@ -292,7 +300,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                             height: 1.6,
                           ),
                           decoration: InputDecoration(
-                            hintText: "What's on your mind?",
+                            hintText: l10n.translate('whats_on_your_mind'),
                             hintStyle: GoogleFonts.jost(
                               color: AppTheme.textMuted(context),
                               fontSize: 16,
@@ -321,7 +329,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
                   // Media preview
                   if (_mediaFiles.isNotEmpty) ...[
-                    Text('MEDIA', style: AppTheme.label(context, size: 10)),
+                    Text(l10n.translate('media').toUpperCase(), style: AppTheme.label(context, size: 10)),
                     const SizedBox(height: 12),
                     SizedBox(
                       height: 120,
@@ -336,7 +344,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   ],
 
                   // Action buttons
-                  Text('ADD TO POST', style: AppTheme.label(context, size: 10)),
+                  Text(l10n.translate('add_to_post').toUpperCase(), style: AppTheme.label(context, size: 10)),
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(4),
@@ -349,7 +357,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       children: [
                         _buildActionButton(
                           icon: Icons.image_outlined,
-                          label: 'Photo',
+                          label: l10n.translate('photo'),
                           color: Colors.greenAccent,
                           onTap: _pickImages,
                         ),
@@ -360,7 +368,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         ),
                         _buildActionButton(
                           icon: Icons.videocam_outlined,
-                          label: 'Video',
+                          label: l10n.translate('video'),
                           color: Colors.blueAccent,
                           onTap: _pickVideo,
                         ),
@@ -370,7 +378,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   const SizedBox(height: 20),
 
                   // Visibility picker
-                  Text('VISIBILITY', style: AppTheme.label(context, size: 10)),
+                  Text(l10n.translate('visibility').toUpperCase(), style: AppTheme.label(context, size: 10)),
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(4),
@@ -452,6 +460,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   Widget _buildMediaPreview(int index) {
+    final l10n = AppLocalizations.of(context)!;
     final file = _mediaFiles[index];
     return GestureDetector(
       onTap: () => _showMediaPreview(index),
@@ -501,12 +510,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     color: Colors.black.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.play_arrow, color: Colors.white, size: 12),
-                      SizedBox(width: 2),
-                      Text('VIDEO', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w600)),
+                      const Icon(Icons.play_arrow, color: Colors.white, size: 12),
+                      const SizedBox(width: 2),
+                      Text(l10n.translate('video').toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
@@ -727,6 +736,7 @@ class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -736,7 +746,7 @@ class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
           icon: const Icon(Icons.close, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Preview', style: GoogleFonts.jost(color: Colors.white, fontSize: 16)),
+        title: Text(l10n.translate('preview'), style: GoogleFonts.jost(color: Colors.white, fontSize: 16)),
         centerTitle: true,
       ),
       body: Center(

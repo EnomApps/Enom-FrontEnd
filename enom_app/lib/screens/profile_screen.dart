@@ -508,9 +508,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   void _openFollowersList() {
     final userId = _user?['id'] as int?;
     if (userId == null) return;
+    final l10n = AppLocalizations.of(context)!;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => FollowListScreen(userId: userId, title: 'Followers', isFollowers: true),
+        builder: (_) => FollowListScreen(userId: userId, title: l10n.translate('followers'), isFollowers: true),
       ),
     );
   }
@@ -518,9 +519,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   void _openFollowingList() {
     final userId = _user?['id'] as int?;
     if (userId == null) return;
+    final l10n = AppLocalizations.of(context)!;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => FollowListScreen(userId: userId, title: 'Following', isFollowers: false),
+        builder: (_) => FollowListScreen(userId: userId, title: l10n.translate('following'), isFollowers: false),
       ),
     );
   }
@@ -539,21 +541,22 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   Future<void> _deleteMyPost(int index) async {
     final post = _myPosts[index];
     final postId = post['id'] as int;
+    final l10n = AppLocalizations.of(context)!;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.bg2(context),
-        title: Text('Delete Post', style: AppTheme.body(context, size: 18, weight: FontWeight.w600)),
-        content: Text('Are you sure?', style: AppTheme.body(context, size: 14)),
+        title: Text(l10n.translate('delete_post'), style: AppTheme.body(context, size: 18, weight: FontWeight.w600)),
+        content: Text(l10n.translate('are_you_sure'), style: AppTheme.body(context, size: 14)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: TextStyle(color: AppTheme.text2(context))),
+            child: Text(l10n.translate('cancel'), style: TextStyle(color: AppTheme.text2(context))),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+            child: Text(l10n.translate('delete'), style: const TextStyle(color: Colors.redAccent)),
           ),
         ],
       ),
@@ -564,11 +567,12 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     final result = await PostService.deletePost(postId);
     if (result.success && mounted) {
       setState(() => _myPosts.removeAt(index));
-      AppTheme.showSnackBar(context, 'Post deleted');
+      AppTheme.showSnackBar(context, l10n.translate('post_deleted'));
     }
   }
 
   void _openMenuDrawer() {
+    final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -614,7 +618,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   children: [
                     _menuItem(
                       icon: Icons.settings_outlined,
-                      label: 'Settings',
+                      label: l10n.translate('settings'),
                       onTap: () {
                         Navigator.pop(ctx);
                         Navigator.of(context).push(
@@ -624,7 +628,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     ),
                     _menuItem(
                       icon: Icons.bookmark_border,
-                      label: 'Saved Posts',
+                      label: l10n.translate('saved_posts'),
                       onTap: () {
                         Navigator.pop(ctx);
                         // Switch to saved tab (tab index 1 in profile)
@@ -632,7 +636,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     ),
                     _menuItem(
                       icon: Icons.bar_chart_outlined,
-                      label: 'Your Activity',
+                      label: l10n.translate('your_activity'),
                       onTap: () {
                         Navigator.pop(ctx);
                       },
@@ -640,7 +644,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     const Divider(),
                     _menuItem(
                       icon: Icons.logout,
-                      label: 'Logout',
+                      label: l10n.translate('logout'),
                       color: Colors.redAccent,
                       onTap: () {
                         Navigator.pop(ctx);
@@ -902,15 +906,15 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             _buildInfoCard(Icons.person_outline, l10n.translate('gender'), _genderDisplay(l10n)),
             _buildInfoCard(Icons.cake_outlined, l10n.translate('date_of_birth'), _dobDisplay()),
             _buildInfoCard(Icons.info_outline, l10n.translate('bio'), _user?['bio'] as String?),
-            _buildInfoCard(Icons.work_outline, 'Profession', _user?['profession'] as String?),
+            _buildInfoCard(Icons.work_outline, l10n.translate('profession'), _user?['profession'] as String?),
             _buildInfoCard(Icons.location_on_outlined, l10n.translate('location'), _user?['location'] as String?),
-            _buildInfoCard(Icons.flag_outlined, 'Country', _user?['country'] as String?),
-            _buildInfoCard(Icons.location_city_outlined, 'City', _user?['city'] as String?),
-            _buildInfoCard(Icons.map_outlined, 'Region', _user?['region'] as String?),
-            _buildInfoCard(Icons.psychology_outlined, 'Social Personality', _user?['social_personality'] as String?),
-            _buildInfoCard(Icons.lock_outline, 'Privacy', _privacyDisplay()),
-            _buildChipsCard(Icons.video_library_outlined, 'Content Preferences', _contentPrefsDisplay()),
-            _buildChipsCard(Icons.language, 'Languages', _languagesDisplay()),
+            _buildInfoCard(Icons.flag_outlined, l10n.translate('country'), _user?['country'] as String?),
+            _buildInfoCard(Icons.location_city_outlined, l10n.translate('city'), _user?['city'] as String?),
+            _buildInfoCard(Icons.map_outlined, l10n.translate('region'), _user?['region'] as String?),
+            _buildInfoCard(Icons.psychology_outlined, l10n.translate('social_personality'), _user?['social_personality'] as String?),
+            _buildInfoCard(Icons.lock_outline, l10n.translate('privacy_setting'), _privacyDisplay()),
+            _buildChipsCard(Icons.video_library_outlined, l10n.translate('content_preferences'), _contentPrefsDisplay()),
+            _buildChipsCard(Icons.language, l10n.translate('languages'), _languagesDisplay()),
             _buildChipsCard(Icons.interests_outlined, 'Interests', _interestsDisplay()),
             const SizedBox(height: 24),
             SizedBox(
@@ -943,7 +947,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       )
                     : const Icon(Icons.logout, size: 20, color: Colors.white),
                 label: Text(
-                  _isLoggingOut ? 'Logging out...' : 'Logout',
+                  _isLoggingOut ? 'Logging out...' : l10n.translate('logout'),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -985,7 +989,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             ),
             const SizedBox(height: 16),
             _buildDropdownField(
-              label: 'Profession',
+              label: l10n.translate('profession'),
               icon: Icons.work_outline,
               value: _selectedProfession,
               items: _professions,
@@ -1000,24 +1004,24 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             const SizedBox(height: 16),
             _buildTextField(
               controller: _countryController,
-              label: 'Country',
+              label: l10n.translate('country'),
               icon: Icons.flag_outlined,
             ),
             const SizedBox(height: 16),
             _buildTextField(
               controller: _cityController,
-              label: 'City',
+              label: l10n.translate('city'),
               icon: Icons.location_city_outlined,
             ),
             const SizedBox(height: 16),
             _buildTextField(
               controller: _regionController,
-              label: 'Region',
+              label: l10n.translate('region'),
               icon: Icons.map_outlined,
             ),
             const SizedBox(height: 16),
             _buildDropdownField(
-              label: 'Social Personality',
+              label: l10n.translate('social_personality'),
               icon: Icons.psychology_outlined,
               value: _selectedSocialPersonality,
               items: _socialPersonalities,
@@ -1025,7 +1029,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             ),
             const SizedBox(height: 16),
             _buildDropdownField(
-              label: 'Privacy Setting',
+              label: l10n.translate('privacy_setting'),
               icon: Icons.lock_outline,
               value: _selectedPrivacySetting,
               items: _privacySettings,
@@ -1033,7 +1037,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             ),
             const SizedBox(height: 16),
             _buildMultiSelectChips(
-              label: 'Content Preferences',
+              label: l10n.translate('content_preferences'),
               icon: Icons.video_library_outlined,
               options: _contentPreferenceOptions,
               selected: _selectedContentPreferences,
@@ -1041,7 +1045,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             ),
             const SizedBox(height: 16),
             _buildMultiSelectChips(
-              label: 'Languages',
+              label: l10n.translate('languages'),
               icon: Icons.language,
               options: _languageOptions,
               selected: _selectedLanguages,
@@ -1093,6 +1097,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   }
 
   Widget _buildMyPostsTab() {
+    final l10n = AppLocalizations.of(context)!;
     if (_isLoadingPosts) {
       return Center(
         child: CircularProgressIndicator(color: AppTheme.goldColor(context)),
@@ -1106,9 +1111,9 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           children: [
             Icon(Icons.dynamic_feed_outlined, size: 56, color: AppTheme.goldColor(context).withValues(alpha: 0.4)),
             const SizedBox(height: 16),
-            Text('No posts yet', style: AppTheme.heading(context, size: 22)),
+            Text(l10n.translate('no_posts_yet'), style: AppTheme.heading(context, size: 22)),
             const SizedBox(height: 8),
-            Text('Your posts will appear here', style: AppTheme.label(context, size: 12)),
+            Text(l10n.translate('your_posts_appear_here'), style: AppTheme.label(context, size: 12)),
           ],
         ),
       );
@@ -1142,6 +1147,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   }
 
   Widget _buildSavedPostsTab() {
+    final l10n = AppLocalizations.of(context)!;
     if (_isLoadingSaved) {
       return Center(
         child: CircularProgressIndicator(color: AppTheme.goldColor(context)),
@@ -1155,9 +1161,9 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           children: [
             Icon(Icons.bookmark_border, size: 56, color: AppTheme.goldColor(context).withValues(alpha: 0.4)),
             const SizedBox(height: 16),
-            Text('No saved posts', style: AppTheme.heading(context, size: 22)),
+            Text(l10n.translate('no_saved_posts'), style: AppTheme.heading(context, size: 22)),
             const SizedBox(height: 8),
-            Text('Posts you save will appear here', style: AppTheme.label(context, size: 12)),
+            Text(l10n.translate('saved_posts_appear_here'), style: AppTheme.label(context, size: 12)),
           ],
         ),
       );
@@ -1552,6 +1558,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   }
 
   Widget _buildMyPostCard(int index) {
+    final l10n = AppLocalizations.of(context)!;
     final post = _myPosts[index];
     final content = post['content'] as String? ?? '';
     final media = post['media'] as List<dynamic>? ?? [];
@@ -1639,7 +1646,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                           children: [
                             Icon(Icons.edit_outlined, color: AppTheme.goldColor(context), size: 18),
                             const SizedBox(width: 8),
-                            Text('Edit Post', style: TextStyle(color: AppTheme.text1(context))),
+                            Text(l10n.translate('edit_post'), style: TextStyle(color: AppTheme.text1(context))),
                           ],
                         ),
                       ),
@@ -1649,7 +1656,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                           children: [
                             const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
                             const SizedBox(width: 8),
-                            Text('Delete Post', style: TextStyle(color: AppTheme.text1(context))),
+                            Text(l10n.translate('delete_post'), style: TextStyle(color: AppTheme.text1(context))),
                           ],
                         ),
                       ),
@@ -1997,13 +2004,14 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   }
 
   Widget _buildPremiumRow() {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.only(bottom: 16, top: 4),
       decoration: AppTheme.cardDecoration(context),
       child: ListTile(
         leading: Icon(Icons.workspace_premium, color: AppTheme.goldColor(context), size: 22),
         title: Text(
-          'ENOM Premium',
+          l10n.translate('enom_premium'),
           style: TextStyle(color: AppTheme.text1(context), fontSize: 14),
         ),
         trailing: Container(
@@ -2302,7 +2310,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       if (_selectedInterestIds.length < 10) {
                         _selectedInterestIds.add(id);
                       } else {
-                        AppTheme.showSnackBar(context, 'Maximum 10 interests allowed', isError: true);
+                        AppTheme.showSnackBar(context, AppLocalizations.of(context)!.translate('max_interests_allowed'), isError: true);
                       }
                     } else {
                       _selectedInterestIds.remove(id);

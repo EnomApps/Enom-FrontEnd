@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../services/social_service.dart';
 import '../services/upload_manager.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'create_post_screen.dart';
 import 'edit_post_screen.dart';
@@ -296,26 +297,26 @@ class _FeedScreenState extends State<FeedScreen> {
           (ctx) => AlertDialog(
             backgroundColor: AppTheme.bg2(context),
             title: Text(
-              'Delete Post',
+              AppLocalizations.of(context)!.translate('delete_post'),
               style: AppTheme.body(context, size: 18, weight: FontWeight.w600),
             ),
             content: Text(
-              'Are you sure?',
+              AppLocalizations.of(context)!.translate('are_you_sure'),
               style: AppTheme.body(context, size: 14),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
                 child: Text(
-                  'Cancel',
+                  AppLocalizations.of(context)!.translate('cancel'),
                   style: TextStyle(color: AppTheme.text2(context)),
                 ),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                child: const Text(
-                  'Delete',
-                  style: TextStyle(color: Colors.redAccent),
+                child: Text(
+                  AppLocalizations.of(context)!.translate('delete'),
+                  style: const TextStyle(color: Colors.redAccent),
                 ),
               ),
             ],
@@ -327,7 +328,7 @@ class _FeedScreenState extends State<FeedScreen> {
     final result = await PostService.deletePost(postId);
     if (result.success && mounted) {
       setState(() => _posts.removeAt(index));
-      AppTheme.showSnackBar(context, 'Post deleted');
+      AppTheme.showSnackBar(context, AppLocalizations.of(context)!.translate('post_deleted'));
     }
   }
 
@@ -468,7 +469,7 @@ class _FeedScreenState extends State<FeedScreen> {
             color: AppTheme.textMuted(context),
           ),
           const SizedBox(height: 12),
-          Text('Could not load feed', style: AppTheme.body(context, size: 15)),
+          Text(AppLocalizations.of(context)!.translate('could_not_load_feed'), style: AppTheme.body(context, size: 15)),
           const SizedBox(height: 16),
           GestureDetector(
             onTap: _loadFeed,
@@ -479,7 +480,7 @@ class _FeedScreenState extends State<FeedScreen> {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                'Retry',
+                AppLocalizations.of(context)!.translate('retry'),
                 style: TextStyle(color: AppTheme.goldColor(context)),
               ),
             ),
@@ -500,10 +501,10 @@ class _FeedScreenState extends State<FeedScreen> {
             color: AppTheme.goldColor(context).withValues(alpha: 0.4),
           ),
           const SizedBox(height: 16),
-          Text('No posts yet', style: AppTheme.heading(context, size: 22)),
+          Text(AppLocalizations.of(context)!.translate('no_posts_yet'), style: AppTheme.heading(context, size: 22)),
           const SizedBox(height: 8),
           Text(
-            'Be the first to share something',
+            AppLocalizations.of(context)!.translate('be_first_to_share'),
             style: AppTheme.label(context, size: 12),
           ),
           const SizedBox(height: 24),
@@ -684,7 +685,7 @@ class _FeedScreenState extends State<FeedScreen> {
                             children: [
                               Icon(Icons.edit_outlined, color: AppTheme.goldColor(context), size: 18),
                               const SizedBox(width: 8),
-                              Text('Edit Post', style: TextStyle(color: AppTheme.text1(context))),
+                              Text(AppLocalizations.of(context)!.translate('edit_post'), style: TextStyle(color: AppTheme.text1(context))),
                             ],
                           ),
                         ),
@@ -694,7 +695,7 @@ class _FeedScreenState extends State<FeedScreen> {
                             children: [
                               const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
                               const SizedBox(width: 8),
-                              Text('Delete Post', style: TextStyle(color: AppTheme.text1(context))),
+                              Text(AppLocalizations.of(context)!.translate('delete_post'), style: TextStyle(color: AppTheme.text1(context))),
                             ],
                           ),
                         ),

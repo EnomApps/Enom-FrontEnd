@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/social_service.dart';
 import '../theme/app_theme.dart';
@@ -134,6 +135,7 @@ class _FollowListScreenState extends State<FollowListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: AppTheme.bg(context),
       extendBodyBehindAppBar: true,
@@ -160,7 +162,7 @@ class _FollowListScreenState extends State<FollowListScreen> {
                           children: [
                             Icon(Icons.people_outline, size: 56, color: AppTheme.goldColor(context).withValues(alpha: 0.4)),
                             const SizedBox(height: 16),
-                            Text('No ${widget.title.toLowerCase()} yet', style: AppTheme.heading(context, size: 22)),
+                            Text(l10n.translate(widget.isFollowers ? 'no_followers_yet' : 'no_following_yet'), style: AppTheme.heading(context, size: 22)),
                           ],
                         ),
                       )

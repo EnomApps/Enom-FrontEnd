@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
+import '../l10n/app_localizations.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
 
@@ -61,6 +62,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final dark = AppTheme.isDark(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: AppTheme.bg(context),
@@ -221,7 +223,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 40),
                     child: Text(
-                      'Track your mood & connect\nwith like-minded people',
+                      l10n.translate('welcome_tagline'),
                       textAlign: TextAlign.center,
                       style: GoogleFonts.jost(
                         color: AppTheme.text2(context),
@@ -262,7 +264,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               left: size.width * 0.28 - 60,
                               top: 130 - 60,
                               child: _GlassOrbButton(
-                                label: 'Sign Up',
+                                label: l10n.translate('signup'),
                                 diameter: 120,
                                 isGold: false,
                                 onTap: () {
@@ -279,7 +281,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               left: size.width * 0.68 - 60,
                               top: 60 - 60,
                               child: _GlassOrbButton(
-                                label: 'Login',
+                                label: l10n.translate('login'),
                                 diameter: 120,
                                 isGold: true,
                                 onTap: () {

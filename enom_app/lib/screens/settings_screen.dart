@@ -22,7 +22,7 @@ class SettingsScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'SETTINGS',
+          l10n.translate('settings').toUpperCase(),
           style: AppTheme.label(context, size: 12),
         ),
         centerTitle: true,

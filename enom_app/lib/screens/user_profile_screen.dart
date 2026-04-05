@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../services/social_service.dart';
@@ -120,6 +121,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final name = _user['name'] as String? ?? 'Unknown';
     final username = _user['username'] as String? ?? '';
     final avatar = (_user['profile_image_url'] ?? _user['profile_image']) as String?;
@@ -246,7 +248,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           const SizedBox(height: 8),
                           Align(
                             alignment: Alignment.centerLeft,
-                            child: Text('POSTS', style: AppTheme.label(context, size: 10)),
+                            child: Text(l10n.translate('posts').toUpperCase(), style: AppTheme.label(context, size: 10)),
                           ),
                           const SizedBox(height: 8),
                         ],
@@ -267,7 +269,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           children: [
                             Icon(Icons.dynamic_feed_outlined, size: 48, color: AppTheme.goldColor(context).withValues(alpha: 0.4)),
                             const SizedBox(height: 12),
-                            Text('No posts yet', style: AppTheme.body(context, size: 15)),
+                            Text(l10n.translate('no_posts_yet'), style: AppTheme.body(context, size: 15)),
                           ],
                         ),
                       ),

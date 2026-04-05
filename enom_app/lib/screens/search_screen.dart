@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 
 /// Search / Explore screen — placeholder until API is provided.
@@ -21,6 +22,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Stack(
       children: [
         const EnomScreenBackground(gradientVariant: 2, particleCount: 35),
@@ -43,7 +45,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       fontSize: 15,
                     ),
                     decoration: InputDecoration(
-                      hintText: 'Search users, posts, hashtags...',
+                      hintText: l10n.translate('search_hint'),
                       hintStyle: GoogleFonts.jost(
                         color: AppTheme.textMuted(context),
                         fontSize: 15,

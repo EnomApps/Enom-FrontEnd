@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../services/social_service.dart';
@@ -438,6 +439,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final user = widget.post['user'] as Map<String, dynamic>? ?? {};
     final userName = user['name'] as String? ?? 'Anonymous';
     final userAvatar = (user['profile_image_url'] ?? user['profile_image']) as String?;
@@ -572,7 +574,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                 // Save/Bookmark button
                 _buildActionButton(
                   icon: _isSaved ? Icons.bookmark : Icons.bookmark_border,
-                  label: _isSaved ? 'Saved' : 'Save',
+                  label: _isSaved ? l10n.translate('saved') : l10n.translate('save'),
                   color: _isSaved ? AppTheme.gold1 : Colors.white,
                   onTap: _toggleSave,
                 ),
@@ -581,7 +583,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                 // Share button
                 _buildActionButton(
                   icon: Icons.share_outlined,
-                  label: 'Share',
+                  label: l10n.translate('share'),
                   color: Colors.white,
                   onTap: () => ShareSheet.show(
                     context,

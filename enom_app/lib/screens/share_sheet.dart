@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
+import '../l10n/app_localizations.dart';
 import '../services/post_service.dart';
 import '../theme/app_theme.dart';
 
@@ -54,7 +55,7 @@ class _ShareSheetState extends State<ShareSheet> {
     await Clipboard.setData(ClipboardData(text: _shareLink));
     if (!mounted) return;
     Navigator.pop(context);
-    AppTheme.showSnackBar(context, 'Link copied to clipboard');
+    AppTheme.showSnackBar(context, AppLocalizations.of(context)!.translate('link_copied'));
   }
 
   Future<void> _shareExternal() async {
@@ -78,6 +79,7 @@ class _ShareSheetState extends State<ShareSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return DraggableScrollableSheet(
       initialChildSize: 0.45,
       minChildSize: 0.3,
@@ -105,7 +107,7 @@ class _ShareSheetState extends State<ShareSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  'Share',
+                  l10n.translate('share'),
                   style: GoogleFonts.jost(
                     color: _textColor,
                     fontSize: 15,
@@ -177,13 +179,13 @@ class _ShareSheetState extends State<ShareSheet> {
                                 children: [
                                   _buildShareAction(
                                     icon: Icons.copy_rounded,
-                                    label: 'Copy link',
+                                    label: l10n.translate('copy_link'),
                                     color: AppTheme.gold1,
                                     onTap: _copyLink,
                                   ),
                                   _buildShareAction(
                                     icon: Icons.share_rounded,
-                                    label: 'Share',
+                                    label: l10n.translate('share'),
                                     color: const Color(0xFF3897F0),
                                     onTap: _shareExternal,
                                   ),

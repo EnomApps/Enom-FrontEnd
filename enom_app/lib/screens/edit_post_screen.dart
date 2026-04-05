@@ -9,6 +9,7 @@ import 'package:video_player/video_player.dart';
 import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../theme/app_theme.dart';
+import '../l10n/app_localizations.dart';
 
 class EditPostScreen extends StatefulWidget {
   final Map<String, dynamic> post;
@@ -73,6 +74,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
       _contentController.text.trim().isNotEmpty || _existingMedia.isNotEmpty || _newMedia.isNotEmpty;
 
   Future<bool> _requestMediaPermission({bool isVideo = false}) async {
+    final l10n = AppLocalizations.of(context)!;
     PermissionStatus status;
     if (Platform.isAndroid) {
       status = isVideo ? await Permission.videos.request() : await Permission.photos.request();
@@ -88,33 +90,34 @@ class _EditPostScreenState extends State<EditPostScreen> {
         builder: (ctx) => AlertDialog(
           backgroundColor: AppTheme.bg2(context),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('Permission Required',
+          title: Text(l10n.translate('permission_required'),
               style: GoogleFonts.jost(color: AppTheme.text1(context), fontWeight: FontWeight.w600)),
           content: Text(
-              'Please allow access to your ${isVideo ? 'videos' : 'photos'} in Settings.',
+              l10n.translate(isVideo ? 'permission_media_videos' : 'permission_media_photos'),
               style: GoogleFonts.jost(color: AppTheme.textMuted(context))),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel', style: GoogleFonts.jost(color: AppTheme.textMuted(context))),
+              child: Text(l10n.translate('cancel'), style: GoogleFonts.jost(color: AppTheme.textMuted(context))),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Open Settings', style: GoogleFonts.jost(color: AppTheme.goldColor(context))),
+              child: Text(l10n.translate('open_settings'), style: GoogleFonts.jost(color: AppTheme.goldColor(context))),
             ),
           ],
         ),
       );
       if (open == true) await openAppSettings();
     } else if (mounted) {
-      AppTheme.showSnackBar(context, 'Permission denied', isError: true);
+      AppTheme.showSnackBar(context, l10n.translate('permission_denied'), isError: true);
     }
     return false;
   }
 
   Future<void> _pickImages() async {
     if (_totalMedia >= _maxMedia) {
-      AppTheme.showSnackBar(context, 'Maximum $_maxMedia media files allowed', isError: true);
+      final l10n = AppLocalizations.of(context)!;
+      AppTheme.showSnackBar(context, l10n.translate('max_media_allowed').replaceAll('{count}', '$_maxMedia'), isError: true);
       return;
     }
 
@@ -173,7 +176,8 @@ class _EditPostScreenState extends State<EditPostScreen> {
       return (path: info.file!.path, bytes: compressedBytes);
     } catch (e) {
       if (mounted) {
-        AppTheme.showSnackBar(context, 'Video compression failed', isError: true);
+        final l10n = AppLocalizations.of(context)!;
+        AppTheme.showSnackBar(context, l10n.translate('video_compression_failed'), isError: true);
       }
       return null;
     } finally {
@@ -195,7 +199,8 @@ class _EditPostScreenState extends State<EditPostScreen> {
 
   Future<void> _pickVideo() async {
     if (_totalMedia >= _maxMedia) {
-      AppTheme.showSnackBar(context, 'Maximum $_maxMedia media files allowed', isError: true);
+      final l10n = AppLocalizations.of(context)!;
+      AppTheme.showSnackBar(context, l10n.translate('max_media_allowed').replaceAll('{count}', '$_maxMedia'), isError: true);
       return;
     }
 
@@ -217,7 +222,10 @@ class _EditPostScreenState extends State<EditPostScreen> {
       final compressed = await _compressVideo(video.path);
 
       if (compressed == null) {
-        if (mounted) AppTheme.showSnackBar(context, 'Video skipped', isError: true);
+        if (mounted) {
+          final l10n = AppLocalizations.of(context)!;
+          AppTheme.showSnackBar(context, l10n.translate('video_skipped'), isError: true);
+        }
         break;
       }
 
@@ -244,12 +252,13 @@ class _EditPostScreenState extends State<EditPostScreen> {
       if (!mounted) break;
 
       if (_totalMedia < _maxMedia) {
+        final l10n = AppLocalizations.of(context)!;
         final addMore = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
             backgroundColor: AppTheme.moodCardBg(context),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Text('Add another video?',
+            title: Text(l10n.translate('add_another_video'),
                 style: GoogleFonts.jost(color: AppTheme.text1(context), fontWeight: FontWeight.w600)),
             content: Text(
                 '$_totalMedia of $_maxMedia media added.',
@@ -257,11 +266,11 @@ class _EditPostScreenState extends State<EditPostScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: Text('Done', style: GoogleFonts.jost(color: AppTheme.textMuted(context))),
+                child: Text(l10n.translate('done'), style: GoogleFonts.jost(color: AppTheme.textMuted(context))),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                child: Text('Add More', style: GoogleFonts.jost(color: AppTheme.goldColor(context))),
+                child: Text(l10n.translate('add_more'), style: GoogleFonts.jost(color: AppTheme.goldColor(context))),
               ),
             ],
           ),
@@ -300,7 +309,8 @@ class _EditPostScreenState extends State<EditPostScreen> {
     setState(() => _isSaving = false);
 
     if (result.success) {
-      AppTheme.showSnackBar(context, 'Post updated successfully!');
+      final l10n = AppLocalizations.of(context)!;
+      AppTheme.showSnackBar(context, l10n.translate('post_updated'));
       Navigator.of(context).pop(true);
     } else {
       AppTheme.showSnackBar(context, result.message, isError: true);
@@ -309,6 +319,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: AppTheme.bg(context),
       extendBodyBehindAppBar: true,
@@ -319,7 +330,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
           icon: Icon(Icons.close, color: AppTheme.text1(context)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('EDIT POST', style: AppTheme.label(context, size: 12)),
+        title: Text(l10n.translate('edit_post').toUpperCase(), style: AppTheme.label(context, size: 12)),
         centerTitle: true,
         actions: [
           Padding(
@@ -343,7 +354,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
                         ),
                       )
                     : Text(
-                        'Save',
+                        l10n.translate('save'),
                         style: GoogleFonts.jost(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -384,7 +395,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
                         height: 1.6,
                       ),
                       decoration: InputDecoration(
-                        hintText: "What's on your mind?",
+                        hintText: l10n.translate('whats_on_your_mind'),
                         hintStyle: GoogleFonts.jost(
                           color: AppTheme.textMuted(context),
                           fontSize: 16,
@@ -398,7 +409,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
 
                   // Existing media
                   if (_existingMedia.isNotEmpty || _newMedia.isNotEmpty) ...[
-                    Text('MEDIA', style: AppTheme.label(context, size: 10)),
+                    Text(l10n.translate('media').toUpperCase(), style: AppTheme.label(context, size: 10)),
                     const SizedBox(height: 12),
                     SizedBox(
                       height: 120,
@@ -418,7 +429,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
                   ],
 
                   // Action buttons
-                  Text('ADD TO POST', style: AppTheme.label(context, size: 10)),
+                  Text(l10n.translate('add_to_post').toUpperCase(), style: AppTheme.label(context, size: 10)),
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(4),
@@ -431,7 +442,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
                       children: [
                         _buildActionButton(
                           icon: Icons.image_outlined,
-                          label: 'Photo',
+                          label: l10n.translate('photo'),
                           color: Colors.greenAccent,
                           onTap: _pickImages,
                         ),
@@ -442,7 +453,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
                         ),
                         _buildActionButton(
                           icon: Icons.videocam_outlined,
-                          label: 'Video',
+                          label: l10n.translate('video'),
                           color: Colors.blueAccent,
                           onTap: _pickVideo,
                         ),
@@ -452,7 +463,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
                   const SizedBox(height: 20),
 
                   // Visibility picker
-                  Text('VISIBILITY', style: AppTheme.label(context, size: 10)),
+                  Text(l10n.translate('visibility').toUpperCase(), style: AppTheme.label(context, size: 10)),
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(4),
@@ -543,6 +554,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
   }
 
   Widget _buildExistingMediaPreview(int index) {
+    final l10n = AppLocalizations.of(context)!;
     final media = _existingMedia[index];
     return Container(
       width: 120,
@@ -604,12 +616,12 @@ class _EditPostScreenState extends State<EditPostScreen> {
                   color: Colors.black.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.play_arrow, color: Colors.white, size: 12),
-                    SizedBox(width: 2),
-                    Text('VIDEO', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w600)),
+                    const Icon(Icons.play_arrow, color: Colors.white, size: 12),
+                    const SizedBox(width: 2),
+                    Text(l10n.translate('video').toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
@@ -637,6 +649,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
   }
 
   Widget _buildNewMediaPreview(int index) {
+    final l10n = AppLocalizations.of(context)!;
     final file = _newMedia[index];
     return Container(
       width: 120,
@@ -683,12 +696,12 @@ class _EditPostScreenState extends State<EditPostScreen> {
                   color: Colors.black.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.play_arrow, color: Colors.white, size: 12),
-                    SizedBox(width: 2),
-                    Text('VIDEO', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w600)),
+                    const Icon(Icons.play_arrow, color: Colors.white, size: 12),
+                    const SizedBox(width: 2),
+                    Text(l10n.translate('video').toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
@@ -703,7 +716,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
                 color: AppTheme.goldColor(context),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: const Text('NEW', style: TextStyle(color: Color(0xFF1A1612), fontSize: 8, fontWeight: FontWeight.w700)),
+              child: Text(l10n.translate('new_badge').toUpperCase(), style: const TextStyle(color: Color(0xFF1A1612), fontSize: 8, fontWeight: FontWeight.w700)),
             ),
           ),
           // Remove button

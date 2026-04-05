@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../l10n/app_localizations.dart';
 import '../main.dart';
 import '../models/language_model.dart';
 import '../theme/app_theme.dart';
@@ -85,6 +86,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final filteredLanguages = _filteredLanguages;
 
     return Scaffold(
@@ -126,7 +128,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                       },
                       style: AppTheme.body(context),
                       decoration: InputDecoration(
-                        hintText: 'Search language...',
+                        hintText: l10n.translate('search_language'),
                         hintStyle: GoogleFonts.jost(
                           color: AppTheme.textMuted(context),
                           fontSize: 15,
@@ -298,7 +300,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                   Padding(
                     padding: const EdgeInsets.all(24),
                     child: AppTheme.goldCTAButton(
-                      label: 'Continue',
+                      label: l10n.translate('continue_btn'),
                       onPressed: _saveLanguageAndContinue,
                     ),
                   ),

@@ -94,17 +94,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     // Header section
                     Text(
-                      'WELCOME BACK',
+                      l10n.translate('welcome_back_title'),
                       style: AppTheme.subheading(context, size: 11),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Login to ENOM',
+                      l10n.translate('login_to_app'),
                       style: AppTheme.heading(context, size: 36),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Track your mood & reconnect\nwith your community',
+                      l10n.translate('login_tagline'),
                       style: GoogleFonts.jost(
                         color: AppTheme.text2(context),
                         fontSize: 14,

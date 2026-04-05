@@ -89,12 +89,12 @@ class _SignupScreenState extends State<SignupScreen> {
 
                     // Header
                     Text(
-                      'CREATE ACCOUNT',
+                      l10n.translate('create_account').toUpperCase(),
                       style: AppTheme.subheading(context, size: 11),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Join ENOM',
+                      l10n.translate('join_app'),
                       style: AppTheme.heading(context, size: 36),
                     ),
                     const SizedBox(height: 20),

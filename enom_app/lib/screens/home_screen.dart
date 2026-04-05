@@ -276,22 +276,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   BottomNavigationBarItem(
                     icon: const Icon(Icons.play_circle_outline),
                     activeIcon: const Icon(Icons.play_circle_filled),
-                    label: 'REELS',
+                    label: l10n.translate('reels').toUpperCase(),
                   ),
                   BottomNavigationBarItem(
                     icon: const Icon(Icons.bar_chart_outlined),
                     activeIcon: const Icon(Icons.bar_chart),
-                    label: 'STATS',
+                    label: l10n.translate('stats').toUpperCase(),
                   ),
                   BottomNavigationBarItem(
                     icon: const Icon(Icons.search_outlined),
                     activeIcon: const Icon(Icons.search),
-                    label: 'SEARCH',
+                    label: l10n.translate('search').toUpperCase(),
                   ),
                   BottomNavigationBarItem(
                     icon: const Icon(Icons.person_outline_rounded),
                     activeIcon: const Icon(Icons.person_rounded),
-                    label: 'PROFILE',
+                    label: l10n.translate('profile').toUpperCase(),
                   ),
                 ],
               ),
