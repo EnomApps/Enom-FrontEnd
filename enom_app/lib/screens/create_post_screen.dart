@@ -239,7 +239,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'CREATE POST',
+          l10n.translate('create_post').toUpperCase(),
           style: AppTheme.label(context, size: 12),
         ),
         centerTitle: true,
@@ -256,7 +256,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  'Post',
+                  l10n.translate('post'),
                   style: GoogleFonts.jost(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -389,9 +389,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     ),
                     child: Row(
                       children: [
-                        _buildVisibilityOption('public', Icons.public, 'Public'),
-                        _buildVisibilityOption('followers', Icons.people_outline, 'Followers'),
-                        _buildVisibilityOption('private', Icons.lock_outline, 'Private'),
+                        _buildVisibilityOption('public', Icons.public, l10n.translate('public')),
+                        _buildVisibilityOption('followers', Icons.people_outline, l10n.translate('followers')),
+                        _buildVisibilityOption('private', Icons.lock_outline, l10n.translate('private')),
                       ],
                     ),
                   ),

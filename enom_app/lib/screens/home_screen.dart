@@ -1,14 +1,14 @@
-import 'dart:async';
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:camera/camera.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../l10n/app_localizations.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../services/mood_detection_service.dart';
+import 'camera_permission_screen.dart';
+import 'mood_scan_screen.dart';
 import '../theme/app_theme.dart';
 import 'welcome_screen.dart';
 import 'profile_screen.dart';
@@ -32,17 +32,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String _selectedMood = 'Happy';
 
   // Mood detection
-  MoodDetectionService? _moodService;
-  bool _isScanning = false;
   bool _isMoodInitializing = false;
-  String? _moodError;
-  double _scanProgress = 0.0;
-  MoodResult? _liveMood; // real-time during scan
-  MoodResult? _finalMood; // final result after scan completes
-  StreamSubscription? _scanSub;
-
-  // Scan progress animation
-  AnimationController? _progressController;
+  MoodResult? _finalMood;
 
   @override
   void initState() {
@@ -66,90 +57,40 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _startQuickScan() async {
-    if (_isMoodInitializing || _isScanning) return;
+    if (_isMoodInitializing) return;
     setState(() {
       _isMoodInitializing = true;
-      _moodError = null;
       _finalMood = null;
-      _liveMood = null;
-      _scanProgress = 0.0;
     });
 
-    final status = await Permission.camera.request();
-    if (!status.isGranted) {
-      if (mounted) {
-        setState(() {
-          _moodError = 'Camera permission denied';
-          _isMoodInitializing = false;
-        });
+    // Check if camera is already granted — skip permission screen
+    final existingStatus = await Permission.camera.status;
+    if (!existingStatus.isGranted) {
+      if (!mounted) return;
+      final permResult = await Navigator.push<CameraPermissionResult>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const CameraPermissionScreen(),
+        ),
+      );
+      if (permResult != CameraPermissionResult.granted) {
+        if (mounted) setState(() => _isMoodInitializing = false);
+        return;
       }
-      return;
     }
-
-    _moodService = MoodDetectionService();
-    final ok = await _moodService!.initialize();
 
     if (!mounted) return;
+    setState(() => _isMoodInitializing = false);
 
-    if (!ok) {
-      setState(() {
-        _moodError = 'Could not initialize camera';
-        _isMoodInitializing = false;
-      });
-      return;
-    }
-
-    // Start progress animation (4 seconds)
-    _progressController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
+    // Navigate to mood scan screen and wait for result
+    final result = await Navigator.push<MoodResult>(
+      context,
+      MaterialPageRoute(builder: (_) => const MoodScanScreen()),
     );
-    _progressController!.addListener(() {
-      if (mounted) {
-        setState(() => _scanProgress = _progressController!.value);
-      }
-    });
-    _progressController!.forward();
 
-    // Listen for scan events
-    _scanSub = _moodService!.scanStream.listen((event) {
-      if (!mounted) return;
+    if (mounted && result != null) {
       setState(() {
-        _liveMood = event.latestMood;
-      });
-
-      if (event.isDone && event.finalResult != null) {
-        _onScanComplete(event.finalResult!);
-      }
-    });
-
-    _moodService!.startQuickScan();
-
-    setState(() {
-      _isScanning = true;
-      _isMoodInitializing = false;
-    });
-  }
-
-  void _onScanComplete(MoodResult result) async {
-    _progressController?.stop();
-    _scanSub?.cancel();
-    _scanSub = null;
-
-    // Keep camera preview visible briefly, then close
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    _moodService?.dispose();
-    _moodService = null;
-    _progressController?.dispose();
-    _progressController = null;
-
-    if (mounted) {
-      setState(() {
-        _isScanning = false;
         _finalMood = result;
-        _scanProgress = 1.0;
-        // Also update the selected mood pill to match
         if (result.mood == 'Happy' ||
             result.mood == 'Calm' ||
             result.mood == 'Sad' ||
@@ -162,9 +103,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _handleLogout() async {
     setState(() => _isLoggingOut = true);
-    _scanSub?.cancel();
-    _moodService?.dispose();
-    _moodService = null;
     await AuthService.logout();
 
     if (!mounted) return;
@@ -178,17 +116,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    _scanSub?.cancel();
-    _progressController?.dispose();
-    _moodService?.dispose();
     super.dispose();
   }
 
-  String _getTimeGreeting() {
+  String _getTimeGreeting(AppLocalizations l10n) {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
+    if (hour < 12) return l10n.translate('good_morning');
+    if (hour < 17) return l10n.translate('good_afternoon');
+    return l10n.translate('good_evening');
   }
 
   @override
@@ -343,7 +278,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _getTimeGreeting().toUpperCase(),
+                          _getTimeGreeting(l10n).toUpperCase(),
                           style: GoogleFonts.jost(
                             color: AppTheme.goldColor(context),
                             fontSize: 11,
@@ -401,21 +336,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 24),
 
                 // Mood Score Card
-                _buildMoodScoreCard(moodScore, moodProgress),
+                _buildMoodScoreCard(moodScore, moodProgress, l10n),
                 const SizedBox(height: 20),
 
-                // Camera scan area (only visible when scanning)
-                if (_isScanning) _buildScanningCard(),
-                if (_isScanning) const SizedBox(height: 20),
-
                 // Final result card (visible after scan completes)
-                if (!_isScanning && _finalMood != null) _buildResultCard(),
-                if (!_isScanning && _finalMood != null)
-                  const SizedBox(height: 20),
+                if (_finalMood != null) _buildResultCard(),
+                if (_finalMood != null) const SizedBox(height: 20),
 
                 // How are you feeling?
                 Text(
-                  'HOW ARE YOU FEELING?',
+                  l10n.translate('how_are_you_feeling').toUpperCase(),
                   style: AppTheme.label(context, size: 10),
                 ),
                 const SizedBox(height: 16),
@@ -435,7 +365,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   // ─── Mood Score Card ──────────────────────────────────────────
 
-  Widget _buildMoodScoreCard(int moodScore, double moodProgress) {
+  Widget _buildMoodScoreCard(int moodScore, double moodProgress, AppLocalizations l10n) {
     final goldC = AppTheme.goldColor(context);
 
     return ClipRRect(
@@ -477,7 +407,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
 
               Text(
-                'YOUR MOOD SCORE',
+                l10n.translate('your_mood_score').toUpperCase(),
                 style: AppTheme.label(context, size: 10),
               ),
               const SizedBox(height: 20),
@@ -517,7 +447,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         Text(
                           _finalMood != null && _finalMood!.mood != 'No Face'
                               ? _finalMood!.mood
-                              : 'Tap Scan',
+                              : l10n.translate('tap_scan'),
                           style: GoogleFonts.jost(
                             color: AppTheme.goldColor(context),
                             fontSize: 11,
@@ -542,8 +472,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
 
-              // Scan button (only when NOT scanning)
-              if (!_isScanning) ...[
+              // Scan button
+              ...[
                 const SizedBox(height: 16),
                 GestureDetector(
                   onTap: _isMoodInitializing ? null : _startQuickScan,
@@ -580,10 +510,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         const SizedBox(width: 8),
                         Text(
                           _isMoodInitializing
-                              ? 'Opening Camera...'
+                              ? l10n.translate('opening_camera')
                               : _finalMood != null
-                                  ? 'Scan Again'
-                                  : 'Start AI Scan',
+                                  ? l10n.translate('scan_again')
+                                  : l10n.translate('start_ai_scan'),
                           style: GoogleFonts.jost(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
@@ -597,231 +527,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ],
 
-              if (_moodError != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  _moodError!,
-                  style: GoogleFonts.jost(
-                    color: Colors.redAccent,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  // ─── Scanning Camera Card ─────────────────────────────────────
-
-  Widget _buildScanningCard() {
-    final goldC = AppTheme.goldColor(context);
-    final cameraReady = _moodService?.cameraController != null &&
-        _moodService!.cameraController!.value.isInitialized;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: Container(
-        width: double.infinity,
-        height: 280,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: goldC.withValues(alpha: 0.3),
-            width: 1.5,
-          ),
-        ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Camera feed
-            if (cameraReady)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(23),
-                child: Transform.scale(
-                  scaleX: -1,
-                  child:
-                      CameraPreview(_moodService!.cameraController!),
-                ),
-              )
-            else
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(23),
-                ),
-                child: const Center(
-                  child: CircularProgressIndicator(color: Colors.white24),
-                ),
-              ),
-
-            // Dark gradient overlay at bottom
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(23),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.7),
-                    ],
-                    stops: const [0.0, 0.55, 1.0],
-                  ),
-                ),
-              ),
-            ),
-
-            // Corner brackets
-            Positioned(
-              top: 20, left: 20,
-              child: _buildScanCorner(goldC, topLeft: true),
-            ),
-            Positioned(
-              top: 20, right: 20,
-              child: _buildScanCorner(goldC, topRight: true),
-            ),
-            Positioned(
-              bottom: 70, left: 20,
-              child: _buildScanCorner(goldC, bottomLeft: true),
-            ),
-            Positioned(
-              bottom: 70, right: 20,
-              child: _buildScanCorner(goldC, bottomRight: true),
-            ),
-
-            // Top: scanning label
-            Positioned(
-              top: 14,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.greenAccent,
-                          boxShadow: [
-                            BoxShadow(
-                              color:
-                                  Colors.greenAccent.withValues(alpha: 0.5),
-                              blurRadius: 6,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'ANALYZING FACE',
-                        style: GoogleFonts.jost(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Live mood indicator (center)
-            if (_liveMood != null && _liveMood!.mood != 'No Face')
-              Positioned(
-                top: 0,
-                bottom: 60,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: Text(
-                    _liveMood!.emoji,
-                    style: const TextStyle(fontSize: 48),
-                  ),
-                ),
-              ),
-
-            // Bottom: progress bar + live status
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(23),
-                    bottomRight: Radius.circular(23),
-                  ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Progress bar
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: _scanProgress,
-                        minHeight: 4,
-                        backgroundColor: Colors.white12,
-                        valueColor: AlwaysStoppedAnimation<Color>(goldC),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Text(
-                          _liveMood?.mood != null &&
-                                  _liveMood!.mood != 'No Face'
-                              ? _liveMood!.emoji
-                              : '\u{1F50D}',
-                          style: const TextStyle(fontSize: 20),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _liveMood?.mood != null &&
-                                    _liveMood!.mood != 'No Face'
-                                ? 'Detecting: ${_liveMood!.mood}'
-                                : 'Looking for face...',
-                            style: GoogleFonts.jost(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          '${(_scanProgress * 100).round()}%',
-                          style: GoogleFonts.jost(
-                            color: goldC,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -848,7 +555,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Column(
             children: [
               Text(
-                'SCAN RESULT',
+                AppLocalizations.of(context)!.translate('scan_result').toUpperCase(),
                 style: AppTheme.label(context, size: 10),
               ),
               const SizedBox(height: 16),
@@ -871,13 +578,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   _buildStatChip(
-                    'Score',
+                    AppLocalizations.of(context)!.translate('score'),
                     '${mood.score}',
                     goldC,
                   ),
                   const SizedBox(width: 16),
                   _buildStatChip(
-                    'Confidence',
+                    AppLocalizations.of(context)!.translate('confidence'),
                     '${(mood.confidence * 100).round()}%',
                     goldC,
                   ),
@@ -933,58 +640,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   String _getMoodMessage(String mood) {
+    final l10n = AppLocalizations.of(context)!;
     switch (mood) {
       case 'Happy':
-        return 'You\'re radiating positive energy! Keep spreading those good vibes.';
+        return l10n.translate('mood_msg_happy');
       case 'Calm':
-        return 'You\'re in a peaceful state of mind. A great time for reflection.';
+        return l10n.translate('mood_msg_calm');
       case 'Sad':
-        return 'It\'s okay to feel this way. Take a moment for self-care.';
+        return l10n.translate('mood_msg_sad');
       case 'Angry':
-        return 'Take a deep breath. Consider a short walk or meditation.';
+        return l10n.translate('mood_msg_angry');
       case 'Surprised':
-        return 'Something caught your attention! Stay curious.';
+        return l10n.translate('mood_msg_surprised');
       case 'Neutral':
-        return 'You\'re in a balanced state. A calm mind is a clear mind.';
+        return l10n.translate('mood_msg_neutral');
       default:
-        return 'Scan your face to discover your current mood.';
+        return l10n.translate('mood_msg_default');
     }
-  }
-
-  // ─── Scan Corner Brackets ─────────────────────────────────────
-
-  Widget _buildScanCorner(Color color,
-      {bool topLeft = false,
-      bool topRight = false,
-      bool bottomLeft = false,
-      bool bottomRight = false}) {
-    const size = 28.0;
-    const thickness = 2.5;
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(
-        painter: _CornerPainter(
-          color: color,
-          thickness: thickness,
-          topLeft: topLeft,
-          topRight: topRight,
-          bottomLeft: bottomLeft,
-          bottomRight: bottomRight,
-        ),
-      ),
-    );
   }
 
   // ─── Mood Pills ───────────────────────────────────────────────
 
   Widget _buildMoodPills() {
+    final l10n = AppLocalizations.of(context)!;
     final moods = [
-      ('\u{1F60A}', 'Happy'),
-      ('\u{1F60C}', 'Calm'),
-      ('\u{1F622}', 'Sad'),
-      ('\u{1F621}', 'Angry'),
-      ('\u{1F970}', 'Loved'),
+      ('\u{1F60A}', l10n.translate('mood_happy')),
+      ('\u{1F60C}', l10n.translate('mood_calm')),
+      ('\u{1F622}', l10n.translate('mood_sad')),
+      ('\u{1F621}', l10n.translate('mood_angry')),
+      ('\u{1F970}', l10n.translate('mood_loved')),
     ];
 
     return Row(
@@ -1053,7 +737,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'WEEKLY OVERVIEW',
+                AppLocalizations.of(context)!.translate('weekly_overview').toUpperCase(),
                 style: AppTheme.label(context, size: 10),
               ),
               const SizedBox(height: 24),
@@ -1204,53 +888,3 @@ class _MoodRingPainter extends CustomPainter {
       oldDelegate.progress != progress;
 }
 
-/// Paints corner brackets for the scanning overlay.
-class _CornerPainter extends CustomPainter {
-  final Color color;
-  final double thickness;
-  final bool topLeft;
-  final bool topRight;
-  final bool bottomLeft;
-  final bool bottomRight;
-
-  _CornerPainter({
-    required this.color,
-    required this.thickness,
-    this.topLeft = false,
-    this.topRight = false,
-    this.bottomLeft = false,
-    this.bottomRight = false,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = thickness
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final w = size.width;
-    final h = size.height;
-
-    if (topLeft) {
-      canvas.drawLine(Offset(0, h * 0.4), const Offset(0, 0), paint);
-      canvas.drawLine(const Offset(0, 0), Offset(w * 0.4, 0), paint);
-    }
-    if (topRight) {
-      canvas.drawLine(Offset(w * 0.6, 0), Offset(w, 0), paint);
-      canvas.drawLine(Offset(w, 0), Offset(w, h * 0.4), paint);
-    }
-    if (bottomLeft) {
-      canvas.drawLine(Offset(0, h * 0.6), Offset(0, h), paint);
-      canvas.drawLine(Offset(0, h), Offset(w * 0.4, h), paint);
-    }
-    if (bottomRight) {
-      canvas.drawLine(Offset(w, h * 0.6), Offset(w, h), paint);
-      canvas.drawLine(Offset(w * 0.6, h), Offset(w, h), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

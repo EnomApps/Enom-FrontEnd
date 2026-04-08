@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../l10n/app_localizations.dart';
 import '../services/post_service.dart';
 import '../theme/app_theme.dart';
 import 'feed_reels_screen.dart';
@@ -52,7 +53,7 @@ class _ReelsTabState extends State<ReelsTab> {
     if (_posts.isEmpty) {
       return Center(
         child: Text(
-          'No posts yet',
+          AppLocalizations.of(context)!.translate('no_posts_yet'),
           style: GoogleFonts.jost(
             color: AppTheme.textMuted(context),
             fontSize: 14,

@@ -5,7 +5,7 @@ import 'package:http_parser/http_parser.dart' show MediaType;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://47.129.5.68';
+  static const String baseUrl = 'http://52.221.249.30';
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'user_data';
 

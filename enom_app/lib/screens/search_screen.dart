@@ -78,7 +78,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Search & Explore',
+                        l10n.translate('search_and_explore'),
                         style: GoogleFonts.jost(
                           color: AppTheme.textMuted(context),
                           fontSize: 16,
@@ -87,7 +87,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Coming soon',
+                        l10n.translate('coming_soon'),
                         style: GoogleFonts.jost(
                           color: AppTheme.textMuted(context).withValues(alpha: 0.6),
                           fontSize: 13,
