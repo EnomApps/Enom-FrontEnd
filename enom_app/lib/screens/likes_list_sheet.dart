@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../theme/app_theme.dart';
@@ -145,7 +146,7 @@ class _LikesListSheetState extends State<LikesListSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  'Likes',
+                  AppLocalizations.of(context)!.translate('likes'),
                   style: GoogleFonts.jost(
                     color: _textColor,
                     fontSize: 15,

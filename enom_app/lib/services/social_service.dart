@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'api_service.dart';
 
 class SocialService {
@@ -49,14 +50,33 @@ class SocialService {
     final status = result['statusCode'] as int;
     final body = result['body'];
 
+    debugPrint('[FOLLOW_COUNTS_API] status=$status body=$body');
+
     if (status == 200 && body is Map) {
+      // Try multiple possible field names
+      final data = body['data'] is Map ? body['data'] as Map : body;
+      final followers = _tryInt(data, 'followers_count') ??
+          _tryInt(data, 'followersCount') ??
+          _tryInt(data, 'followers') ?? 0;
+      final following = _tryInt(data, 'following_count') ??
+          _tryInt(data, 'followingCount') ??
+          _tryInt(data, 'following') ?? 0;
       return (
         success: true,
-        followersCount: (body['followers_count'] ?? 0) as int,
-        followingCount: (body['following_count'] ?? 0) as int,
+        followersCount: followers,
+        followingCount: following,
       );
     }
     return (success: false, followersCount: 0, followingCount: 0);
+  }
+
+  static int? _tryInt(Map data, String key) {
+    final val = data[key];
+    if (val == null) return null;
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    if (val is String) return int.tryParse(val);
+    return null;
   }
 
   /// Batch check follow status for multiple user IDs.

@@ -16,7 +16,8 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://api.enom.ai/api/auth/login -X POST -H \"Content-Type: application/json\" -H \"Accept: application/json\" -d '{\"\"email\"\":\"\"test@test.com\"\",\"\"password\"\":\"\"test\"\"}')",
       "Bash(ls -la /c/Users/JOSEPH/Documents/GitHub/Enom-FrontEnd/enom_app/web/favicon.*)",
       "Bash(flutter analyze lib/screens/signup_screen.dart lib/screens/profile_screen.dart)",
-      "Bash(grep -n \"'[A-Z][^']*'\" lib/screens/*.dart)"
+      "Bash(grep -n \"'[A-Z][^']*'\" lib/screens/*.dart)",
+      "WebFetch(domain:52.221.249.30)"
     ]
   }
 }

@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../l10n/app_localizations.dart';
 import '../services/mood_detection_service.dart';
 import '../theme/app_theme.dart';
+import 'mood_result_screen.dart';
 
 /// Screen states for the mood scan flow.
 enum _ScanState {
@@ -166,11 +167,21 @@ class _MoodScanScreenState extends State<MoodScanScreen>
 
       if (mounted) {
         if (result != null) {
-          setState(() {
-            _moodResult = result;
-            _state = _ScanState.result;
-          });
-          HapticFeedback.heavyImpact();
+          // Navigate to mood result screen
+          final confirmedMood = await Navigator.push<MoodResult>(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (_, __, ___) => MoodResultScreen(moodResult: result),
+              transitionsBuilder: (_, animation, __, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 400),
+            ),
+          );
+          if (mounted) {
+            // Return the confirmed (or corrected) mood to the caller
+            Navigator.pop(context, confirmedMood);
+          }
         } else {
           setState(() {
             _state = _ScanState.error;

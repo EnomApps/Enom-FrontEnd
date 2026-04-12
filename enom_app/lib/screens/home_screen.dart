@@ -7,7 +7,9 @@ import '../l10n/app_localizations.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../services/mood_detection_service.dart';
+import '../services/mood_history_service.dart';
 import 'camera_permission_screen.dart';
+import 'mood_history_screen.dart';
 import 'mood_scan_screen.dart';
 import '../theme/app_theme.dart';
 import 'welcome_screen.dart';
@@ -35,17 +37,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _isMoodInitializing = false;
   MoodResult? _finalMood;
 
+  // Weekly mood history
+  List<double> _weeklyScores = [0, 0, 0, 0, 0, 0, 0];
+
   @override
   void initState() {
     super.initState();
     _loadUser();
     _requestNotificationPermission();
+    _loadWeeklyScores();
   }
 
   Future<void> _requestNotificationPermission() async {
     final status = await Permission.notification.status;
     if (status.isDenied) {
       await Permission.notification.request();
+    }
+  }
+
+  Future<void> _loadWeeklyScores() async {
+    final scores = await MoodHistoryService.getWeeklyScores();
+    if (mounted) {
+      setState(() => _weeklyScores = scores);
     }
   }
 
@@ -98,6 +111,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           _selectedMood = result.mood;
         }
       });
+      _loadWeeklyScores(); // Refresh chart after new mood
     }
   }
 
@@ -719,7 +733,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildWeeklyCard() {
     final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    final heights = [0.85, 0.92, 0.45, 0.60, 0.30, 0.78, 0.88];
+    final heights = _weeklyScores.map((s) => s > 0 ? s.clamp(0.05, 1.0) : 0.05).toList();
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
@@ -736,9 +750,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                AppLocalizations.of(context)!.translate('weekly_overview').toUpperCase(),
-                style: AppTheme.label(context, size: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    AppLocalizations.of(context)!.translate('weekly_overview').toUpperCase(),
+                    style: AppTheme.label(context, size: 10),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const MoodHistoryScreen())),
+                    child: Text(
+                      AppLocalizations.of(context)!.translate('view_history'),
+                      style: GoogleFonts.jost(
+                        color: AppTheme.goldColor(context),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
               SizedBox(

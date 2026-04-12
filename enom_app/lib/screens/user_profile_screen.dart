@@ -233,7 +233,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                         ),
                                       )
                                     : Text(
-                                        _isFollowing ? 'Following' : 'Follow',
+                                        _isFollowing ? l10n.translate('unfollow') : l10n.translate('follow'),
                                         style: GoogleFonts.jost(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600,

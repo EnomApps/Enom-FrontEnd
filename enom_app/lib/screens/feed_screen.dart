@@ -648,7 +648,7 @@ class _FeedScreenState extends State<FeedScreen> {
                         GestureDetector(
                           onTap: () => _toggleFollow(index),
                           child: Text(
-                            isFollowing ? 'Following' : 'Follow',
+                            isFollowing ? AppLocalizations.of(context)!.translate('unfollow') : AppLocalizations.of(context)!.translate('follow'),
                             style: GoogleFonts.jost(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -800,7 +800,7 @@ class _FeedScreenState extends State<FeedScreen> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
               child: Text(
-                '$reactionsCount ${reactionsCount == 1 ? 'like' : 'likes'}',
+                '$reactionsCount ${reactionsCount == 1 ? AppLocalizations.of(context)!.translate('like') : AppLocalizations.of(context)!.translate('likes')}',
                 style: GoogleFonts.jost(
                   color: AppTheme.text1(context),
                   fontSize: 13,
@@ -848,7 +848,7 @@ class _FeedScreenState extends State<FeedScreen> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
               child: Text(
-                'View all $commentsCount comments',
+                AppLocalizations.of(context)!.translate('view_all_comments').replaceFirst('{count}', '$commentsCount'),
                 style: GoogleFonts.jost(
                   color: AppTheme.textMuted(context),
                   fontSize: 13,

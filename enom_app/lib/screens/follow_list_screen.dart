@@ -309,7 +309,7 @@ class _FollowListScreenState extends State<FollowListScreen> {
                       : null,
                 ),
                 child: Text(
-                  isFollowing ? 'Following' : 'Follow',
+                  isFollowing ? AppLocalizations.of(context)!.translate('unfollow') : AppLocalizations.of(context)!.translate('follow'),
                   style: GoogleFonts.jost(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,

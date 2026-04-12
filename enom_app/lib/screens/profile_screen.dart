@@ -15,6 +15,7 @@ import 'feed_screen.dart';
 import 'feed_reels_screen.dart';
 import 'follow_list_screen.dart';
 import 'likes_list_sheet.dart';
+import 'mood_history_screen.dart';
 import 'settings_screen.dart';
 import 'welcome_screen.dart';
 
@@ -204,33 +205,60 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     setState(() => _isLoading = true);
     try {
       final result = await AuthService.getProfile();
+      debugPrint('[PROFILE] success=${result.success}, user keys=${result.user?.keys.toList()}');
+      debugPrint('[PROFILE] user data=${result.user}');
       if (mounted && result.success && result.user != null) {
+        final user = result.user!;
         setState(() {
-          _user = result.user;
+          _user = user;
           _isLoading = false;
+          // Try to extract counts directly from profile response
+          _followersCount = _extractInt(user, 'followers_count') ??
+              _extractInt(user, 'followersCount') ??
+              _extractInt(user, 'followers') ??
+              0;
+          _followingCount = _extractInt(user, 'following_count') ??
+              _extractInt(user, 'followingCount') ??
+              _extractInt(user, 'following') ??
+              0;
         });
         _initControllers();
         _fetchFollowCounts();
       } else if (mounted) {
         setState(() => _isLoading = false);
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[PROFILE] error: $e');
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  int? _extractInt(Map<String, dynamic> map, String key) {
+    final val = map[key];
+    if (val == null) return null;
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    if (val is String) return int.tryParse(val);
+    if (val is List) return val.length; // if "followers" is a list
+    return null;
   }
 
   Future<void> _fetchFollowCounts() async {
     final userId = _user?['id'] as int?;
     if (userId == null) return;
     try {
+      // Try the dedicated follow-counts endpoint
       final result = await SocialService.getFollowCounts(userId);
+      debugPrint('[FOLLOW_COUNTS] success=${result.success}, followers=${result.followersCount}, following=${result.followingCount}');
       if (mounted && result.success) {
         setState(() {
           _followersCount = result.followersCount;
           _followingCount = result.followingCount;
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[FOLLOW_COUNTS] error: $e');
+    }
   }
 
   Future<void> _fetchInterests() async {
@@ -602,7 +630,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  'Menu',
+                  l10n.translate('menu'),
                   style: GoogleFonts.jost(
                     color: AppTheme.text1(context),
                     fontSize: 15,
@@ -696,7 +724,11 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     final userName = _user?['name'] as String? ?? '';
     final userUsername = _user?['username'] as String? ?? '';
     final bio = _user?['bio'] as String? ?? '';
-    final postsCount = _user?['posts_count'] as int? ?? _myPosts.length;
+    final postsCount = _extractInt(_user ?? {}, 'posts_count') ??
+        _extractInt(_user ?? {}, 'postsCount') ??
+        _extractInt(_user ?? {}, 'total_posts') ??
+        _extractInt(_user ?? {}, 'post_count') ??
+        (_myPosts.isNotEmpty ? _myPosts.length : 0);
 
     return Scaffold(
       backgroundColor: AppTheme.bg(context),
@@ -739,9 +771,9 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _buildStatItem('$postsCount', 'posts'),
-                        _buildStatItem('$_followersCount', 'followers', onTap: _openFollowersList),
-                        _buildStatItem('$_followingCount', 'following', onTap: _openFollowingList),
+                        _buildStatItem('$postsCount', l10n.translate('posts')),
+                        _buildStatItem('$_followersCount', l10n.translate('followers'), onTap: _openFollowersList),
+                        _buildStatItem('$_followingCount', l10n.translate('following'), onTap: _openFollowingList),
                       ],
                     ),
                   ),
@@ -798,7 +830,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          'Edit profile',
+                          l10n.translate('edit_profile_btn'),
                           style: GoogleFonts.jost(
                             color: AppTheme.text1(context),
                             fontSize: 14,
@@ -820,7 +852,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        'Share profile',
+                        l10n.translate('share_profile'),
                         style: GoogleFonts.jost(
                           color: AppTheme.text1(context),
                           fontSize: 14,
@@ -896,9 +928,11 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             const SizedBox(height: 20),
             AppTheme.goldDivider(context),
             const SizedBox(height: 20),
-            _buildMenuRow(Icons.analytics_outlined, 'Mood Analytics', onTap: () {}),
-            _buildMenuRow(Icons.notifications_outlined, 'Notifications', onTap: () {}),
-            _buildMenuRow(Icons.shield_outlined, 'Privacy & Security', onTap: () {}),
+            _buildMenuRow(Icons.analytics_outlined, l10n.translate('mood_analytics'), onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const MoodHistoryScreen()));
+            }),
+            _buildMenuRow(Icons.notifications_outlined, l10n.translate('notifications'), onTap: () {}),
+            _buildMenuRow(Icons.shield_outlined, l10n.translate('privacy_security'), onTap: () {}),
             _buildPremiumRow(),
             AppTheme.goldDivider(context),
             const SizedBox(height: 20),
@@ -915,7 +949,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             _buildInfoCard(Icons.lock_outline, l10n.translate('privacy_setting'), _privacyDisplay()),
             _buildChipsCard(Icons.video_library_outlined, l10n.translate('content_preferences'), _contentPrefsDisplay()),
             _buildChipsCard(Icons.language, l10n.translate('languages'), _languagesDisplay()),
-            _buildChipsCard(Icons.interests_outlined, 'Interests', _interestsDisplay()),
+            _buildChipsCard(Icons.interests_outlined, l10n.translate('interests'), _interestsDisplay()),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -947,7 +981,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       )
                     : const Icon(Icons.logout, size: 20, color: Colors.white),
                 label: Text(
-                  _isLoggingOut ? 'Logging out...' : l10n.translate('logout'),
+                  _isLoggingOut ? l10n.translate('logging_out') : l10n.translate('logout'),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -2022,7 +2056,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             border: Border.all(color: AppTheme.goldColor(context).withValues(alpha: 0.3)),
           ),
           child: Text(
-            'UPGRADE',
+            AppLocalizations.of(context)!.translate('upgrade'),
             style: GoogleFonts.dmSans(
               color: AppTheme.goldColor(context),
               fontSize: 10,
