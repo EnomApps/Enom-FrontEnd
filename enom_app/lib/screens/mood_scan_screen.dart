@@ -87,8 +87,9 @@ class _MoodScanScreenState extends State<MoodScanScreen>
 
       _cameraController = CameraController(
         frontCamera,
-        ResolutionPreset.medium,
+        ResolutionPreset.high,
         enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.jpeg,
       );
 
       await _cameraController!.initialize();
@@ -162,16 +163,16 @@ class _MoodScanScreenState extends State<MoodScanScreen>
 
       setState(() => _state = _ScanState.analyzing);
 
-      // Detect mood on-device using ML Kit
-      final result = await MoodDetectionService.detectMood(photo.path);
+      // Send image to mood detection API
+      final detection = await MoodDetectionService.detectMoodWithDetails(photo.path);
 
       if (mounted) {
-        if (result != null) {
+        if (detection.mood != null) {
           // Navigate to mood result screen
           final confirmedMood = await Navigator.push<MoodResult>(
             context,
             PageRouteBuilder(
-              pageBuilder: (_, __, ___) => MoodResultScreen(moodResult: result),
+              pageBuilder: (_, __, ___) => MoodResultScreen(moodResult: detection.mood!),
               transitionsBuilder: (_, animation, __, child) {
                 return FadeTransition(opacity: animation, child: child);
               },
@@ -179,17 +180,25 @@ class _MoodScanScreenState extends State<MoodScanScreen>
             ),
           );
           if (mounted) {
-            // Return the confirmed (or corrected) mood to the caller
             Navigator.pop(context, confirmedMood);
           }
         } else {
+          // Resume camera so user can retry
+          try {
+            await _cameraController?.resumePreview();
+          } catch (_) {}
           setState(() {
             _state = _ScanState.error;
-            _errorMessage = null; // Use default error message
+            // Show the actual API error to the user
+            _errorMessage = detection.error;
           });
         }
       }
     } catch (e) {
+      // Resume camera so user can retry
+      try {
+        await _cameraController?.resumePreview();
+      } catch (_) {}
       if (mounted) {
         setState(() {
           _state = _ScanState.error;
@@ -213,11 +222,32 @@ class _MoodScanScreenState extends State<MoodScanScreen>
   }
 
   void _retake() async {
-    // Resume camera preview
+    // Try to resume camera preview; if it fails, reinitialize
+    bool cameraReady = false;
     if (_cameraController != null && _cameraController!.value.isInitialized) {
       try {
         await _cameraController!.resumePreview();
-      } catch (_) {}
+        cameraReady = true;
+      } catch (_) {
+        // Resume failed — dispose and reinitialize
+        try {
+          await _cameraController!.dispose();
+        } catch (_) {}
+        _cameraController = null;
+      }
+    }
+
+    if (!cameraReady) {
+      // Reinitialize camera from scratch
+      setState(() {
+        _isCameraReady = false;
+        _state = _ScanState.preview;
+        _moodResult = null;
+        _errorMessage = null;
+        _countdownValue = 3;
+      });
+      await _initCamera();
+      return;
     }
 
     setState(() {

@@ -17,7 +17,10 @@
       "Bash(ls -la /c/Users/JOSEPH/Documents/GitHub/Enom-FrontEnd/enom_app/web/favicon.*)",
       "Bash(flutter analyze lib/screens/signup_screen.dart lib/screens/profile_screen.dart)",
       "Bash(grep -n \"'[A-Z][^']*'\" lib/screens/*.dart)",
-      "WebFetch(domain:52.221.249.30)"
+      "WebFetch(domain:52.221.249.30)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://52.221.249.30/api/v1/mood/health)",
+      "Bash(curl -s http://52.221.249.30/api/v1/mood/health)",
+      "Bash(curl -s -X POST http://52.221.249.30/api/v1/mood/detect -H 'Content-Type: application/json' -H 'Accept: application/json' -d '{\"image\": \"dGVzdA==\"}')"
     ]
   }
 }
