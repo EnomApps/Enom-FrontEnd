@@ -241,5 +241,19 @@
   "no_mood_data": "Pas encore de données d'humeur",
   "scan_to_start": "Scannez votre humeur pour commencer le suivi",
   "export_csv": "Exporter en CSV",
-  "view_history": "Voir l'historique"
+  "view_history": "Voir l'historique",
+  "exit_app": "Quitter l'application",
+  "exit_app_message": "Voulez-vous quitter ?",
+  "yes": "Oui",
+  "no": "Non",
+  "users": "Utilisateurs",
+  "hashtags_tab": "Hashtags",
+  "trending": "Tendances",
+  "no_results": "Aucun résultat trouvé",
+  "report": "Signaler",
+  "block_user": "Bloquer l'utilisateur",
+  "mark_all_read": "Tout marquer comme lu",
+  "no_notifications": "Pas encore de notifications",
+  "repost": "Republier",
+  "quote_repost": "Citer et republier"
 }

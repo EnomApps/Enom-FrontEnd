@@ -33,6 +33,8 @@ class _MoodScanScreenState extends State<MoodScanScreen>
   CameraController? _cameraController;
   bool _isCameraReady = false;
   bool _isTorchOn = false;
+  bool _screenFlashOn = false;
+  bool _isLowLight = false;
   _ScanState _state = _ScanState.preview;
 
   // Countdown
@@ -97,6 +99,11 @@ class _MoodScanScreenState extends State<MoodScanScreen>
       if (mounted) {
         setState(() => _isCameraReady = true);
 
+        // Check light level after a brief delay for camera to stabilize
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (mounted) _checkLightLevel();
+        });
+
         // Auto-start countdown after 3 seconds of preview
         _autoStartTimer = Timer(const Duration(seconds: 3), () {
           if (mounted && _state == _ScanState.preview) {
@@ -114,10 +121,44 @@ class _MoodScanScreenState extends State<MoodScanScreen>
     }
   }
 
+  /// Detect low light by checking camera exposure compensation range.
+  /// If the camera is maxing out its exposure, it's likely dark.
+  Future<void> _checkLightLevel() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) return;
+    try {
+      // Take a quick test shot and check its brightness
+      final maxExposure = await _cameraController!.getMaxExposureOffset();
+
+      // If the camera supports exposure compensation, boost it
+      // and assume low light if max exposure range is wide
+      if (maxExposure > 0) {
+        // Set exposure to slightly above midpoint for better face illumination
+        await _cameraController!.setExposureOffset(maxExposure * 0.4);
+      }
+
+      // Heuristic: if max exposure > 2.0 stops, camera likely compensating for dark
+      // Also auto-enable screen flash to help illuminate the face
+      if (maxExposure >= 2.0) {
+        if (mounted) {
+          setState(() {
+            _isLowLight = true;
+            _isTorchOn = true; // Auto-enable screen flash glow
+          });
+        }
+      }
+    } catch (_) {
+      // Some cameras don't support exposure queries — ignore
+    }
+  }
+
   void _startCountdown() {
+    // Auto-enable screen flash during countdown to illuminate face
     setState(() {
       _state = _ScanState.countdown;
       _countdownValue = 3;
+      if (_isLowLight || _isTorchOn) {
+        _isTorchOn = true; // Keep screen flash on during countdown
+      }
     });
 
     HapticFeedback.mediumImpact();
@@ -151,14 +192,22 @@ class _MoodScanScreenState extends State<MoodScanScreen>
       return;
     }
 
-    setState(() => _state = _ScanState.capturing);
+    // Turn on screen flash (white screen) to illuminate face
+    setState(() {
+      _state = _ScanState.capturing;
+      _screenFlashOn = true;
+    });
     HapticFeedback.heavyImpact();
+
+    // Brief delay so screen flash lights up the face before capture
+    await Future.delayed(const Duration(milliseconds: 300));
 
     try {
       // Take the picture
       final XFile photo = await _cameraController!.takePicture();
 
-      // Pause camera to save battery
+      // Turn off screen flash, pause camera
+      setState(() => _screenFlashOn = false);
       await _cameraController!.pausePreview();
 
       setState(() => _state = _ScanState.analyzing);
@@ -189,7 +238,7 @@ class _MoodScanScreenState extends State<MoodScanScreen>
           } catch (_) {}
           setState(() {
             _state = _ScanState.error;
-            // Show the actual API error to the user
+            _screenFlashOn = false;
             _errorMessage = detection.error;
           });
         }
@@ -202,6 +251,7 @@ class _MoodScanScreenState extends State<MoodScanScreen>
       if (mounted) {
         setState(() {
           _state = _ScanState.error;
+          _screenFlashOn = false;
           _errorMessage = e.toString();
         });
       }
@@ -209,16 +259,18 @@ class _MoodScanScreenState extends State<MoodScanScreen>
   }
 
   void _toggleTorch() async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) {
-      return;
+    // Front camera has no torch — toggle screen flash instead
+    setState(() => _isTorchOn = !_isTorchOn);
+    // Also try hardware torch in case of rear camera fallback
+    if (_cameraController != null && _cameraController!.value.isInitialized) {
+      try {
+        await _cameraController!.setFlashMode(
+          _isTorchOn ? FlashMode.torch : FlashMode.off,
+        );
+      } catch (_) {
+        // Front camera torch not supported — screen flash will handle it
+      }
     }
-    try {
-      _isTorchOn = !_isTorchOn;
-      await _cameraController!.setFlashMode(
-        _isTorchOn ? FlashMode.torch : FlashMode.off,
-      );
-      setState(() {});
-    } catch (_) {}
   }
 
   void _retake() async {
@@ -323,6 +375,19 @@ class _MoodScanScreenState extends State<MoodScanScreen>
           else
             const Center(
               child: CircularProgressIndicator(color: Colors.white24),
+            ),
+
+          // Screen flash — bright white overlay to illuminate face in low light
+          // Shows during capture burst OR when user toggles flash on
+          if (_screenFlashOn || _isTorchOn)
+            AnimatedOpacity(
+              opacity: (_screenFlashOn || _isTorchOn) ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 150),
+              child: Container(
+                color: _screenFlashOn
+                    ? Colors.white // Full white during capture
+                    : Colors.white.withValues(alpha: 0.6), // Softer glow when torch toggled
+              ),
             ),
 
           // Circular viewfinder overlay

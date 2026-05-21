@@ -241,5 +241,19 @@
   "no_mood_data": "Sem dados de humor ainda",
   "scan_to_start": "Escaneie seu humor para começar a rastrear",
   "export_csv": "Exportar como CSV",
-  "view_history": "Ver Histórico"
+  "view_history": "Ver Histórico",
+  "exit_app": "Sair do App",
+  "exit_app_message": "Deseja sair?",
+  "yes": "Sim",
+  "no": "Não",
+  "users": "Utilizadores",
+  "hashtags_tab": "Hashtags",
+  "trending": "Em alta",
+  "no_results": "Nenhum resultado encontrado",
+  "report": "Denunciar",
+  "block_user": "Bloquear usuário",
+  "mark_all_read": "Marcar tudo como lido",
+  "no_notifications": "Nenhuma notificação ainda",
+  "repost": "Republicar",
+  "quote_repost": "Citar e republicar"
 }

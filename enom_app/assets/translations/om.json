@@ -241,5 +241,19 @@
   "no_mood_data": "Hanga deetaan miiraa hin jiru",
   "scan_to_start": "Hordoffii jalqabuuf miira kee iskaanii",
   "export_csv": "CSV gochuun ergi",
-  "view_history": "Seenaa Ilaali"
+  "view_history": "Seenaa Ilaali",
+  "exit_app": "Appirraa Bahi",
+  "exit_app_message": "Bahuu barbaaddaa?",
+  "yes": "Eeyyee",
+  "no": "Lakki",
+  "users": "Fayyadamtoota",
+  "hashtags_tab": "Hashtags",
+  "trending": "Kan Jiru",
+  "no_results": "Bu'aan hin argamne",
+  "report": "Gabaasa",
+  "block_user": "Fayyadamaa ugguri",
+  "mark_all_read": "Hunda dubbifame godhi",
+  "no_notifications": "Ammaaf beeksisni hin jiru",
+  "repost": "Irra deebi'i maxxansi",
+  "quote_repost": "Caqasi irra deebi'i maxxansi"
 }

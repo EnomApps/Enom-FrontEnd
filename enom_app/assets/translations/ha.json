@@ -241,5 +241,19 @@
   "no_mood_data": "Babu bayanan yanayi tukuna",
   "scan_to_start": "Duba yanayin ku don fara bin diddigin",
   "export_csv": "Fitar da CSV",
-  "view_history": "Duba Tarihi"
+  "view_history": "Duba Tarihi",
+  "exit_app": "Fita daga App",
+  "exit_app_message": "Kuna son fita?",
+  "yes": "Eh",
+  "no": "A'a",
+  "users": "Masu amfani",
+  "hashtags_tab": "Hashtags",
+  "trending": "Abin da ke shahara",
+  "no_results": "Ba a sami sakamako ba",
+  "report": "Rahoto",
+  "block_user": "Toshe mai amfani",
+  "mark_all_read": "Yi wa duka alama an karanta",
+  "no_notifications": "Babu sanarwa har yanzu",
+  "repost": "Sake bugawa",
+  "quote_repost": "Ambato sake bugawa"
 }

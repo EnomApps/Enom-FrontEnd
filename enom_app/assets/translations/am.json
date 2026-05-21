@@ -241,5 +241,19 @@
   "no_mood_data": "እስካሁን የስሜት መረጃ የለም",
   "scan_to_start": "መከታተል ለመጀመር ስሜትዎን ይቃኙ",
   "export_csv": "CSV ሆኖ ላክ",
-  "view_history": "ታሪክ ይመልከቱ"
+  "view_history": "ታሪክ ይመልከቱ",
+  "exit_app": "ከመተግበሪያ ውጣ",
+  "exit_app_message": "መውጣት ይፈልጋሉ?",
+  "yes": "አዎ",
+  "no": "አይ",
+  "users": "ተጠቃሚዎች",
+  "hashtags_tab": "ሃሽታጎች",
+  "trending": "ትረንዲንግ",
+  "no_results": "ምንም ውጤት አልተገኘም",
+  "report": "ሪፖርት",
+  "block_user": "ተጠቃሚ አግድ",
+  "mark_all_read": "ሁሉንም እንደተነበበ ምልክት አድርግ",
+  "no_notifications": "እስካሁን ምንም ማሳወቂያዎች የሉም",
+  "repost": "ዳግም ልጥፍ",
+  "quote_repost": "ጥቅስ ዳግም ልጥፍ"
 }

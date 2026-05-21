@@ -241,5 +241,19 @@
   "no_mood_data": "Kò sí dátà ìmọ̀lára síbẹ̀",
   "scan_to_start": "Ṣayẹwo ìmọ̀lára rẹ láti bẹ̀rẹ̀ ìtọpinpin",
   "export_csv": "Gbé jáde bí CSV",
-  "view_history": "Wo Ìtàn"
+  "view_history": "Wo Ìtàn",
+  "exit_app": "Jáde kúrò nínú App",
+  "exit_app_message": "Ṣé o fẹ́ jáde?",
+  "yes": "Bẹ́ẹ̀ni",
+  "no": "Rárá",
+  "users": "Àwọn olùmúlò",
+  "hashtags_tab": "Hashtags",
+  "trending": "Ohun tí ń trend",
+  "no_results": "Kò sí àbájáde tí a rí",
+  "report": "Ròyìn",
+  "block_user": "Dínà olùmúlò",
+  "mark_all_read": "Samisi gbogbo bi a ti ka",
+  "no_notifications": "Ko si awọn ifitonileti sibẹsibẹ",
+  "repost": "Tún firanṣẹ",
+  "quote_repost": "Sọ asọye tún firanṣẹ"
 }

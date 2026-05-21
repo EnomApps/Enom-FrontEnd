@@ -241,5 +241,19 @@
   "no_mood_data": "Ingen humørdata ennå",
   "scan_to_start": "Skann humøret ditt for å begynne å spore",
   "export_csv": "Eksporter som CSV",
-  "view_history": "Se historikk"
+  "view_history": "Se historikk",
+  "exit_app": "Avslutt appen",
+  "exit_app_message": "Vil du avslutte?",
+  "yes": "Ja",
+  "no": "Nei",
+  "users": "Brukere",
+  "hashtags_tab": "Hashtags",
+  "trending": "Populært",
+  "no_results": "Ingen resultater funnet",
+  "report": "Rapporter",
+  "block_user": "Blokker bruker",
+  "mark_all_read": "Merk alle som lest",
+  "no_notifications": "Ingen varsler ennå",
+  "repost": "Del på nytt",
+  "quote_repost": "Sitat og del på nytt"
 }

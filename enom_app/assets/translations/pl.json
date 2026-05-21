@@ -241,5 +241,19 @@
   "no_mood_data": "Brak danych o nastroju",
   "scan_to_start": "Zeskanuj swój nastrój, aby rozpocząć śledzenie",
   "export_csv": "Eksportuj jako CSV",
-  "view_history": "Zobacz historię"
+  "view_history": "Zobacz historię",
+  "exit_app": "Zamknij aplikację",
+  "exit_app_message": "Czy chcesz wyjść?",
+  "yes": "Tak",
+  "no": "Nie",
+  "users": "Użytkownicy",
+  "hashtags_tab": "Hashtagi",
+  "trending": "Popularne",
+  "no_results": "Nie znaleziono wyników",
+  "report": "Zgłoś",
+  "block_user": "Zablokuj użytkownika",
+  "mark_all_read": "Oznacz wszystko jako przeczytane",
+  "no_notifications": "Brak powiadomień",
+  "repost": "Udostępnij ponownie",
+  "quote_repost": "Cytuj i udostępnij ponownie"
 }

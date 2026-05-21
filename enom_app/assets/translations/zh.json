@@ -241,5 +241,19 @@
   "no_mood_data": "暂无心情数据",
   "scan_to_start": "扫描你的心情以开始追踪",
   "export_csv": "导出为 CSV",
-  "view_history": "查看历史"
+  "view_history": "查看历史",
+  "exit_app": "退出应用",
+  "exit_app_message": "你要退出吗？",
+  "yes": "是",
+  "no": "否",
+  "users": "用户",
+  "hashtags_tab": "话题标签",
+  "trending": "热门",
+  "no_results": "未找到结果",
+  "report": "举报",
+  "block_user": "屏蔽用户",
+  "mark_all_read": "全部标为已读",
+  "no_notifications": "暂无通知",
+  "repost": "转发",
+  "quote_repost": "引用转发"
 }

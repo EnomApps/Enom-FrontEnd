@@ -241,5 +241,19 @@
   "no_mood_data": "気分データがまだありません",
   "scan_to_start": "気分をスキャンして追跡を開始しましょう",
   "export_csv": "CSVとしてエクスポート",
-  "view_history": "履歴を表示"
+  "view_history": "履歴を表示",
+  "exit_app": "アプリを終了",
+  "exit_app_message": "終了しますか？",
+  "yes": "はい",
+  "no": "いいえ",
+  "users": "ユーザー",
+  "hashtags_tab": "ハッシュタグ",
+  "trending": "トレンド",
+  "no_results": "結果が見つかりません",
+  "report": "報告",
+  "block_user": "ユーザーをブロック",
+  "mark_all_read": "すべて既読にする",
+  "no_notifications": "まだ通知はありません",
+  "repost": "リポスト",
+  "quote_repost": "引用リポスト"
 }

@@ -241,5 +241,19 @@
   "no_mood_data": "Meeleolu andmeid pole veel",
   "scan_to_start": "Skaneeri oma meeleolu jälgimise alustamiseks",
   "export_csv": "Ekspordi CSV-na",
-  "view_history": "Vaata ajalugu"
+  "view_history": "Vaata ajalugu",
+  "exit_app": "Välju rakendusest",
+  "exit_app_message": "Kas soovite väljuda?",
+  "yes": "Jah",
+  "no": "Ei",
+  "users": "Kasutajad",
+  "hashtags_tab": "Hashtag-id",
+  "trending": "Populaarsed",
+  "no_results": "Tulemusi ei leitud",
+  "report": "Teata",
+  "block_user": "Blokeeri kasutaja",
+  "mark_all_read": "Märgi kõik loetuks",
+  "no_notifications": "Teateid pole veel",
+  "repost": "Jaga uuesti",
+  "quote_repost": "Tsiteeri ja jaga uuesti"
 }

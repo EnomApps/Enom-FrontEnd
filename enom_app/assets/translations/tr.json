@@ -241,5 +241,19 @@
   "no_mood_data": "Henüz ruh hali verisi yok",
   "scan_to_start": "Takibe başlamak için ruh halinizi tarayın",
   "export_csv": "CSV olarak dışa aktar",
-  "view_history": "Geçmişi Görüntüle"
+  "view_history": "Geçmişi Görüntüle",
+  "exit_app": "Uygulamadan Çık",
+  "exit_app_message": "Çıkmak istiyor musunuz?",
+  "yes": "Evet",
+  "no": "Hayır",
+  "users": "Kullanıcılar",
+  "hashtags_tab": "Hashtagler",
+  "trending": "Gündem",
+  "no_results": "Sonuç bulunamadı",
+  "report": "Bildir",
+  "block_user": "Kullanıcıyı engelle",
+  "mark_all_read": "Tümünü okundu olarak işaretle",
+  "no_notifications": "Henüz bildirim yok",
+  "repost": "Yeniden paylaş",
+  "quote_repost": "Alıntı ve yeniden paylaş"
 }

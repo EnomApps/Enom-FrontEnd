@@ -241,5 +241,19 @@
   "no_mood_data": "Hakuna data ya hali bado",
   "scan_to_start": "Skani hali yako ili kuanza kufuatilia",
   "export_csv": "Hamisha kama CSV",
-  "view_history": "Tazama Historia"
+  "view_history": "Tazama Historia",
+  "exit_app": "Toka kwenye Programu",
+  "exit_app_message": "Je, unataka kutoka?",
+  "yes": "Ndiyo",
+  "no": "Hapana",
+  "users": "Watumiaji",
+  "hashtags_tab": "Hashtagi",
+  "trending": "Kinachoendelea",
+  "no_results": "Hakuna matokeo yaliyopatikana",
+  "report": "Ripoti",
+  "block_user": "Zuia mtumiaji",
+  "mark_all_read": "Weka alama zote zimesomwa",
+  "no_notifications": "Hakuna arifa bado",
+  "repost": "Chapisha tena",
+  "quote_repost": "Nukuu na chapisha tena"
 }

@@ -241,5 +241,19 @@
   "no_mood_data": "Aita roa he parau māna'o",
   "scan_to_start": "Hio i tō māna'o nō te hāmata i te māta'ita'i",
   "export_csv": "Fa'atere mai CSV",
-  "view_history": "Hi'o i te tārava"
+  "view_history": "Hi'o i te tārava",
+  "exit_app": "Haere atu i te App",
+  "exit_app_message": "Ua hinaaro oe e haere atu?",
+  "yes": "E",
+  "no": "Aita",
+  "users": "Mau taata faʻaaoga",
+  "hashtags_tab": "Hashtags",
+  "trending": "Taʻa rahi",
+  "no_results": "Aita e hopea i itea",
+  "report": "Faʻaara",
+  "block_user": "Tāpū i te taata",
+  "mark_all_read": "Faʻaʻite i te mau mea atoa ua tai",
+  "no_notifications": "Aore roa atu e faʻaaraga",
+  "repost": "Faʻahou te parau",
+  "quote_repost": "Tāpura faʻahou te parau"
 }

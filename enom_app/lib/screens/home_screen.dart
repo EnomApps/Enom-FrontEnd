@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../l10n/app_localizations.dart';
@@ -11,6 +12,7 @@ import '../services/mood_history_service.dart';
 import 'camera_permission_screen.dart';
 import 'mood_history_screen.dart';
 import 'mood_scan_screen.dart';
+import 'notification_screen.dart';
 import '../theme/app_theme.dart';
 import 'welcome_screen.dart';
 import 'profile_screen.dart';
@@ -144,35 +146,96 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    return Scaffold(
-      backgroundColor: AppTheme.bg(context),
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        title: Row(
-          children: [
-            AppTheme.logo(context, size: 36),
-            const SizedBox(width: 10),
-            Text(
-              'ENOM',
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        // If not on the first tab, go to first tab instead of exiting
+        if (_currentIndex != 0) {
+          setState(() => _currentIndex = 0);
+          return;
+        }
+        // Show exit confirmation dialog
+        final shouldExit = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: AppTheme.bg(context),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text(
+              l10n.translate('exit_app'),
               style: GoogleFonts.cormorantGaramond(
                 color: AppTheme.text1(context),
                 fontSize: 22,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 6,
+                fontWeight: FontWeight.w600,
               ),
             ),
+            content: Text(
+              l10n.translate('exit_app_message'),
+              style: GoogleFonts.jost(
+                color: AppTheme.text2(context),
+                fontSize: 15,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(
+                  l10n.translate('no'),
+                  style: GoogleFonts.jost(color: AppTheme.textMuted(context)),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(
+                  l10n.translate('yes'),
+                  style: GoogleFonts.jost(color: AppTheme.goldColor(context), fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        );
+        if (shouldExit == true) {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.bg(context),
+        extendBodyBehindAppBar: true,
+        appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(40),
+        child: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          toolbarHeight: 40,
+          automaticallyImplyLeading: false,
+          title: Row(
+            children: [
+              AppTheme.logo(context, size: 24),
+              const SizedBox(width: 8),
+              Text(
+                'ENOM',
+                style: GoogleFonts.cormorantGaramond(
+                  color: AppTheme.text1(context),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 5,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.notifications_outlined,
+                  color: AppTheme.text2(context), size: 22),
+              onPressed: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const NotificationScreen())),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            ),
+            const SizedBox(width: 4),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.notifications_outlined,
-                color: AppTheme.text2(context)),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: _isLoggingOut
           ? Center(
@@ -248,6 +311,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
       ),
+    ),
     );
   }
 

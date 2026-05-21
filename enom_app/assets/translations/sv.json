@@ -241,5 +241,19 @@
   "no_mood_data": "Ingen humördata ännu",
   "scan_to_start": "Skanna ditt humör för att börja spåra",
   "export_csv": "Exportera som CSV",
-  "view_history": "Visa historik"
+  "view_history": "Visa historik",
+  "exit_app": "Avsluta appen",
+  "exit_app_message": "Vill du avsluta?",
+  "yes": "Ja",
+  "no": "Nej",
+  "users": "Användare",
+  "hashtags_tab": "Hashtags",
+  "trending": "Trendande",
+  "no_results": "Inga resultat hittades",
+  "report": "Rapportera",
+  "block_user": "Blockera användare",
+  "mark_all_read": "Markera alla som lästa",
+  "no_notifications": "Inga aviseringar ännu",
+  "repost": "Dela igen",
+  "quote_repost": "Citera och dela igen"
 }

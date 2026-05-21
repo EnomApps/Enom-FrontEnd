@@ -241,5 +241,19 @@
   "no_mood_data": "Ei vielä mieliala­tietoja",
   "scan_to_start": "Skannaa mielialasi aloittaaksesi seurannan",
   "export_csv": "Vie CSV-tiedostona",
-  "view_history": "Näytä historia"
+  "view_history": "Näytä historia",
+  "exit_app": "Sulje sovellus",
+  "exit_app_message": "Haluatko poistua?",
+  "yes": "Kyllä",
+  "no": "Ei",
+  "users": "Käyttäjät",
+  "hashtags_tab": "Hashtagit",
+  "trending": "Suositut",
+  "no_results": "Tuloksia ei löytynyt",
+  "report": "Ilmianna",
+  "block_user": "Estä käyttäjä",
+  "mark_all_read": "Merkitse kaikki luetuiksi",
+  "no_notifications": "Ei vielä ilmoituksia",
+  "repost": "Jaa uudelleen",
+  "quote_repost": "Lainaus ja uudelleenjako"
 }

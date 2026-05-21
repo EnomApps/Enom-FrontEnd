@@ -241,5 +241,19 @@
   "no_mood_data": "Nessun dato sull'umore ancora",
   "scan_to_start": "Scansiona il tuo umore per iniziare a monitorare",
   "export_csv": "Esporta come CSV",
-  "view_history": "Visualizza cronologia"
+  "view_history": "Visualizza cronologia",
+  "exit_app": "Esci dall'app",
+  "exit_app_message": "Vuoi uscire?",
+  "yes": "Sì",
+  "no": "No",
+  "users": "Utenti",
+  "hashtags_tab": "Hashtag",
+  "trending": "Di tendenza",
+  "no_results": "Nessun risultato trovato",
+  "report": "Segnala",
+  "block_user": "Blocca utente",
+  "mark_all_read": "Segna tutto come letto",
+  "no_notifications": "Nessuna notifica ancora",
+  "repost": "Ripubblica",
+  "quote_repost": "Cita e ripubblica"
 }

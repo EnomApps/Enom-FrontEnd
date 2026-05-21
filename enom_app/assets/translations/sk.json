@@ -241,5 +241,19 @@
   "no_mood_data": "Zatiaľ žiadne údaje o nálade",
   "scan_to_start": "Naskenujte svoju náladu a začnite sledovať",
   "export_csv": "Exportovať ako CSV",
-  "view_history": "Zobraziť históriu"
+  "view_history": "Zobraziť históriu",
+  "exit_app": "Ukončiť aplikáciu",
+  "exit_app_message": "Chcete ukončiť?",
+  "yes": "Áno",
+  "no": "Nie",
+  "users": "Používatelia",
+  "hashtags_tab": "Hashtagy",
+  "trending": "Populárne",
+  "no_results": "Neboli nájdené žiadne výsledky",
+  "report": "Nahlásiť",
+  "block_user": "Zablokovať používateľa",
+  "mark_all_read": "Označiť všetko ako prečítané",
+  "no_notifications": "Zatiaľ žiadne oznámenia",
+  "repost": "Zdieľať znovu",
+  "quote_repost": "Citovať a zdieľať znovu"
 }

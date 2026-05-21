@@ -241,5 +241,19 @@
   "no_mood_data": "Seidauk iha dadus sentimentu",
   "scan_to_start": "Skena ita-nia sentimentu hodi hahú monitoriza",
   "export_csv": "Esporta hanesan CSV",
-  "view_history": "Haree istória"
+  "view_history": "Haree istória",
+  "exit_app": "Sai husi App",
+  "exit_app_message": "Ita hakarak sai ka?",
+  "yes": "Sin",
+  "no": "Lae",
+  "users": "Utilizadór sira",
+  "hashtags_tab": "Hashtags",
+  "trending": "Populár",
+  "no_results": "Rezultadu ida la hetan",
+  "report": "Relatóriu",
+  "block_user": "Blokeia uzuáriu",
+  "mark_all_read": "Marka hotu hanesan lee ona",
+  "no_notifications": "Seidauk iha notifikasaun",
+  "repost": "Publika fali",
+  "quote_repost": "Sita no publika fali"
 }

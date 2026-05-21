@@ -241,5 +241,19 @@
   "no_mood_data": "Akukho idatha yesimo sengqondo okwamanje",
   "scan_to_start": "Skena isimo sakho sengqondo ukuze uqale ukulandelela",
   "export_csv": "Thumela njenge-CSV",
-  "view_history": "Buka Umlando"
+  "view_history": "Buka Umlando",
+  "exit_app": "Phuma ku-App",
+  "exit_app_message": "Ufuna ukuphuma?",
+  "yes": "Yebo",
+  "no": "Cha",
+  "users": "Abasebenzisi",
+  "hashtags_tab": "Ama-Hashtag",
+  "trending": "Okudumile",
+  "no_results": "Ayikho imiphumela etholakele",
+  "report": "Bika",
+  "block_user": "Vimba umsebenzisi",
+  "mark_all_read": "Phawula konke njengokufundiwe",
+  "no_notifications": "Azikho izaziso okwamanje",
+  "repost": "Phinda uthumele",
+  "quote_repost": "Caphuna uphinde uthumele"
 }

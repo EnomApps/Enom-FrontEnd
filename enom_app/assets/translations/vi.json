@@ -241,5 +241,19 @@
   "no_mood_data": "Chưa có dữ liệu tâm trạng",
   "scan_to_start": "Quét tâm trạng của bạn để bắt đầu theo dõi",
   "export_csv": "Xuất dưới dạng CSV",
-  "view_history": "Xem lịch sử"
+  "view_history": "Xem lịch sử",
+  "exit_app": "Thoát ứng dụng",
+  "exit_app_message": "Bạn có muốn thoát không?",
+  "yes": "Có",
+  "no": "Không",
+  "users": "Người dùng",
+  "hashtags_tab": "Hashtag",
+  "trending": "Xu hướng",
+  "no_results": "Không tìm thấy kết quả",
+  "report": "Báo cáo",
+  "block_user": "Chặn người dùng",
+  "mark_all_read": "Đánh dấu tất cả đã đọc",
+  "no_notifications": "Chưa có thông báo nào",
+  "repost": "Đăng lại",
+  "quote_repost": "Trích dẫn đăng lại"
 }

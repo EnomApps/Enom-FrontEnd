@@ -241,5 +241,19 @@
   "no_mood_data": "Ende nuk ka të dhëna humori",
   "scan_to_start": "Skanoni humorin tuaj për të filluar gjurmimin",
   "export_csv": "Eksporto si CSV",
-  "view_history": "Shiko historikun"
+  "view_history": "Shiko historikun",
+  "exit_app": "Dil nga aplikacioni",
+  "exit_app_message": "Dëshironi të dilni?",
+  "yes": "Po",
+  "no": "Jo",
+  "users": "Përdoruesit",
+  "hashtags_tab": "Hashtags",
+  "trending": "Në trend",
+  "no_results": "Nuk u gjetën rezultate",
+  "report": "Raporto",
+  "block_user": "Blloko përdoruesin",
+  "mark_all_read": "Shëno të gjitha si të lexuara",
+  "no_notifications": "Ende nuk ka njoftime",
+  "repost": "Ripubliko",
+  "quote_repost": "Cito dhe ripubliko"
 }

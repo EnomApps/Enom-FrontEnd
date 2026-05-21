@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
+import '../services/block_report_service.dart';
 import '../services/post_service.dart';
 import '../services/social_service.dart';
 import '../theme/app_theme.dart';
@@ -142,6 +143,47 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         ),
         title: Text(name, style: AppTheme.label(context, size: 12)),
         centerTitle: true,
+        actions: [
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert, color: AppTheme.text1(context), size: 22),
+            color: AppTheme.bg2(context),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            onSelected: (value) {
+              final userId = _user['id'] as int?;
+              if (userId == null) return;
+              if (value == 'block') {
+                BlockReportService.toggleBlock(userId).then((r) {
+                  if (mounted && r.success) {
+                    AppTheme.showSnackBar(context, r.message);
+                    if (r.isBlocked) Navigator.pop(context);
+                  }
+                });
+              } else if (value == 'report') {
+                BlockReportService.report(type: 'user', id: userId, reason: 'other').then((r) {
+                  if (mounted) AppTheme.showSnackBar(context, r.message);
+                });
+              }
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'report',
+                child: Row(children: [
+                  Icon(Icons.flag_outlined, color: Colors.orangeAccent, size: 18),
+                  const SizedBox(width: 8),
+                  Text(l10n.translate('report'), style: TextStyle(color: AppTheme.text1(context))),
+                ]),
+              ),
+              PopupMenuItem(
+                value: 'block',
+                child: Row(children: [
+                  const Icon(Icons.block, color: Colors.redAccent, size: 18),
+                  const SizedBox(width: 8),
+                  Text(l10n.translate('block_user'), style: TextStyle(color: AppTheme.text1(context))),
+                ]),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Stack(
         children: [

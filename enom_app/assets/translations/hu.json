@@ -241,5 +241,19 @@
   "no_mood_data": "Még nincsenek hangulatadatok",
   "scan_to_start": "Szkenneld be a hangulatodat a követés megkezdéséhez",
   "export_csv": "Exportálás CSV-ként",
-  "view_history": "Előzmények megtekintése"
+  "view_history": "Előzmények megtekintése",
+  "exit_app": "Kilépés az alkalmazásból",
+  "exit_app_message": "Ki szeretne lépni?",
+  "yes": "Igen",
+  "no": "Nem",
+  "users": "Felhasználók",
+  "hashtags_tab": "Hashtagek",
+  "trending": "Népszerű",
+  "no_results": "Nincs találat",
+  "report": "Jelentés",
+  "block_user": "Felhasználó letiltása",
+  "mark_all_read": "Összes olvasottnak jelölése",
+  "no_notifications": "Még nincsenek értesítések",
+  "repost": "Újraposztolás",
+  "quote_repost": "Idézet újraposztolás"
 }

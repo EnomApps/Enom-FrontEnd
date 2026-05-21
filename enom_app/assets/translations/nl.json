@@ -241,5 +241,19 @@
   "no_mood_data": "Nog geen stemmingsgegevens",
   "scan_to_start": "Scan je stemming om te beginnen met bijhouden",
   "export_csv": "Exporteren als CSV",
-  "view_history": "Geschiedenis bekijken"
+  "view_history": "Geschiedenis bekijken",
+  "exit_app": "App afsluiten",
+  "exit_app_message": "Wilt u afsluiten?",
+  "yes": "Ja",
+  "no": "Nee",
+  "users": "Gebruikers",
+  "hashtags_tab": "Hashtags",
+  "trending": "Trending",
+  "no_results": "Geen resultaten gevonden",
+  "report": "Melden",
+  "block_user": "Gebruiker blokkeren",
+  "mark_all_read": "Alles als gelezen markeren",
+  "no_notifications": "Nog geen meldingen",
+  "repost": "Opnieuw plaatsen",
+  "quote_repost": "Citaat herplaatsen"
 }

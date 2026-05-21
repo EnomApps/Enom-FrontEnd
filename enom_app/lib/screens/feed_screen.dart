@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import '../services/api_service.dart';
+import '../services/block_report_service.dart';
 import '../services/post_service.dart';
 import '../services/social_service.dart';
 import '../services/upload_manager.dart';
@@ -329,6 +330,52 @@ class _FeedScreenState extends State<FeedScreen> {
     if (result.success && mounted) {
       setState(() => _posts.removeAt(index));
       AppTheme.showSnackBar(context, AppLocalizations.of(context)!.translate('post_deleted'));
+    }
+  }
+
+  void _showReportDialog(int contentId, String type) {
+    final l10n = AppLocalizations.of(context)!;
+    final reasons = ['spam', 'harassment', 'nudity', 'violence', 'misinformation', 'other'];
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.bg(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(
+              color: AppTheme.textMuted(context), borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            Text(l10n.translate('report'), style: GoogleFonts.jost(
+              color: AppTheme.text1(context), fontSize: 16, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 16),
+            ...reasons.map((r) => ListTile(
+              title: Text(r[0].toUpperCase() + r.substring(1),
+                  style: GoogleFonts.jost(color: AppTheme.text1(context), fontSize: 14)),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final result = await BlockReportService.report(type: type, id: contentId, reason: r);
+                if (mounted) {
+                  AppTheme.showSnackBar(context, result.message);
+                }
+              },
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _blockUser(int userId, int postIndex) async {
+    final result = await BlockReportService.toggleBlock(userId);
+    if (mounted && result.success) {
+      AppTheme.showSnackBar(context, result.message);
+      // Remove blocked user's post from feed
+      setState(() => _posts.removeAt(postIndex));
     }
   }
 
@@ -702,9 +749,43 @@ class _FeedScreenState extends State<FeedScreen> {
                       ],
                 )
               else
-                GestureDetector(
-                  onTap: () {},
-                  child: Icon(Icons.more_vert, color: AppTheme.text1(context), size: 20),
+                PopupMenuButton<String>(
+                  icon: Icon(Icons.more_vert, color: AppTheme.text1(context), size: 20),
+                  color: AppTheme.bg2(context),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  onSelected: (value) {
+                    final postId = post['id'] as int;
+                    final userId = user['id'] as int?;
+                    if (value == 'report') {
+                      _showReportDialog(postId, 'post');
+                    } else if (value == 'block' && userId != null) {
+                      _blockUser(userId, index);
+                    }
+                  },
+                  itemBuilder: (ctx) => [
+                    PopupMenuItem(
+                      value: 'report',
+                      child: Row(
+                        children: [
+                          Icon(Icons.flag_outlined, color: Colors.orangeAccent, size: 18),
+                          const SizedBox(width: 8),
+                          Text(AppLocalizations.of(context)!.translate('report'),
+                              style: TextStyle(color: AppTheme.text1(context))),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'block',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.block, color: Colors.redAccent, size: 18),
+                          const SizedBox(width: 8),
+                          Text(AppLocalizations.of(context)!.translate('block_user'),
+                              style: TextStyle(color: AppTheme.text1(context))),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
             ],
           ),

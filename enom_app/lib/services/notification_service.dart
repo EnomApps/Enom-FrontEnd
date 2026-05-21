@@ -1,12 +1,12 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'notification_api_service.dart';
 
 class NotificationService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
-  /// Initialize notifications: request permission, get token, listen to messages.
+  /// Initialize notifications: request permission, get token, register with backend.
   static Future<void> init() async {
-    // Request permission (iOS + Web need this, Android 13+ also needs it)
     final settings = await _messaging.requestPermission(
       alert: true,
       badge: true,
@@ -14,34 +14,46 @@ class NotificationService {
     );
     debugPrint('[FCM] Permission: ${settings.authorizationStatus}');
 
-    // Get FCM token
+    // Get FCM token and register with backend
     final token = await _messaging.getToken();
     debugPrint('[FCM] Token: $token');
+    if (token != null) {
+      await NotificationApiService.registerDeviceToken(
+        token,
+        platform: defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android',
+      );
+    }
 
-    // TODO: Send this token to your backend API so it can send push notifications
-    // e.g. PostService.registerFcmToken(token);
-
-    // Listen for token refresh
+    // Listen for token refresh — re-register with backend
     _messaging.onTokenRefresh.listen((newToken) {
       debugPrint('[FCM] Token refreshed: $newToken');
-      // TODO: Update token on backend
+      NotificationApiService.registerDeviceToken(
+        newToken,
+        platform: defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android',
+      );
     });
 
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      debugPrint('[FCM] Foreground message: ${message.notification?.title} - ${message.notification?.body}');
-      // TODO: Show local notification or in-app banner
+      debugPrint('[FCM] Foreground: ${message.notification?.title}');
     });
 
-    // Handle when user taps notification (app in background)
+    // Handle notification tap (app in background)
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      debugPrint('[FCM] Notification tapped: ${message.data}');
-      // TODO: Navigate to relevant screen based on message.data
+      debugPrint('[FCM] Tapped: ${message.data}');
     });
   }
 
   /// Get the current FCM token.
   static Future<String?> getToken() async {
     return await _messaging.getToken();
+  }
+
+  /// Remove device token on logout.
+  static Future<void> removeToken() async {
+    final token = await _messaging.getToken();
+    if (token != null) {
+      await NotificationApiService.removeDeviceToken(token);
+    }
   }
 }

@@ -241,5 +241,19 @@
   "no_mood_data": "Wala pang mood data",
   "scan_to_start": "I-scan ang iyong mood para magsimulang mag-track",
   "export_csv": "I-export bilang CSV",
-  "view_history": "Tingnan ang Kasaysayan"
+  "view_history": "Tingnan ang Kasaysayan",
+  "exit_app": "Lumabas sa App",
+  "exit_app_message": "Gusto mo bang lumabas?",
+  "yes": "Oo",
+  "no": "Hindi",
+  "users": "Mga Gumagamit",
+  "hashtags_tab": "Mga Hashtag",
+  "trending": "Trending",
+  "no_results": "Walang nakitang resulta",
+  "report": "Iulat",
+  "block_user": "I-block ang user",
+  "mark_all_read": "Markahan lahat bilang nabasa",
+  "no_notifications": "Wala pang mga notipikasyon",
+  "repost": "I-repost",
+  "quote_repost": "Quote Repost"
 }

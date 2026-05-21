@@ -241,5 +241,19 @@
   "no_mood_data": "E leai ni fa'amaumauga o lagona",
   "scan_to_start": "Siaki lou lagona e amata ai le su'esu'ega",
   "export_csv": "Fa'aulufale e pei o CSV",
-  "view_history": "Va'ai tala"
+  "view_history": "Va'ai tala",
+  "exit_app": "Alu ese mai le App",
+  "exit_app_message": "E te mana'o e alu ese?",
+  "yes": "Ioe",
+  "no": "Leai",
+  "users": "Tagata faʻaaoga",
+  "hashtags_tab": "Hashtags",
+  "trending": "Lauiloa",
+  "no_results": "E leai ni faʻaiʻuga maua",
+  "report": "Lipoti",
+  "block_user": "Poloka le tagata",
+  "mark_all_read": "Faailoga uma ua faitau",
+  "no_notifications": "E leai ni faasilasilaga",
+  "repost": "Toe faasalalau",
+  "quote_repost": "Tala toe faasalalau"
 }

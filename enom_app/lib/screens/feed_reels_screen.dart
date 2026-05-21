@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
-import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../services/social_service.dart';
@@ -439,7 +438,6 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final user = widget.post['user'] as Map<String, dynamic>? ?? {};
     final userName = user['name'] as String? ?? 'Anonymous';
     final userAvatar = (user['profile_image_url'] ?? user['profile_image']) as String?;
@@ -474,19 +472,19 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
             ),
           ),
 
-          // Top gradient
+          // Top gradient — minimal to maximize reel visibility
           Positioned(
             top: 0,
             left: 0,
             right: 0,
-            height: 120,
+            height: 60,
             child: Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black54,
+                    Colors.black38,
                     Colors.transparent,
                   ],
                 ),
@@ -515,75 +513,59 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
               ),
             ),
 
-          // ── Right side action buttons (TikTok style) ──
+          // ── Right side action buttons (compact, TikTok/Reels style) ──
           Positioned(
-            right: 12,
-            bottom: 120 + widget.bottomPadding,
+            right: 10,
+            bottom: 80 + widget.bottomPadding,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Profile avatar
                 _buildProfileAvatar(userAvatar, userName),
-                const SizedBox(height: 24),
+                const SizedBox(height: 18),
 
-                // Like button — icon toggles like, count opens likes list
-                GestureDetector(
+                // Like
+                _buildCompactAction(
+                  icon: _isLiked ? Icons.favorite : Icons.favorite_border,
+                  label: _likesCount > 0 ? _formatCount(_likesCount) : '',
+                  color: _isLiked ? Colors.redAccent : Colors.white,
                   onTap: _toggleLike,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _isLiked ? Icons.favorite : Icons.favorite_border,
-                        size: 32,
-                        color: _isLiked ? Colors.redAccent : Colors.white,
-                      ),
-                      const SizedBox(height: 4),
-                      GestureDetector(
-                        onTap: _likesCount > 0
-                            ? () => LikesListSheet.show(
-                                  context,
-                                  widget.post['id'] as int,
-                                  darkMode: true,
-                                )
-                            : null,
-                        child: Text(
-                          _formatCount(_likesCount),
-                          style: GoogleFonts.jost(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
 
-                // Comment button
-                _buildActionButton(
+                // Comment
+                _buildCompactAction(
                   icon: Icons.chat_bubble_outline_rounded,
-                  label: _formatCount(_commentsCount),
+                  label: _commentsCount > 0 ? _formatCount(_commentsCount) : '',
                   color: Colors.white,
                   onTap: () => widget.onCommentTap(() {
                     if (mounted) setState(() => _commentsCount += 1);
                   }),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
 
-                // Save/Bookmark button
-                _buildActionButton(
+                // Messaging
+                _buildCompactAction(
+                  icon: Icons.send_outlined,
+                  label: '',
+                  color: Colors.white,
+                  onTap: () {},
+                ),
+                const SizedBox(height: 14),
+
+                // Save/Bookmark
+                _buildCompactAction(
                   icon: _isSaved ? Icons.bookmark : Icons.bookmark_border,
-                  label: _isSaved ? l10n.translate('saved') : l10n.translate('save'),
+                  label: '',
                   color: _isSaved ? AppTheme.gold1 : Colors.white,
                   onTap: _toggleSave,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
 
-                // Share button
-                _buildActionButton(
+                // Share
+                _buildCompactAction(
                   icon: Icons.share_outlined,
-                  label: l10n.translate('share'),
+                  label: '',
                   color: Colors.white,
                   onTap: () => ShareSheet.show(
                     context,
@@ -591,26 +573,34 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                     darkMode: true,
                   ),
                 ),
+                const SizedBox(height: 14),
 
-                // Views count
-                if (_viewsCount > 0) ...[
-                  const SizedBox(height: 20),
-                  _buildActionButton(
+                // Views (eye icon)
+                if (_viewsCount > 0)
+                  _buildCompactAction(
                     icon: Icons.visibility_outlined,
                     label: _formatCount(_viewsCount),
                     color: Colors.white,
                     onTap: () {},
                   ),
-                ],
+                if (_viewsCount > 0) const SizedBox(height: 14),
+
+                // Dating / Connect
+                _buildCompactAction(
+                  icon: Icons.local_fire_department_outlined,
+                  label: '',
+                  color: Colors.orangeAccent,
+                  onTap: () {},
+                ),
               ],
             ),
           ),
 
           // ── Bottom user info & caption ──
           Positioned(
-            left: 16,
-            right: 80,
-            bottom: 40 + widget.bottomPadding,
+            left: 14,
+            right: 56,
+            bottom: 50 + widget.bottomPadding,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -816,13 +806,13 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
         alignment: Alignment.bottomCenter,
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
                 color: _isFollowing ? AppTheme.gold1 : Colors.white,
-                width: 2,
+                width: 1.5,
               ),
             ),
             child: ClipOval(
@@ -831,15 +821,15 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                       avatarUrl.startsWith('http')
                           ? avatarUrl
                           : '${ApiService.baseUrl}/$avatarUrl',
-                      width: 48,
-                      height: 48,
+                      width: 36,
+                      height: 36,
                       fit: BoxFit.cover,
-                      cacheWidth: 144,
+                      cacheWidth: 108,
                       loadingBuilder: (_, child, progress) {
                         if (progress == null) return child;
                         return Container(
-                          width: 48,
-                          height: 48,
+                          width: 36,
+                          height: 36,
                           color: Colors.grey[800],
                           child: const Center(
                             child: SizedBox(
@@ -854,25 +844,25 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                         );
                       },
                       errorBuilder: (_, __, ___) => Container(
-                        width: 48,
-                        height: 48,
+                        width: 36,
+                        height: 36,
                         color: Colors.grey[800],
                         child: Center(
                           child: Text(
                             name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                            style: GoogleFonts.jost(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                            style: GoogleFonts.jost(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
                           ),
                         ),
                       ),
                     )
                   : Container(
-                      width: 48,
-                      height: 48,
+                      width: 36,
+                      height: 36,
                       color: Colors.grey[800],
                       child: Center(
                         child: Text(
                           name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                          style: GoogleFonts.jost(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                          style: GoogleFonts.jost(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),
@@ -903,7 +893,8 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
   }
 
 
-  Widget _buildActionButton({
+  /// Compact action button — smaller icon + optional count label.
+  Widget _buildCompactAction({
     required IconData icon,
     required String label,
     required Color color,
@@ -914,16 +905,18 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 32, color: color),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: GoogleFonts.jost(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+          Icon(icon, size: 24, color: color),
+          if (label.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: GoogleFonts.jost(
+                color: Colors.white70,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

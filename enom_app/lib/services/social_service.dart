@@ -228,4 +228,60 @@ class SocialService {
     final count = body is Map ? (body['views_count'] ?? body['views'] ?? body['count'] ?? 0) : 0;
     return (success: status == 200, viewsCount: count is int ? count : int.tryParse(count.toString()) ?? 0);
   }
+
+  /// GET /api/users/{userId}/profile — View another user's public profile.
+  static Future<({bool success, Map<String, dynamic>? user})> getUserProfile(int userId) async {
+    final result = await ApiService.get('/api/users/$userId/profile', auth: true);
+    final status = result['statusCode'] as int;
+    final body = result['body'];
+    if (status == 200 && body is Map<String, dynamic>) {
+      final user = body['user'] as Map<String, dynamic>? ?? body;
+      return (success: true, user: user);
+    }
+    return (success: false, user: null);
+  }
+
+  /// GET /api/users/{userId}/share-link — Get shareable profile link.
+  static Future<String?> getProfileShareLink(int userId) async {
+    final result = await ApiService.get('/api/users/$userId/share-link', auth: true);
+    if ((result['statusCode'] as int) == 200) {
+      final body = result['body'];
+      if (body is Map) {
+        return body['share_url'] as String? ?? body['link'] as String?;
+      }
+    }
+    return null;
+  }
+
+  /// GET /api/languages — Get server-side supported languages.
+  static Future<List<Map<String, dynamic>>> getLanguages({String? region}) async {
+    var url = '/api/languages';
+    if (region != null) url += '?region=$region';
+    final result = await ApiService.get(url);
+    if ((result['statusCode'] as int) == 200) {
+      final body = result['body'];
+      if (body is Map && body['data'] is List) {
+        return (body['data'] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      if (body is List) {
+        return body.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+    }
+    return [];
+  }
+
+  /// GET /api/languages/regions — Get language regions.
+  static Future<List<String>> getLanguageRegions() async {
+    final result = await ApiService.get('/api/languages/regions');
+    if ((result['statusCode'] as int) == 200) {
+      final body = result['body'];
+      if (body is Map && body['data'] is List) {
+        return (body['data'] as List).map((e) => e.toString()).toList();
+      }
+      if (body is List) {
+        return body.map((e) => e.toString()).toList();
+      }
+    }
+    return [];
+  }
 }

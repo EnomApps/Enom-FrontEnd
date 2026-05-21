@@ -241,5 +241,19 @@
   "no_mood_data": "אין עדיין נתוני מצב רוח",
   "scan_to_start": "סרוק את מצב הרוח שלך כדי להתחיל לעקוב",
   "export_csv": "ייצוא כ-CSV",
-  "view_history": "הצג היסטוריה"
+  "view_history": "הצג היסטוריה",
+  "exit_app": "יציאה מהאפליקציה",
+  "exit_app_message": "האם ברצונך לצאת?",
+  "yes": "כן",
+  "no": "לא",
+  "users": "משתמשים",
+  "hashtags_tab": "האשטגים",
+  "trending": "מגמות",
+  "no_results": "לא נמצאו תוצאות",
+  "report": "דיווח",
+  "block_user": "חסום משתמש",
+  "mark_all_read": "סמן הכל כנקרא",
+  "no_notifications": "אין עדיין התראות",
+  "repost": "פרסום מחדש",
+  "quote_repost": "ציטוט ופרסום מחדש"
 }

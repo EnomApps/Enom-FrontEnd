@@ -78,9 +78,24 @@ class _MoodHistoryScreenState extends State<MoodHistoryScreen>
   }
 
   Future<void> _loadTrends() async {
-    final t7 = await MoodHistoryService.getTrendScores(7);
-    final t30 = await MoodHistoryService.getTrendScores(30);
+    // Try API analytics first, fall back to local
+    final api7 = await MoodHistoryService.getAnalyticsTrends(period: '7d');
+    final api30 = await MoodHistoryService.getAnalyticsTrends(period: '30d');
+
     if (mounted) {
+      // If API returned trend data, parse it; otherwise use local
+      List<double> t7, t30;
+      if (api7 != null && api7['daily_scores'] is List) {
+        t7 = (api7['daily_scores'] as List).map((e) => (e as num).toDouble()).toList();
+      } else {
+        t7 = await MoodHistoryService.getTrendScores(7);
+      }
+      if (api30 != null && api30['daily_scores'] is List) {
+        t30 = (api30['daily_scores'] as List).map((e) => (e as num).toDouble()).toList();
+      } else {
+        t30 = await MoodHistoryService.getTrendScores(30);
+      }
+
       setState(() {
         _trend7 = t7;
         _trend30 = t30;

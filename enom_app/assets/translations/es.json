@@ -241,5 +241,19 @@
   "no_mood_data": "Aún no hay datos de ánimo",
   "scan_to_start": "Escanea tu ánimo para empezar a rastrear",
   "export_csv": "Exportar como CSV",
-  "view_history": "Ver historial"
+  "view_history": "Ver historial",
+  "exit_app": "Salir de la app",
+  "exit_app_message": "¿Quieres salir?",
+  "yes": "Sí",
+  "no": "No",
+  "users": "Usuarios",
+  "hashtags_tab": "Hashtags",
+  "trending": "Tendencias",
+  "no_results": "No se encontraron resultados",
+  "report": "Reportar",
+  "block_user": "Bloquear usuario",
+  "mark_all_read": "Marcar todo como leído",
+  "no_notifications": "Aún no hay notificaciones",
+  "repost": "Republicar",
+  "quote_repost": "Citar y republicar"
 }

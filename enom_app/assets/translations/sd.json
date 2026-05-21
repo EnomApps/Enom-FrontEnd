@@ -241,5 +241,19 @@
   "no_mood_data": "اڃا تائين مزاج جو ڊيٽا ناهي",
   "scan_to_start": "ٽريڪنگ شروع ڪرڻ لاءِ پنهنجو مزاج اسڪين ڪريو",
   "export_csv": "CSV طور برآمد ڪريو",
-  "view_history": "تاريخ ڏسو"
+  "view_history": "تاريخ ڏسو",
+  "exit_app": "ايپ مان نڪرو",
+  "exit_app_message": "ڇا توهان نڪرڻ چاهيو ٿا?",
+  "yes": "ها",
+  "no": "نه",
+  "users": "صارفين",
+  "hashtags_tab": "هيشٽيگ",
+  "trending": "ٽرينڊنگ",
+  "no_results": "ڪو به نتيجو نه مليو",
+  "report": "رپورٽ",
+  "block_user": "صارف بلاڪ ڪريو",
+  "mark_all_read": "سڀ پڙهيل نشان لڳايو",
+  "no_notifications": "اڃا تائين ڪا اطلاع ناهي",
+  "repost": "ٻيهر پوسٽ",
+  "quote_repost": "حوالو ٻيهر پوسٽ"
 }

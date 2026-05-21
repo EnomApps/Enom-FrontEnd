@@ -241,5 +241,19 @@
   "no_mood_data": "ʻOku teʻeki ai ha fakamatala ongo",
   "scan_to_start": "Sikeni hoʻo ongo ke kamata muimui",
   "export_csv": "Hiki ki tuʻa ko e CSV",
-  "view_history": "Vakai hisitōlia"
+  "view_history": "Vakai hisitōlia",
+  "exit_app": "Hū mei he App",
+  "exit_app_message": "ʻOku ke fie hū?",
+  "yes": "ʻIo",
+  "no": "ʻIkai",
+  "users": "Kau ngāue",
+  "hashtags_tab": "Hashtags",
+  "trending": "Ongo lahi",
+  "no_results": "ʻIkai maʻu ha ola",
+  "report": "Līpooti",
+  "block_user": "Taʻofi ʻa e tokotaha",
+  "mark_all_read": "Fakaʻilonga kotoa kuo lau",
+  "no_notifications": "ʻOku teʻeki ai ha fakatokanga",
+  "repost": "Toe tuku",
+  "quote_repost": "Lau mo toe tuku"
 }

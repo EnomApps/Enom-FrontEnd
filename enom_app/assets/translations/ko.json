@@ -241,5 +241,19 @@
   "no_mood_data": "아직 기분 데이터가 없습니다",
   "scan_to_start": "기분을 스캔하여 추적을 시작하세요",
   "export_csv": "CSV로 내보내기",
-  "view_history": "기록 보기"
+  "view_history": "기록 보기",
+  "exit_app": "앱 종료",
+  "exit_app_message": "종료하시겠습니까?",
+  "yes": "예",
+  "no": "아니오",
+  "users": "사용자",
+  "hashtags_tab": "해시태그",
+  "trending": "인기",
+  "no_results": "결과를 찾을 수 없습니다",
+  "report": "신고",
+  "block_user": "사용자 차단",
+  "mark_all_read": "모두 읽음으로 표시",
+  "no_notifications": "아직 알림이 없습니다",
+  "repost": "리포스트",
+  "quote_repost": "인용 리포스트"
 }

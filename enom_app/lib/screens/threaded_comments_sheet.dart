@@ -446,17 +446,29 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
                 // Comment content — highlight @mentions like Instagram
                 _buildCommentContent(content, isReply),
                 const SizedBox(height: 4),
-                // Reply button
-                GestureDetector(
-                  onTap: () => _startReply(commentId, name),
-                  child: Text(
-                    AppLocalizations.of(context)!.translate('reply'),
-                    style: GoogleFonts.jost(
-                      color: _mutedColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                // Reply + Like buttons
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => _startReply(commentId, name),
+                      child: Text(
+                        AppLocalizations.of(context)!.translate('reply'),
+                        style: GoogleFonts.jost(
+                          color: _mutedColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 16),
+                    GestureDetector(
+                      onTap: () async {
+                        final result = await PostService.toggleCommentLike(commentId);
+                        if (result.success && mounted) setState(() {});
+                      },
+                      child: Icon(Icons.favorite_border, size: 14, color: _mutedColor),
+                    ),
+                  ],
                 ),
               ],
             ),

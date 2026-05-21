@@ -241,5 +241,19 @@
   "no_mood_data": "Enweghị data mmetụta ọ bụla",
   "scan_to_start": "Nyochaa mmetụta gị iji malite ịsọ",
   "export_csv": "Bufee dị ka CSV",
-  "view_history": "Lee Akụkọ"
+  "view_history": "Lee Akụkọ",
+  "exit_app": "Pụọ n'App",
+  "exit_app_message": "Ị chọrọ ịpụ?",
+  "yes": "Ee",
+  "no": "Mba",
+  "users": "Ndị ọrụ",
+  "hashtags_tab": "Hashtags",
+  "trending": "Na-ewu ewu",
+  "no_results": "Ahụghị nsonaazụ ọ bụla",
+  "report": "Kpesa",
+  "block_user": "Mechie onye ọrụ",
+  "mark_all_read": "Mee niile dị ka agụrụ",
+  "no_notifications": "Ọ dịghị ọkwa ọ bụla ugbu a",
+  "repost": "Bipụtaghachi",
+  "quote_repost": "Depụta bipụtaghachi"
 }

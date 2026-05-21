@@ -241,5 +241,19 @@
   "no_mood_data": "ຍັງບໍ່ມີຂໍ້ມູນອາລົມ",
   "scan_to_start": "ສະແກນອາລົມຂອງທ່ານເພື່ອເລີ່ມຕິດຕາມ",
   "export_csv": "ສົ່ງອອກເປັນ CSV",
-  "view_history": "ເບິ່ງປະຫວັດ"
+  "view_history": "ເບິ່ງປະຫວັດ",
+  "exit_app": "ອອກຈາກແອັບ",
+  "exit_app_message": "ທ່ານຕ້ອງການອອກບໍ?",
+  "yes": "ແມ່ນ",
+  "no": "ບໍ່",
+  "users": "ຜູ້ໃຊ້",
+  "hashtags_tab": "ແຮັສແທັກ",
+  "trending": "ກຳລັງນິຍົມ",
+  "no_results": "ບໍ່ພົບຜົນລັບ",
+  "report": "ລາຍງານ",
+  "block_user": "ບລັອກຜູ້ໃຊ້",
+  "mark_all_read": "ໝາຍທັງໝົດວ່າອ່ານແລ້ວ",
+  "no_notifications": "ຍັງບໍ່ມີການແຈ້ງເຕືອນ",
+  "repost": "ໂພສຄືນ",
+  "quote_repost": "ອ້າງອີງໂພສຄືນ"
 }

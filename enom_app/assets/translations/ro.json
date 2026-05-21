@@ -241,5 +241,19 @@
   "no_mood_data": "Nu există date despre dispoziție încă",
   "scan_to_start": "Scanează-ți dispoziția pentru a începe urmărirea",
   "export_csv": "Exportă ca CSV",
-  "view_history": "Vezi istoricul"
+  "view_history": "Vezi istoricul",
+  "exit_app": "Ieșire din aplicație",
+  "exit_app_message": "Doriți să ieșiți?",
+  "yes": "Da",
+  "no": "Nu",
+  "users": "Utilizatori",
+  "hashtags_tab": "Hashtaguri",
+  "trending": "Trending",
+  "no_results": "Nu s-au găsit rezultate",
+  "report": "Raportează",
+  "block_user": "Blochează utilizatorul",
+  "mark_all_read": "Marchează tot ca citit",
+  "no_notifications": "Nicio notificare încă",
+  "repost": "Redistribuie",
+  "quote_repost": "Citează și redistribuie"
 }

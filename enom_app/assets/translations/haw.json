@@ -241,5 +241,19 @@
   "no_mood_data": "ʻAʻohe ʻikepili manaʻo i kēia manawa",
   "scan_to_start": "E hoʻoili i kou manaʻo e hoʻomaka ai ka hahai ʻana",
   "export_csv": "Hoʻokuʻu ma CSV",
-  "view_history": "Nānā i ka Mōʻaukala"
+  "view_history": "Nānā i ka Mōʻaukala",
+  "exit_app": "Haʻalele i ka App",
+  "exit_app_message": "Makemake ʻoe e haʻalele?",
+  "yes": "ʻAe",
+  "no": "ʻAʻole",
+  "users": "Mea hoʻohana",
+  "hashtags_tab": "Hashtags",
+  "trending": "Kaulana",
+  "no_results": "ʻAʻohe hopena i loaʻa",
+  "report": "Hōʻike",
+  "block_user": "Keʻa i ka mea hoʻohana",
+  "mark_all_read": "Hōʻailona i nā mea a pau i heluhelu ʻia",
+  "no_notifications": "ʻAʻohe hoʻolaha i kēia manawa",
+  "repost": "Hoʻolaha hou",
+  "quote_repost": "ʻŌlelo hoʻolaha hou"
 }

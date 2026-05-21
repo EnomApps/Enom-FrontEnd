@@ -241,5 +241,19 @@
   "no_mood_data": "Kāore anō he raraunga āhua",
   "scan_to_start": "Matawaia tō āhua ki te tīmata aroturuki",
   "export_csv": "Kaweake hei CSV",
-  "view_history": "Tirohia te Hītori"
+  "view_history": "Tirohia te Hītori",
+  "exit_app": "Wehe i te Taupānga",
+  "exit_app_message": "Kei te hiahia koe ki te wehe?",
+  "yes": "Āe",
+  "no": "Kāo",
+  "users": "Kaiwhakamahi",
+  "hashtags_tab": "Hashtags",
+  "trending": "Matahīhī",
+  "no_results": "Kāore he otinga i kitea",
+  "report": "Pūrongo",
+  "block_user": "Aukati kaiwhakamahi",
+  "mark_all_read": "Tohua katoa kua pānuitia",
+  "no_notifications": "Kāore anō he whakamōhiotanga",
+  "repost": "Tuku anō",
+  "quote_repost": "Whakahoki tuku anō"
 }

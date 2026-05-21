@@ -256,5 +256,22 @@
   "no_mood_data": "No mood data yet",
   "scan_to_start": "Scan your mood to start tracking",
   "export_csv": "Export as CSV",
-  "view_history": "View History"
+  "view_history": "View History",
+
+  "exit_app": "Exit App",
+  "exit_app_message": "Do you want to exit?",
+  "yes": "Yes",
+  "no": "No",
+
+  "users": "Users",
+  "hashtags_tab": "Hashtags",
+  "trending": "Trending",
+  "no_results": "No results found",
+
+  "report": "Report",
+  "block_user": "Block User",
+  "mark_all_read": "Mark all read",
+  "no_notifications": "No notifications yet",
+  "repost": "Repost",
+  "quote_repost": "Quote Repost"
 }

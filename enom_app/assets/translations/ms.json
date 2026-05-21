@@ -241,5 +241,19 @@
   "no_mood_data": "Belum ada data perasaan",
   "scan_to_start": "Imbas perasaan anda untuk mula menjejak",
   "export_csv": "Eksport sebagai CSV",
-  "view_history": "Lihat Sejarah"
+  "view_history": "Lihat Sejarah",
+  "exit_app": "Keluar Aplikasi",
+  "exit_app_message": "Adakah anda mahu keluar?",
+  "yes": "Ya",
+  "no": "Tidak",
+  "users": "Pengguna",
+  "hashtags_tab": "Hashtag",
+  "trending": "Trending",
+  "no_results": "Tiada hasil ditemui",
+  "report": "Laporkan",
+  "block_user": "Sekat pengguna",
+  "mark_all_read": "Tandai semua sebagai dibaca",
+  "no_notifications": "Tiada pemberitahuan lagi",
+  "repost": "Kongsi semula",
+  "quote_repost": "Petik dan kongsi semula"
 }

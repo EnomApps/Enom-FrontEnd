@@ -292,4 +292,111 @@ class PostService {
 
     return (success: status == 200, message: msg);
   }
+
+  /// PUT /api/comments/{id} — Update/edit a comment.
+  static Future<({bool success, String message})> updateComment(
+      int commentId, String content) async {
+    final result = await ApiService.put(
+        '/api/comments/$commentId', {'content': content}, auth: true);
+    final status = result['statusCode'] as int;
+    final body = result['body'];
+    final msg = body is Map ? (body['message'] as String? ?? '') : '';
+    return (success: status == 200, message: msg);
+  }
+
+  /// POST /api/comments/{id}/like — Toggle like on a comment.
+  static Future<({bool success, bool liked})> toggleCommentLike(int commentId) async {
+    final result = await ApiService.post('/api/comments/$commentId/like', {}, auth: true);
+    final status = result['statusCode'] as int;
+    final body = result['body'];
+    if (status == 200 && body is Map) {
+      return (success: true, liked: body['liked'] as bool? ?? true);
+    }
+    return (success: false, liked: false);
+  }
+
+  /// GET /api/comments/{id}/likes — Get users who liked a comment.
+  static Future<List<Map<String, dynamic>>> getCommentLikes(int commentId) async {
+    final result = await ApiService.get('/api/comments/$commentId/likes', auth: true);
+    if ((result['statusCode'] as int) == 200) {
+      final body = result['body'];
+      if (body is Map && body['data'] is List) {
+        return (body['data'] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+    }
+    return [];
+  }
+
+  /// POST /api/posts/{postId}/repost — Toggle repost with optional quote.
+  static Future<({bool success, bool reposted, String message})> toggleRepost(
+      int postId, {String? quote}) async {
+    final body = <String, dynamic>{};
+    if (quote != null) body['quote'] = quote;
+    final result = await ApiService.post('/api/posts/$postId/repost', body, auth: true);
+    final status = result['statusCode'] as int;
+    final resp = result['body'];
+    if (status == 200 && resp is Map) {
+      return (
+        success: true,
+        reposted: resp['reposted'] as bool? ?? true,
+        message: resp['message'] as String? ?? '',
+      );
+    }
+    return (success: false, reposted: false, message: '');
+  }
+
+  /// GET /api/posts/{postId}/reposts — Get users who reposted.
+  static Future<List<Map<String, dynamic>>> getReposts(int postId) async {
+    final result = await ApiService.get('/api/posts/$postId/reposts', auth: true);
+    if ((result['statusCode'] as int) == 200) {
+      final body = result['body'];
+      if (body is Map && body['data'] is List) {
+        return (body['data'] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+    }
+    return [];
+  }
+
+  /// GET /api/posts/{postId}/like-status — Check like/reaction status.
+  static Future<({bool liked, String? reactionType})> getLikeStatus(int postId) async {
+    final result = await ApiService.get('/api/posts/$postId/like-status', auth: true);
+    if ((result['statusCode'] as int) == 200) {
+      final body = result['body'];
+      if (body is Map) {
+        return (
+          liked: body['liked'] as bool? ?? body['reacted'] as bool? ?? false,
+          reactionType: body['reaction_type'] as String?,
+        );
+      }
+    }
+    return (liked: false, reactionType: null);
+  }
+
+  /// GET /api/posts/{postId}/save-status — Check if post is saved.
+  static Future<bool> getSaveStatus(int postId) async {
+    final result = await ApiService.get('/api/posts/$postId/save-status', auth: true);
+    if ((result['statusCode'] as int) == 200) {
+      final body = result['body'];
+      if (body is Map) {
+        return body['saved'] as bool? ?? body['is_saved'] as bool? ?? false;
+      }
+    }
+    return false;
+  }
+
+  /// GET /api/posts/for-you — Personalized "For You" feed.
+  static Future<({bool success, List<dynamic> posts, String? nextCursor})>
+      getForYouFeed({String? cursor, int perPage = 15}) async {
+    var url = '/api/posts/for-you?per_page=$perPage';
+    if (cursor != null) url += '&cursor=$cursor';
+    final result = await ApiService.get(url, auth: true);
+    final status = result['statusCode'] as int;
+    final body = result['body'];
+    if (status == 200 && body is Map) {
+      final posts = body['data'] as List<dynamic>? ?? [];
+      final next = body['next_cursor'] as String?;
+      return (success: true, posts: posts, nextCursor: next);
+    }
+    return (success: false, posts: <dynamic>[], nextCursor: null);
+  }
 }

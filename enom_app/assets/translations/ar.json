@@ -241,5 +241,19 @@
   "no_mood_data": "لا توجد بيانات مزاج بعد",
   "scan_to_start": "امسح مزاجك لبدء التتبع",
   "export_csv": "تصدير كـ CSV",
-  "view_history": "عرض السجل"
+  "view_history": "عرض السجل",
+  "exit_app": "الخروج من التطبيق",
+  "exit_app_message": "هل تريد الخروج؟",
+  "yes": "نعم",
+  "no": "لا",
+  "users": "المستخدمون",
+  "hashtags_tab": "الهاشتاغات",
+  "trending": "الرائج",
+  "no_results": "لم يتم العثور على نتائج",
+  "report": "إبلاغ",
+  "block_user": "حظر المستخدم",
+  "mark_all_read": "تعيين الكل كمقروء",
+  "no_notifications": "لا توجد إشعارات بعد",
+  "repost": "إعادة نشر",
+  "quote_repost": "اقتباس وإعادة نشر"
 }

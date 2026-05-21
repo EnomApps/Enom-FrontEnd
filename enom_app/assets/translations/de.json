@@ -241,5 +241,19 @@
   "no_mood_data": "Noch keine Stimmungsdaten",
   "scan_to_start": "Scanne deine Stimmung, um mit dem Tracking zu beginnen",
   "export_csv": "Als CSV exportieren",
-  "view_history": "Verlauf anzeigen"
+  "view_history": "Verlauf anzeigen",
+  "exit_app": "App beenden",
+  "exit_app_message": "Möchten Sie beenden?",
+  "yes": "Ja",
+  "no": "Nein",
+  "users": "Benutzer",
+  "hashtags_tab": "Hashtags",
+  "trending": "Beliebt",
+  "no_results": "Keine Ergebnisse gefunden",
+  "report": "Melden",
+  "block_user": "Benutzer blockieren",
+  "mark_all_read": "Alle als gelesen markieren",
+  "no_notifications": "Noch keine Benachrichtigungen",
+  "repost": "Erneut posten",
+  "quote_repost": "Zitat-Repost"
 }

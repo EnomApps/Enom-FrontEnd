@@ -241,5 +241,19 @@
   "no_mood_data": "ยังไม่มีข้อมูลอารมณ์",
   "scan_to_start": "สแกนอารมณ์ของคุณเพื่อเริ่มติดตาม",
   "export_csv": "ส่งออกเป็น CSV",
-  "view_history": "ดูประวัติ"
+  "view_history": "ดูประวัติ",
+  "exit_app": "ออกจากแอป",
+  "exit_app_message": "คุณต้องการออกหรือไม่?",
+  "yes": "ใช่",
+  "no": "ไม่",
+  "users": "ผู้ใช้",
+  "hashtags_tab": "แฮชแท็ก",
+  "trending": "มาแรง",
+  "no_results": "ไม่พบผลลัพธ์",
+  "report": "รายงาน",
+  "block_user": "บล็อกผู้ใช้",
+  "mark_all_read": "ทำเครื่องหมายทั้งหมดว่าอ่านแล้ว",
+  "no_notifications": "ยังไม่มีการแจ้งเตือน",
+  "repost": "โพสต์ซ้ำ",
+  "quote_repost": "อ้างอิงโพสต์ซ้ำ"
 }

@@ -197,8 +197,9 @@ class _MoodResultScreenState extends State<MoodResultScreen>
     setState(() => _isSaving = true);
     HapticFeedback.heavyImpact();
 
-    // Save to local history + API sync
-    await MoodHistoryService.saveMood(_currentMood);
+    // Determine source: 'camera' if original detection, 'manual' if user corrected
+    final source = _currentMood.mood == widget.moodResult.mood ? 'camera' : 'manual';
+    await MoodHistoryService.saveMood(_currentMood, source: source);
 
     if (mounted) {
       Navigator.pop(context, _currentMood);

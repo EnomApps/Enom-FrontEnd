@@ -241,5 +241,19 @@
   "no_mood_data": "Belum ada data suasana hati",
   "scan_to_start": "Pindai suasana hati Anda untuk mulai melacak",
   "export_csv": "Ekspor sebagai CSV",
-  "view_history": "Lihat Riwayat"
+  "view_history": "Lihat Riwayat",
+  "exit_app": "Keluar Aplikasi",
+  "exit_app_message": "Apakah Anda ingin keluar?",
+  "yes": "Ya",
+  "no": "Tidak",
+  "users": "Pengguna",
+  "hashtags_tab": "Hashtag",
+  "trending": "Trending",
+  "no_results": "Tidak ada hasil ditemukan",
+  "report": "Laporkan",
+  "block_user": "Blokir pengguna",
+  "mark_all_read": "Tandai semua telah dibaca",
+  "no_notifications": "Belum ada notifikasi",
+  "repost": "Posting ulang",
+  "quote_repost": "Kutip dan posting ulang"
 }
