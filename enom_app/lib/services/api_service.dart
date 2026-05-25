@@ -18,7 +18,11 @@ class ApiService {
 
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
+    final raw = prefs.getString(_tokenKey);
+    if (raw == null) return null;
+    // Strip "Bearer " prefix if backend returned it as part of the token
+    if (raw.startsWith('Bearer ')) return raw.substring(7);
+    return raw;
   }
 
   static Future<void> removeToken() async {

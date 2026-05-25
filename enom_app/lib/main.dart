@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -13,6 +14,10 @@ import 'services/notification_service.dart';
 import 'services/upload_manager.dart';
 import 'theme/app_theme.dart';
 
+/// App-wide navigator key. Used by NotificationService to route push-notification
+/// taps into the in-app NotificationScreen even when the app was terminated.
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 /// Handle background messages (must be top-level function)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -23,7 +28,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  // FCM background handler relies on the web service worker that isn't configured yet.
+  if (!kIsWeb) {
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  }
   await NotificationService.init();
   await UploadManager.instance.init();
   // Make system nav bar transparent so content doesn't get hidden behind it
@@ -136,6 +144,7 @@ class _EnomAppState extends State<EnomApp> {
 
     return MaterialApp(
       title: 'ENOM',
+      navigatorKey: rootNavigatorKey,
       debugShowCheckedModeBanner: false,
       locale: _locale,
       supportedLocales: LanguageModel.supportedLocales,

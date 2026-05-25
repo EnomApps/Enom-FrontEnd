@@ -138,8 +138,11 @@ class MoodDetectionService {
         return const MoodDetectionResult(error: 'Not authenticated. Please login again.');
       }
 
+      // Strip "Bearer " prefix if token already contains it
+      final cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
+
       final uri = Uri.parse('${ApiService.baseUrl}/api/v1/mood/detect');
-      debugPrint('[MOOD_API] POST $uri | ${sizeKB}KB | token: ${token.length > 10 ? '${token.substring(0, 10)}...' : token}');
+      debugPrint('[MOOD_API] POST $uri | ${sizeKB}KB | token: ${cleanToken.length > 10 ? '${cleanToken.substring(0, 10)}...' : cleanToken}');
 
       final http.Response response;
       try {
@@ -148,7 +151,7 @@ class MoodDetectionService {
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'Authorization': 'Bearer $token',
+            'Authorization': 'Bearer $cleanToken',
           },
           body: jsonEncode({'image': base64Image}),
         ).timeout(const Duration(seconds: 60));

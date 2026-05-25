@@ -60,10 +60,27 @@ class _MoodHistoryScreenState extends State<MoodHistoryScreen>
   }
 
   Future<void> _loadMonth() async {
-    final moods = await MoodHistoryService.getMonthMoods(
+    final apiEntries = await MoodHistoryService.getApiMonthEntries(
         _displayedMonth.year, _displayedMonth.month);
-    final scores = await MoodHistoryService.getMonthScores(
-        _displayedMonth.year, _displayedMonth.month);
+
+    // Aggregate per day from server entries.
+    final byDay = <int, List<MoodEntry>>{};
+    for (final e in apiEntries) {
+      byDay.putIfAbsent(e.timestamp.day, () => []).add(e);
+    }
+    final scores = byDay.map((day, entries) {
+      final avg = entries.map((e) => e.score).reduce((a, b) => a + b) / entries.length;
+      return MapEntry(day, avg);
+    });
+    final moods = byDay.map((day, entries) {
+      final counts = <String, int>{};
+      for (final e in entries) {
+        counts[e.mood] = (counts[e.mood] ?? 0) + 1;
+      }
+      final dominant = counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+      return MapEntry(day, dominant);
+    });
+
     if (mounted) {
       setState(() {
         _monthMoods = moods;
@@ -73,29 +90,19 @@ class _MoodHistoryScreenState extends State<MoodHistoryScreen>
   }
 
   Future<void> _loadEntries() async {
-    final entries = await MoodHistoryService.getEntries();
-    if (mounted) setState(() => _recentEntries = entries.take(50).toList());
+    final entries = await MoodHistoryService.getApiHistory(limit: 50);
+    if (mounted) setState(() => _recentEntries = entries);
   }
 
   Future<void> _loadTrends() async {
-    // Try API analytics first, fall back to local
-    final api7 = await MoodHistoryService.getAnalyticsTrends(period: '7d');
+    final t7 = await MoodHistoryService.getWeeklyScoresFromApi();
+    // For 30d, reuse the same parser via getAnalyticsTrends.
     final api30 = await MoodHistoryService.getAnalyticsTrends(period: '30d');
+    final List<double> t30 = api30 == null
+        ? List<double>.filled(30, 0)
+        : MoodHistoryService.parseDailyScores(api30, expectedLength: 30);
 
     if (mounted) {
-      // If API returned trend data, parse it; otherwise use local
-      List<double> t7, t30;
-      if (api7 != null && api7['daily_scores'] is List) {
-        t7 = (api7['daily_scores'] as List).map((e) => (e as num).toDouble()).toList();
-      } else {
-        t7 = await MoodHistoryService.getTrendScores(7);
-      }
-      if (api30 != null && api30['daily_scores'] is List) {
-        t30 = (api30['daily_scores'] as List).map((e) => (e as num).toDouble()).toList();
-      } else {
-        t30 = await MoodHistoryService.getTrendScores(30);
-      }
-
       setState(() {
         _trend7 = t7;
         _trend30 = t30;

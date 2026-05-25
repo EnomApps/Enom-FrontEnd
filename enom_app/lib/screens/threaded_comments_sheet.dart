@@ -68,6 +68,49 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
     return null;
   }
 
+  bool _isCommentLiked(Map<String, dynamic> c) {
+    final v = c['liked'];
+    if (v is bool) return v;
+    if (v is num) return v != 0;
+    return false;
+  }
+
+  int _commentLikeCount(Map<String, dynamic> c) {
+    return _toInt(c['likes_count']) ?? _toInt(c['like_count']) ?? 0;
+  }
+
+  Future<void> _toggleCommentLike(int commentId) async {
+    final idx = _comments.indexWhere((c) => c['id'] == commentId);
+    if (idx == -1) return;
+    final comment = _comments[idx];
+    final wasLiked = _isCommentLiked(comment);
+    final oldCount = _commentLikeCount(comment);
+
+    setState(() {
+      comment['liked'] = !wasLiked;
+      comment['likes_count'] = (oldCount + (wasLiked ? -1 : 1)).clamp(0, 1 << 30);
+    });
+
+    debugPrint('[CommentLike] POST /api/comments/$commentId/like (was liked=$wasLiked)');
+    final result = await PostService.toggleCommentLike(commentId);
+    debugPrint('[CommentLike] response success=${result.success} liked=${result.liked}');
+    if (!mounted) return;
+    if (!result.success) {
+      setState(() {
+        comment['liked'] = wasLiked;
+        comment['likes_count'] = oldCount;
+      });
+      return;
+    }
+    // Sync UI to server-reported state in case our optimistic guess differed.
+    if (result.liked != !wasLiked) {
+      setState(() {
+        comment['liked'] = result.liked;
+        comment['likes_count'] = (oldCount + (result.liked ? 1 : -1)).clamp(0, 1 << 30);
+      });
+    }
+  }
+
   Future<void> _loadComments() async {
     final result = await PostService.getComments(widget.postId);
     if (!mounted) return;
@@ -462,11 +505,29 @@ class _ThreadedCommentsSheetState extends State<ThreadedCommentsSheet> {
                     ),
                     const SizedBox(width: 16),
                     GestureDetector(
-                      onTap: () async {
-                        final result = await PostService.toggleCommentLike(commentId);
-                        if (result.success && mounted) setState(() {});
-                      },
-                      child: Icon(Icons.favorite_border, size: 14, color: _mutedColor),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _toggleCommentLike(commentId),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _isCommentLiked(comment) ? Icons.favorite : Icons.favorite_border,
+                            size: 14,
+                            color: _isCommentLiked(comment) ? Colors.redAccent : _mutedColor,
+                          ),
+                          if (_commentLikeCount(comment) > 0) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              '${_commentLikeCount(comment)}',
+                              style: GoogleFonts.jost(
+                                color: _mutedColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ],
                 ),

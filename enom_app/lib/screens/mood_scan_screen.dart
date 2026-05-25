@@ -122,43 +122,28 @@ class _MoodScanScreenState extends State<MoodScanScreen>
   }
 
   /// Detect low light by checking camera exposure compensation range.
-  /// If the camera is maxing out its exposure, it's likely dark.
   Future<void> _checkLightLevel() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) return;
     try {
-      // Take a quick test shot and check its brightness
       final maxExposure = await _cameraController!.getMaxExposureOffset();
 
-      // If the camera supports exposure compensation, boost it
-      // and assume low light if max exposure range is wide
       if (maxExposure > 0) {
-        // Set exposure to slightly above midpoint for better face illumination
         await _cameraController!.setExposureOffset(maxExposure * 0.4);
       }
 
-      // Heuristic: if max exposure > 2.0 stops, camera likely compensating for dark
-      // Also auto-enable screen flash to help illuminate the face
-      if (maxExposure >= 2.0) {
-        if (mounted) {
-          setState(() {
-            _isLowLight = true;
-            _isTorchOn = true; // Auto-enable screen flash glow
-          });
-        }
+      if (maxExposure >= 2.0 && mounted) {
+        setState(() {
+          _isLowLight = true;
+          _isTorchOn = true; // Auto-enable flash for capture
+        });
       }
-    } catch (_) {
-      // Some cameras don't support exposure queries — ignore
-    }
+    } catch (_) {}
   }
 
   void _startCountdown() {
-    // Auto-enable screen flash during countdown to illuminate face
     setState(() {
       _state = _ScanState.countdown;
       _countdownValue = 3;
-      if (_isLowLight || _isTorchOn) {
-        _isTorchOn = true; // Keep screen flash on during countdown
-      }
     });
 
     HapticFeedback.mediumImpact();
@@ -192,15 +177,16 @@ class _MoodScanScreenState extends State<MoodScanScreen>
       return;
     }
 
-    // Turn on screen flash (white screen) to illuminate face
     setState(() {
       _state = _ScanState.capturing;
-      _screenFlashOn = true;
+      _screenFlashOn = _isTorchOn; // Only flash if user has flash enabled
     });
     HapticFeedback.heavyImpact();
 
-    // Brief delay so screen flash lights up the face before capture
-    await Future.delayed(const Duration(milliseconds: 300));
+    if (_screenFlashOn) {
+      // Brief delay so screen flash lights up the face before capture
+      await Future.delayed(const Duration(milliseconds: 300));
+    }
 
     try {
       // Take the picture
@@ -377,17 +363,12 @@ class _MoodScanScreenState extends State<MoodScanScreen>
               child: CircularProgressIndicator(color: Colors.white24),
             ),
 
-          // Screen flash — bright white overlay to illuminate face in low light
-          // Shows during capture burst OR when user toggles flash on
-          if (_screenFlashOn || _isTorchOn)
+          // Screen flash — bright white overlay to illuminate face during capture only
+          if (_screenFlashOn)
             AnimatedOpacity(
-              opacity: (_screenFlashOn || _isTorchOn) ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 150),
-              child: Container(
-                color: _screenFlashOn
-                    ? Colors.white // Full white during capture
-                    : Colors.white.withValues(alpha: 0.6), // Softer glow when torch toggled
-              ),
+              opacity: 1.0,
+              duration: const Duration(milliseconds: 100),
+              child: Container(color: Colors.white),
             ),
 
           // Circular viewfinder overlay
@@ -552,6 +533,21 @@ class _MoodScanScreenState extends State<MoodScanScreen>
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (_isLowLight)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.wb_sunny_outlined, color: Colors.amber, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      l10n.translate('mood_scan_low_light'),
+                      style: GoogleFonts.jost(color: Colors.amber, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
             Text(
               l10n.translate('mood_scan_guide'),
               style: GoogleFonts.jost(

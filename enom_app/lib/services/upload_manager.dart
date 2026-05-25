@@ -56,6 +56,7 @@ class UploadManager {
     String? content,
     String visibility = 'public',
     List<String>? hashtags,
+    String? locationName,
     List<Uint8List>? mediaBytes,
     List<String>? mediaNames,
     List<String>? mediaTypes,
@@ -69,6 +70,7 @@ class UploadManager {
       content: content,
       visibility: visibility,
       hashtags: hashtags,
+      locationName: locationName,
       mediaBytes: mediaBytes,
       mediaNames: mediaNames,
       mediaTypes: mediaTypes,
@@ -80,6 +82,7 @@ class UploadManager {
     String? content,
     String visibility = 'public',
     List<String>? hashtags,
+    String? locationName,
     List<Uint8List>? mediaBytes,
     List<String>? mediaNames,
     List<String>? mediaTypes,
@@ -159,6 +162,7 @@ class UploadManager {
       final fields = <String, String>{
         if (content != null && content.isNotEmpty) 'content': content,
         'visibility': visibility,
+        if (locationName != null && locationName.isNotEmpty) 'location_name': locationName,
       };
 
       // Add hashtags as individual fields: hashtags[0], hashtags[1], etc.

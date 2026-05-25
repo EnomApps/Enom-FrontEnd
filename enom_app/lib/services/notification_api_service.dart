@@ -12,28 +12,73 @@ import 'api_service.dart';
 /// - DELETE /api/device-tokens           — Remove FCM token
 class NotificationApiService {
   /// Get paginated notifications.
-  static Future<({bool success, List<Map<String, dynamic>> notifications, int unreadCount})>
-      getNotifications({int page = 1}) async {
+  /// Response shape: { data: [...], unread_count, current_page, total }
+  static Future<({
+    bool success,
+    List<Map<String, dynamic>> notifications,
+    int unreadCount,
+    int currentPage,
+    int total,
+  })> getNotifications({int page = 1}) async {
     try {
-      final result = await ApiService.get('/api/notifications?page=$page', auth: true);
+      final url = '/api/notifications?page=$page';
+      debugPrint('[NOTIF] GET $url');
+      final result = await ApiService.get(url, auth: true);
       final status = result['statusCode'] as int;
       final body = result['body'];
-      debugPrint('[NOTIF] GET notifications page=$page → $status');
+      debugPrint('[NOTIF] status=$status');
+      // Dump the raw body so we can see the actual contract. Truncate long ones.
+      final bodyStr = body.toString();
+      debugPrint('[NOTIF] body=${bodyStr.length > 800 ? '${bodyStr.substring(0, 800)}...(${bodyStr.length} chars)' : bodyStr}');
 
       if (status == 200 && body is Map<String, dynamic>) {
-        final list = body['data'] as List<dynamic>? ??
-            body['notifications'] as List<dynamic>? ?? [];
-        final unread = body['unread_count'] as int? ?? 0;
+        // Server response shape:
+        //   { notifications: { current_page, data: [...], total, last_page, ... }, unread_count }
+        // Also handle a few fallback shapes for safety.
+        List<dynamic> list = [];
+        Map<String, dynamic>? paginator;
+        final notifs = body['notifications'];
+        final data = body['data'];
+
+        if (notifs is Map<String, dynamic>) {
+          paginator = notifs;
+          list = (notifs['data'] as List<dynamic>?) ?? [];
+        } else if (notifs is List) {
+          list = notifs;
+        } else if (data is Map<String, dynamic>) {
+          paginator = data;
+          list = (data['data'] as List<dynamic>?) ?? [];
+        } else if (data is List) {
+          list = data;
+        }
+
+        final unread = body['unread_count'] as int? ??
+            (paginator != null ? paginator['unread_count'] as int? : null) ?? 0;
+        final currentPage = (paginator?['current_page'] as int?) ??
+            (body['current_page'] as int?) ?? page;
+        final total = (paginator?['total'] as int?) ??
+            (body['total'] as int?) ?? list.length;
+        debugPrint('[NOTIF] Parsed ${list.length} items, unread=$unread, page=$currentPage, total=$total, top-level keys=${body.keys.toList()}');
         return (
           success: true,
           notifications: list.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
           unreadCount: unread,
+          currentPage: currentPage,
+          total: total,
         );
       }
-    } catch (e) {
+      debugPrint('[NOTIF] non-200 or unexpected body type — returning empty');
+    } catch (e, st) {
       debugPrint('[NOTIF] Error: $e');
+      debugPrint('[NOTIF] stack: $st');
     }
-    return (success: false, notifications: <Map<String, dynamic>>[], unreadCount: 0);
+    return (
+      success: false,
+      notifications: <Map<String, dynamic>>[],
+      unreadCount: 0,
+      currentPage: page,
+      total: 0,
+    );
   }
 
   /// Mark a single notification as read.

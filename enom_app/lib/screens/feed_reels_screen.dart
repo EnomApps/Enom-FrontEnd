@@ -276,18 +276,25 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
     final videoUrl = _getVideoUrl(widget.post);
     if (videoUrl == null) return;
 
-    _controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl))
-      ..initialize().then((_) {
-        if (mounted) {
-          setState(() => _initialized = true);
-          _controller!.setLooping(true);
-          if (widget.isActive) {
-            _controller!.play();
-          }
-        }
-      }).catchError((_) {
-        if (mounted) setState(() => _hasError = true);
-      });
+    final controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
+    _controller = controller;
+    controller.initialize().then((_) {
+      // If dispose ran before init completed, _controller has been nulled out;
+      // dispose() any orphaned player we just finished setting up.
+      if (!mounted || _controller != controller) {
+        controller.dispose();
+        return;
+      }
+      setState(() => _initialized = true);
+      controller.setLooping(true);
+      if (widget.isActive) {
+        controller.play();
+      }
+    }).catchError((_) {
+      if (mounted && _controller == controller) {
+        setState(() => _hasError = true);
+      }
+    });
   }
 
   String? _getVideoUrl(Map<String, dynamic> post) {
@@ -324,7 +331,11 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
 
   @override
   void dispose() {
-    _controller?.dispose();
+    // Null out the field BEFORE disposing so any in-flight `initialize().then`
+    // callback sees `_controller != controller` and bails out.
+    final c = _controller;
+    _controller = null;
+    c?.dispose();
     _imagePageController.dispose();
     super.dispose();
   }

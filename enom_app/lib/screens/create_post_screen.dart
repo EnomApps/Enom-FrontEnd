@@ -18,15 +18,18 @@ class CreatePostScreen extends StatefulWidget {
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final _HashtagTextEditingController _contentController = _HashtagTextEditingController();
+  // final TextEditingController _locationController = TextEditingController();
+  // TODO: re-enable once Google Places search endpoint is wired up.
   final List<_MediaFile> _mediaFiles = [];
   String _visibility = 'public';
 
   static const int _maxMedia = 10;
-  static const int _maxHashtags = 5;
+  static const int _maxHashtags = 6;
 
   @override
   void dispose() {
     _contentController.dispose();
+    // _locationController.dispose();
     super.dispose();
   }
 
@@ -211,10 +214,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     final hashtags = _extractHashtags();
 
     // Start background compress + upload via UploadManager
+    // final locationName = _locationController.text.trim();
+
     UploadManager.instance.startUpload(
       content: _contentController.text.trim(),
       visibility: _visibility,
       hashtags: hashtags,
+      // locationName: locationName.isEmpty ? null : locationName,
       mediaBytes: _mediaFiles.isNotEmpty ? _mediaFiles.map((f) => f.bytes).toList() : null,
       mediaNames: _mediaFiles.isNotEmpty ? _mediaFiles.map((f) => f.name).toList() : null,
       mediaTypes: _mediaFiles.isNotEmpty ? _mediaFiles.map((f) => f.type).toList() : null,
@@ -376,6 +382,61 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
+
+                  // Location — hidden until Google Places API integration is ready.
+                  // TODO: re-enable once GET /api/places/search is live on the backend.
+                  // Text(l10n.translate('location').toUpperCase(), style: AppTheme.label(context, size: 10)),
+                  // const SizedBox(height: 12),
+                  // Container(
+                  //   decoration: BoxDecoration(
+                  //     color: AppTheme.moodCardBg(context),
+                  //     borderRadius: BorderRadius.circular(20),
+                  //     border: Border.all(color: AppTheme.glassBorder(context)),
+                  //   ),
+                  //   child: Row(
+                  //     children: [
+                  //       Padding(
+                  //         padding: const EdgeInsets.only(left: 18),
+                  //         child: Icon(
+                  //           Icons.location_on_outlined,
+                  //           color: AppTheme.goldColor(context),
+                  //           size: 22,
+                  //         ),
+                  //       ),
+                  //       Expanded(
+                  //         child: TextField(
+                  //           controller: _locationController,
+                  //           onChanged: (_) => setState(() {}),
+                  //           textInputAction: TextInputAction.done,
+                  //           style: GoogleFonts.jost(
+                  //             color: AppTheme.text1(context),
+                  //             fontSize: 15,
+                  //           ),
+                  //           decoration: InputDecoration(
+                  //             hintText: l10n.translate('add_location'),
+                  //             hintStyle: GoogleFonts.jost(
+                  //               color: AppTheme.textMuted(context),
+                  //               fontSize: 15,
+                  //             ),
+                  //             border: InputBorder.none,
+                  //             contentPadding: const EdgeInsets.symmetric(
+                  //               horizontal: 14,
+                  //               vertical: 16,
+                  //             ),
+                  //           ),
+                  //         ),
+                  //       ),
+                  //       if (_locationController.text.isNotEmpty)
+                  //         IconButton(
+                  //           icon: Icon(Icons.close, color: AppTheme.textMuted(context), size: 18),
+                  //           onPressed: () {
+                  //             setState(() => _locationController.clear());
+                  //           },
+                  //         ),
+                  //     ],
+                  //   ),
+                  // ),
+                  // const SizedBox(height: 20),
 
                   // Visibility picker
                   Text(l10n.translate('visibility').toUpperCase(), style: AppTheme.label(context, size: 10)),

@@ -19,7 +19,8 @@ import 'share_sheet.dart';
 import 'user_profile_screen.dart';
 
 class FeedScreen extends StatefulWidget {
-  const FeedScreen({super.key});
+  final String feedType; // 'following', 'for_you', 'favorites'
+  const FeedScreen({super.key, this.feedType = 'following'});
 
   @override
   State<FeedScreen> createState() => _FeedScreenState();
@@ -86,28 +87,62 @@ class _FeedScreenState extends State<FeedScreen> {
       _hasError = false;
     });
 
-    final result = await PostService.getFeed();
-
-    if (!mounted) return;
-
-    if (result.success) {
-      setState(() {
-        _posts.clear();
-        for (final p in result.posts) {
-          if (p is Map<String, dynamic>) {
-            _applyLikeCache(p);
-            _posts.add(p);
+    if (widget.feedType == 'for_you') {
+      final result = await PostService.getForYouFeed();
+      if (!mounted) return;
+      if (result.success) {
+        setState(() {
+          _posts.clear();
+          for (final p in result.posts) {
+            if (p is Map<String, dynamic>) {
+              _applyLikeCache(p);
+              _posts.add(p);
+            }
           }
-        }
-        _nextCursor = result.pagination?['next_cursor'] as String?;
-        _isLoading = false;
-      });
-      _fetchFollowStatuses(_posts);
+          _nextCursor = result.nextCursor;
+          _isLoading = false;
+        });
+        _fetchFollowStatuses(_posts);
+      } else {
+        setState(() { _isLoading = false; _hasError = true; });
+      }
+    } else if (widget.feedType == 'favorites') {
+      final result = await SocialService.getSavedPosts();
+      if (!mounted) return;
+      if (result.success) {
+        setState(() {
+          _posts.clear();
+          for (final p in result.posts) {
+            if (p is Map<String, dynamic>) {
+              _applyLikeCache(p);
+              _posts.add(p);
+            }
+          }
+          _nextCursor = null;
+          _isLoading = false;
+        });
+      } else {
+        setState(() { _isLoading = false; _hasError = true; });
+      }
     } else {
-      setState(() {
-        _isLoading = false;
-        _hasError = true;
-      });
+      final result = await PostService.getFeed();
+      if (!mounted) return;
+      if (result.success) {
+        setState(() {
+          _posts.clear();
+          for (final p in result.posts) {
+            if (p is Map<String, dynamic>) {
+              _applyLikeCache(p);
+              _posts.add(p);
+            }
+          }
+          _nextCursor = result.pagination?['next_cursor'] as String?;
+          _isLoading = false;
+        });
+        _fetchFollowStatuses(_posts);
+      } else {
+        setState(() { _isLoading = false; _hasError = true; });
+      }
     }
   }
 
@@ -136,26 +171,46 @@ class _FeedScreenState extends State<FeedScreen> {
 
     setState(() => _isLoadingMore = true);
 
-    final result = await PostService.getFeed(cursor: _nextCursor);
-
-    if (!mounted) return;
-
-    if (result.success) {
-      final newPosts = <Map<String, dynamic>>[];
-      setState(() {
-        for (final p in result.posts) {
-          if (p is Map<String, dynamic>) {
-            _applyLikeCache(p);
-            _posts.add(p);
-            newPosts.add(p);
+    if (widget.feedType == 'for_you') {
+      final result = await PostService.getForYouFeed(cursor: _nextCursor);
+      if (!mounted) return;
+      if (result.success) {
+        final newPosts = <Map<String, dynamic>>[];
+        setState(() {
+          for (final p in result.posts) {
+            if (p is Map<String, dynamic>) {
+              _applyLikeCache(p);
+              _posts.add(p);
+              newPosts.add(p);
+            }
           }
-        }
-        _nextCursor = result.pagination?['next_cursor'] as String?;
-        _isLoadingMore = false;
-      });
-      _fetchFollowStatuses(newPosts);
+          _nextCursor = result.nextCursor;
+          _isLoadingMore = false;
+        });
+        _fetchFollowStatuses(newPosts);
+      } else {
+        setState(() => _isLoadingMore = false);
+      }
     } else {
-      setState(() => _isLoadingMore = false);
+      final result = await PostService.getFeed(cursor: _nextCursor);
+      if (!mounted) return;
+      if (result.success) {
+        final newPosts = <Map<String, dynamic>>[];
+        setState(() {
+          for (final p in result.posts) {
+            if (p is Map<String, dynamic>) {
+              _applyLikeCache(p);
+              _posts.add(p);
+              newPosts.add(p);
+            }
+          }
+          _nextCursor = result.pagination?['next_cursor'] as String?;
+          _isLoadingMore = false;
+        });
+        _fetchFollowStatuses(newPosts);
+      } else {
+        setState(() => _isLoadingMore = false);
+      }
     }
   }
 
@@ -431,37 +486,6 @@ class _FeedScreenState extends State<FeedScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header — Instagram style
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'ENOM',
-                    style: GoogleFonts.cormorantGaramond(
-                      color: AppTheme.text1(context),
-                      fontSize: 26,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 4,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: _navigateToCreatePost,
-                        child: Icon(
-                          Icons.add_box_outlined,
-                          size: 26,
-                          color: AppTheme.text1(context),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
             // Feed list
             Expanded(
               child:
@@ -584,10 +608,6 @@ class _FeedScreenState extends State<FeedScreen> {
     final userName = user['name'] as String? ?? 'Anonymous';
     final userAvatar =
         (user['profile_image_url'] ?? user['profile_image']) as String?;
-    // ignore: avoid_print
-    print(
-      '[Feed] user: ${user['name']}, avatar: $userAvatar, keys: ${user.keys.toList()}',
-    );
     final content = post['content'] as String? ?? '';
     final media = post['media'] as List<dynamic>? ?? [];
     final reactionsCount = post['reactions_count'] as int? ?? 0;
@@ -658,54 +678,87 @@ class _FeedScreenState extends State<FeedScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              // Username + time
+              // Username + time (+ optional location row)
               Expanded(
                 child: GestureDetector(
                   onTap: isOwner ? null : () => _openUserProfile(user),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Flexible(
-                        child: Text(
-                          userName,
-                          style: GoogleFonts.jost(
-                            color: AppTheme.text1(context),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (timeAgo.isNotEmpty) ...[
-                        Text(
-                          ' · $timeAgo',
-                          style: GoogleFonts.jost(
-                            color: AppTheme.textMuted(context),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                      if (!isOwner) ...[
-                        Text(
-                          ' · ',
-                          style: GoogleFonts.jost(
-                            color: AppTheme.textMuted(context),
-                            fontSize: 13,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => _toggleFollow(index),
-                          child: Text(
-                            isFollowing ? AppLocalizations.of(context)!.translate('unfollow') : AppLocalizations.of(context)!.translate('follow'),
-                            style: GoogleFonts.jost(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: isFollowing
-                                  ? AppTheme.textMuted(context)
-                                  : AppTheme.goldColor(context),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              userName,
+                              style: GoogleFonts.jost(
+                                color: AppTheme.text1(context),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                        ),
-                      ],
+                          if (timeAgo.isNotEmpty) ...[
+                            Text(
+                              ' · $timeAgo',
+                              style: GoogleFonts.jost(
+                                color: AppTheme.textMuted(context),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                          if (!isOwner) ...[
+                            Text(
+                              ' · ',
+                              style: GoogleFonts.jost(
+                                color: AppTheme.textMuted(context),
+                                fontSize: 13,
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => _toggleFollow(index),
+                              child: Text(
+                                isFollowing ? AppLocalizations.of(context)!.translate('unfollow') : AppLocalizations.of(context)!.translate('follow'),
+                                style: GoogleFonts.jost(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: isFollowing
+                                      ? AppTheme.textMuted(context)
+                                      : AppTheme.goldColor(context),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      // Location display hidden until Google Places API integration is ready.
+                      // TODO: re-enable once GET /api/places/search is live and posts carry verified location data.
+                      // if ((post['location_name'] as String?)?.trim().isNotEmpty == true)
+                      //   Padding(
+                      //     padding: const EdgeInsets.only(top: 2),
+                      //     child: Row(
+                      //       children: [
+                      //         Icon(
+                      //           Icons.location_on,
+                      //           size: 12,
+                      //           color: AppTheme.textMuted(context),
+                      //         ),
+                      //         const SizedBox(width: 2),
+                      //         Flexible(
+                      //           child: Text(
+                      //             (post['location_name'] as String).trim(),
+                      //             style: GoogleFonts.jost(
+                      //               color: AppTheme.textMuted(context),
+                      //               fontSize: 12,
+                      //               fontWeight: FontWeight.w500,
+                      //             ),
+                      //             overflow: TextOverflow.ellipsis,
+                      //           ),
+                      //         ),
+                      //       ],
+                      //     ),
+                      //   ),
                     ],
                   ),
                 ),
@@ -826,75 +879,115 @@ class _FeedScreenState extends State<FeedScreen> {
             ),
           ),
 
-        // ── Action icons bar (Instagram style) ──
+        // ── Action icons bar (Instagram style: inline counts, compact) ──
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+          padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
           child: Row(
             children: [
-              // Heart
+              // Heart + inline count
               GestureDetector(
                 onTap: () => _toggleReaction(index, 'like'),
-                child: Icon(
-                  userReaction != null ? Icons.favorite : Icons.favorite_border,
-                  size: 26,
-                  color: userReaction != null ? Colors.redAccent : AppTheme.text1(context),
+                onLongPress: reactionsCount > 0
+                    ? () => LikesListSheet.show(context, post['id'] as int)
+                    : null,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      userReaction != null ? Icons.favorite : Icons.favorite_border,
+                      size: 22,
+                      color: userReaction != null ? Colors.redAccent : AppTheme.text1(context),
+                    ),
+                    if (reactionsCount > 0) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        _formatCount(reactionsCount),
+                        style: GoogleFonts.jost(
+                          color: AppTheme.text1(context),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(width: 16),
-              // Comment
+              const SizedBox(width: 14),
+              // Comment + inline count
               GestureDetector(
                 onTap: () => _showComments(post),
-                child: Icon(
-                  Icons.chat_bubble_outline,
-                  size: 24,
-                  color: AppTheme.text1(context),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.chat_bubble_outline,
+                      size: 22,
+                      color: AppTheme.text1(context),
+                    ),
+                    if (commentsCount > 0) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        _formatCount(commentsCount),
+                        style: GoogleFonts.jost(
+                          color: AppTheme.text1(context),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
               // Share
               GestureDetector(
                 onTap: () => ShareSheet.show(context, post['id'] as int),
                 child: Icon(
                   Icons.send_outlined,
-                  size: 24,
+                  size: 22,
                   color: AppTheme.text1(context),
                 ),
               ),
-              const Spacer(),
-              // Bookmark
+              const SizedBox(width: 14),
+              // Bookmark (moved next to share, no longer right-aligned)
               GestureDetector(
                 onTap: () => _toggleSave(index),
                 child: Icon(
                   isSaved ? Icons.bookmark : Icons.bookmark_border,
-                  size: 26,
+                  size: 22,
                   color: isSaved ? AppTheme.goldColor(context) : AppTheme.text1(context),
                 ),
               ),
+              const Spacer(),
+              // Views (moved into action row to drop the standalone line)
+              if (viewsCount > 0)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.visibility_outlined,
+                      size: 18,
+                      color: AppTheme.textMuted(context),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatCount(viewsCount),
+                      style: GoogleFonts.jost(
+                        color: AppTheme.textMuted(context),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
         ),
 
-        // ── Likes count ──
-        if (reactionsCount > 0)
-          GestureDetector(
-            onTap: () => LikesListSheet.show(context, post['id'] as int),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
-              child: Text(
-                '$reactionsCount ${reactionsCount == 1 ? AppLocalizations.of(context)!.translate('like') : AppLocalizations.of(context)!.translate('likes')}',
-                style: GoogleFonts.jost(
-                  color: AppTheme.text1(context),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-
         // ── Caption BELOW actions for posts with media ──
         if (media.isNotEmpty && content.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
             child: RichText(
               text: TextSpan(
                 children: [
@@ -912,7 +1005,7 @@ class _FeedScreenState extends State<FeedScreen> {
                       color: AppTheme.text1(context),
                       fontSize: 13,
                       fontWeight: FontWeight.w400,
-                      height: 1.4,
+                      height: 1.35,
                     ),
                   ),
                 ],
@@ -922,45 +1015,7 @@ class _FeedScreenState extends State<FeedScreen> {
             ),
           ),
 
-        // ── View all comments link ──
-        if (commentsCount > 0)
-          GestureDetector(
-            onTap: () => _showComments(post),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
-              child: Text(
-                AppLocalizations.of(context)!.translate('view_all_comments').replaceFirst('{count}', '$commentsCount'),
-                style: GoogleFonts.jost(
-                  color: AppTheme.textMuted(context),
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ),
-
-        // ── Views count ──
-        if (viewsCount > 0)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
-            child: Text(
-              '${_formatCount(viewsCount)} views',
-              style: GoogleFonts.jost(
-                color: AppTheme.textMuted(context),
-                fontSize: 12,
-              ),
-            ),
-          ),
-
-        const SizedBox(height: 12),
-
-        // Thin divider between posts
-        Divider(
-          height: 0.5,
-          thickness: 0.5,
-          color: AppTheme.isDark(context)
-              ? Colors.white.withValues(alpha: 0.12)
-              : Colors.black.withValues(alpha: 0.08),
-        ),
+        const SizedBox(height: 2),
       ],
     );
   }
@@ -1262,39 +1317,56 @@ class FeedInlineVideoPlayer extends StatefulWidget {
   State<FeedInlineVideoPlayer> createState() => _FeedInlineVideoPlayerState();
 }
 
+/// App-wide mute state for inline feed videos. Toggling on one post applies
+/// to every other feed video instantly. Defaults to muted (Instagram convention).
+final ValueNotifier<bool> feedVideosMuted = ValueNotifier<bool>(true);
+
 class _FeedInlineVideoPlayerState extends State<FeedInlineVideoPlayer> {
   late VideoPlayerController _controller;
   bool _initialized = false;
   bool _hasError = false;
-  bool _isMuted = true;
   bool _isVisible = false;
+  // Set in dispose() before disposing the controller so any in-flight
+  // initialize().then callback bails out instead of touching a dead player.
+  bool _disposed = false;
 
   @override
   void initState() {
     super.initState();
+    feedVideosMuted.addListener(_applyMuteState);
     _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
       ..initialize()
           .then((_) {
-            if (mounted) {
-              setState(() => _initialized = true);
-              _controller.setVolume(0);
-              _controller.setLooping(true);
-              // Only play if currently visible
-              if (_isVisible) _controller.play();
-            }
+            if (_disposed || !mounted) return;
+            setState(() => _initialized = true);
+            _controller.setVolume(feedVideosMuted.value ? 0 : 1);
+            _controller.setLooping(true);
+            // Only play if currently visible
+            if (_isVisible) _controller.play();
           })
           .catchError((_) {
-            if (mounted) setState(() => _hasError = true);
+            if (_disposed || !mounted) return;
+            setState(() => _hasError = true);
           });
+  }
+
+  void _applyMuteState() {
+    if (_disposed || !_initialized) return;
+    _controller.setVolume(feedVideosMuted.value ? 0 : 1);
   }
 
   @override
   void dispose() {
+    _disposed = true;
+    feedVideosMuted.removeListener(_applyMuteState);
     _controller.dispose();
     super.dispose();
   }
 
   void _onVisibilityChanged(VisibilityInfo info) {
+    // VisibilityDetector can fire after the widget is gone (e.g. when the page
+    // scrolls off in a PageView). Bail out instead of touching a dead controller.
+    if (_disposed) return;
     final visible = info.visibleFraction > 0.5;
     if (visible == _isVisible) return;
     _isVisible = visible;
@@ -1367,21 +1439,21 @@ class _FeedInlineVideoPlayerState extends State<FeedInlineVideoPlayer> {
             bottom: 8,
           child: GestureDetector(
             onTap: () {
-              setState(() {
-                _isMuted = !_isMuted;
-                _controller.setVolume(_isMuted ? 0 : 1);
-              });
+              feedVideosMuted.value = !feedVideosMuted.value;
             },
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              padding: const EdgeInsets.all(6),
-              child: Icon(
-                _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                size: 16,
-                color: Colors.white,
+            child: ValueListenableBuilder<bool>(
+              valueListenable: feedVideosMuted,
+              builder: (_, muted, __) => Container(
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: const EdgeInsets.all(6),
+                child: Icon(
+                  muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                  size: 16,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
@@ -1405,6 +1477,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _initialized = false;
   bool _hasError = false;
   bool _showControls = true;
+  // Bails out of in-flight initialize().then after dispose.
+  bool _disposed = false;
 
   @override
   void initState() {
@@ -1412,26 +1486,26 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
       ..initialize()
           .then((_) {
-            if (mounted) {
-              setState(() {
-                _initialized = true;
-              });
-              _controller.play();
-            }
+            if (_disposed || !mounted) return;
+            setState(() {
+              _initialized = true;
+            });
+            _controller.play();
           })
           .catchError((_) {
-            if (mounted) {
-              setState(() => _hasError = true);
-            }
+            if (_disposed || !mounted) return;
+            setState(() => _hasError = true);
           });
     _controller.setLooping(true);
     _controller.addListener(() {
-      if (mounted) setState(() {});
+      if (_disposed || !mounted) return;
+      setState(() {});
     });
   }
 
   @override
   void dispose() {
+    _disposed = true;
     _controller.dispose();
     super.dispose();
   }

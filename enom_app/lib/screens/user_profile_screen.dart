@@ -32,16 +32,59 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   bool _isLoading = false;
   bool _isLoadingMore = false;
 
-  int get _userId => (_user['id'] ?? _user['user_id']) as int;
+  int? get _userId {
+    final raw = _user['id'] ?? _user['user_id'];
+    if (raw is int) return raw;
+    if (raw is String) return int.tryParse(raw);
+    return null;
+  }
+
+  /// Defensive int read — backend sometimes returns counts as strings.
+  int _intOr(dynamic v, int fallback) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? fallback;
+    return fallback;
+  }
+
+  bool _boolOr(dynamic v, bool fallback) {
+    if (v is bool) return v;
+    if (v is num) return v != 0;
+    if (v is String) {
+      final s = v.toLowerCase();
+      return s == 'true' || s == '1';
+    }
+    return fallback;
+  }
 
   @override
   void initState() {
     super.initState();
     _user = Map.from(widget.user);
-    _isFollowing = _user['is_following'] as bool? ?? false;
+    _isFollowing = _boolOr(_user['is_following'], false);
+    debugPrint('[UserProfile] opened with user keys=${_user.keys.toList()}, id=${_user['id']}, name=${_user['name']}');
     _loadPosts();
     _checkFollowStatus();
+    _fetchFullUser();
     _scrollController.addListener(_onScroll);
+  }
+
+  /// The user map passed in may be minimal (e.g. just id + name from a
+  /// notification or comment). Pull the full profile so bio/avatar/counts
+  /// render correctly.
+  Future<void> _fetchFullUser() async {
+    final id = _userId;
+    if (id == null) {
+      debugPrint('[UserProfile] no user id — cannot fetch full profile');
+      return;
+    }
+    final result = await SocialService.getUserProfile(id);
+    debugPrint('[UserProfile] getUserProfile success=${result.success} keys=${result.user?.keys.toList()}');
+    if (!mounted || !result.success || result.user == null) return;
+    setState(() {
+      // Merge: keep existing keys but overwrite with fresher server values.
+      _user = {..._user, ...result.user!};
+    });
   }
 
   @override
@@ -58,18 +101,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Future<void> _checkFollowStatus() async {
-    final result = await SocialService.getFollowStatus(_userId);
+    final id = _userId;
+    if (id == null) return;
+    final result = await SocialService.getFollowStatus(id);
     if (mounted && result.success) {
       setState(() => _isFollowing = result.isFollowing);
     }
   }
 
   Future<void> _toggleFollow() async {
+    final id = _userId;
+    if (id == null) return;
     setState(() => _followLoading = true);
     final was = _isFollowing;
     setState(() => _isFollowing = !was);
 
-    final result = await SocialService.toggleFollow(_userId);
+    final result = await SocialService.toggleFollow(id);
     if (mounted) {
       setState(() {
         _isFollowing = result.success ? result.isFollowing : was;
@@ -82,6 +129,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     setState(() => _isLoading = true);
 
     final result = await PostService.getFeed(userId: _userId);
+    debugPrint('[UserProfile] getFeed userId=$_userId success=${result.success} count=${result.posts.length}');
 
     if (!mounted) return;
 
@@ -120,16 +168,24 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
   }
 
+  String _strOr(dynamic v, String fallback) {
+    if (v is String) return v;
+    if (v == null) return fallback;
+    return v.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
+    debugPrint('[UserProfile] build _user=$_user posts=${_posts.length} loading=$_isLoading');
     final l10n = AppLocalizations.of(context)!;
-    final name = _user['name'] as String? ?? 'Unknown';
-    final username = _user['username'] as String? ?? '';
-    final avatar = (_user['profile_image_url'] ?? _user['profile_image']) as String?;
-    final bio = _user['bio'] as String? ?? '';
-    final followersCount = _user['followers_count'] as int? ?? 0;
-    final followingCount = _user['following_count'] as int? ?? 0;
-    final postsCount = _user['posts_count'] as int? ?? _posts.length;
+    final name = _strOr(_user['name'], 'Unknown');
+    final username = _strOr(_user['username'], '');
+    final avatarRaw = _user['profile_image_url'] ?? _user['profile_image'];
+    final avatar = avatarRaw is String ? avatarRaw : null;
+    final bio = _strOr(_user['bio'], '');
+    final followersCount = _intOr(_user['followers_count'], 0);
+    final followingCount = _intOr(_user['following_count'], 0);
+    final postsCount = _intOr(_user['posts_count'], _posts.length);
 
     return Scaffold(
       backgroundColor: AppTheme.bg(context),
@@ -186,6 +242,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         ],
       ),
       body: Stack(
+        fit: StackFit.expand,
         children: [
           const EnomScreenBackground(gradientVariant: 2, particleCount: 30),
           SafeArea(
@@ -356,9 +413,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Widget _buildPostCard(Map<String, dynamic> post) {
     final content = post['content'] as String? ?? '';
     final media = post['media'] as List<dynamic>? ?? [];
-    final reactionsCount = post['reactions_count'] as int? ?? 0;
-    final commentsCount = post['comments_count'] as int? ?? 0;
-    final viewsCount = post['views_count'] as int? ?? 0;
+    final reactionsCount = _intOr(post['reactions_count'], 0);
+    final commentsCount = _intOr(post['comments_count'], 0);
+    final viewsCount = _intOr(post['views_count'], 0);
     final createdAt = post['created_at'] as String? ?? '';
 
     String timeAgo = '';
@@ -495,11 +552,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Widget _buildMediaGrid(List<dynamic> media) {
     if (media.length == 1) {
+      // Bounded SizedBox is required: _buildMediaItem returns
+      // Stack(fit: StackFit.expand) for videos, which needs a sized parent.
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: _buildMediaItem(media[0]),
+          child: SizedBox(
+            width: double.infinity,
+            height: 280,
+            child: _buildMediaItem(media[0]),
+          ),
         ),
       );
     }

@@ -208,6 +208,65 @@ class MoodHistoryService {
       ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
   }
 
+  // ── Read (API) ──
+
+  /// GET /api/v1/mood/history — Fetch entries directly from server (no local cache).
+  /// Optional date range filter (ISO 8601 yyyy-MM-dd).
+  static Future<List<MoodEntry>> getApiHistory({
+    int limit = 100,
+    String? startDate,
+    String? endDate,
+    String? mood,
+  }) async {
+    final params = <String>['limit=$limit'];
+    if (startDate != null) params.add('startDate=$startDate');
+    if (endDate != null) params.add('endDate=$endDate');
+    if (mood != null) params.add('mood=$mood');
+    final url = '/api/v1/mood/history?${params.join('&')}';
+    try {
+      final response = await ApiService.get(url, auth: true);
+      final status = response['statusCode'] as int;
+      final body = response['body'];
+      debugPrint('[MOOD_HISTORY] GET $url status=$status');
+      if (status == 200 && body is Map) {
+        debugPrint('[MOOD_HISTORY] response keys: ${body.keys.toList()}');
+        final List<dynamic> list;
+        if (body['data'] is List) {
+          list = body['data'] as List<dynamic>;
+        } else if (body['entries'] is List) {
+          list = body['entries'] as List<dynamic>;
+        } else if (body['history'] is List) {
+          list = body['history'] as List<dynamic>;
+        } else if (body['items'] is List) {
+          list = body['items'] as List<dynamic>;
+        } else {
+          debugPrint('[MOOD_HISTORY] no recognised list field, body=$body');
+          return [];
+        }
+        return list
+            .whereType<Map<String, dynamic>>()
+            .map(MoodEntry.fromApiEntry)
+            .toList()
+          ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      }
+    } catch (e) {
+      debugPrint('[MOOD_HISTORY] getApiHistory error: $e');
+    }
+    return [];
+  }
+
+  /// Month-window helper: fetch entries between [year-month-01] and end of that month.
+  static Future<List<MoodEntry>> getApiMonthEntries(int year, int month) async {
+    final start = DateTime(year, month, 1);
+    final end = DateTime(year, month + 1, 0); // last day of month
+    final fmt = DateFormat('yyyy-MM-dd');
+    return getApiHistory(
+      limit: 100,
+      startDate: fmt.format(start),
+      endDate: fmt.format(end),
+    );
+  }
+
   static Future<List<Map<String, dynamic>>> getHistory() async {
     final entries = await getEntries();
     return entries.map((e) => e.toJson()).toList();
@@ -379,11 +438,87 @@ class MoodHistoryService {
         '/api/v1/mood/analytics/trends?period=$period&tz_offset=$tzOffset',
         auth: true,
       );
-      if ((response['statusCode'] as int) == 200) {
-        return response['body'] as Map<String, dynamic>?;
+      final status = response['statusCode'] as int;
+      final body = response['body'];
+      debugPrint('[MOOD_TRENDS] GET /api/v1/mood/analytics/trends?period=$period status=$status');
+      if (body is Map) {
+        debugPrint('[MOOD_TRENDS] response keys: ${body.keys.toList()}');
+        debugPrint('[MOOD_TRENDS] response body: $body');
       }
-    } catch (_) {}
+      if (status == 200 && body is Map<String, dynamic>) {
+        return body;
+      }
+    } catch (e) {
+      debugPrint('[MOOD_TRENDS] error: $e');
+    }
     return null;
+  }
+
+  /// Fetch 7-day mood scores from the API (normalized 0.0-1.0 for the chart).
+  /// Defensively handles multiple response shapes: `daily_scores: List<num>`,
+  /// `data: List<{date, score}>`, or a map keyed by date.
+  static Future<List<double>> getWeeklyScoresFromApi() async {
+    final api = await getAnalyticsTrends(period: '7d');
+    if (api == null) {
+      debugPrint('[MOOD_TRENDS] no API data, returning zeros');
+      return List<double>.filled(7, 0);
+    }
+    final scores = parseDailyScores(api, expectedLength: 7);
+    debugPrint('[MOOD_TRENDS] parsed weekly scores: $scores');
+    return scores;
+  }
+
+  /// Defensive parser: pick the best representation of daily scores
+  /// from whatever shape the API returned. Always returns a list of length
+  /// [expectedLength], padded at the start with zeros when fewer points exist.
+  static List<double> parseDailyScores(Map<String, dynamic> api, {int expectedLength = 7}) {
+    List<num>? raw;
+
+    // Shape 1: { daily_scores: [..7..] }
+    if (api['daily_scores'] is List) {
+      raw = (api['daily_scores'] as List).whereType<num>().toList();
+    }
+    // Shape 2: { data: [{date, score}, ...] }  — last 7 by date
+    else if (api['data'] is List) {
+      final list = (api['data'] as List).whereType<Map>().toList();
+      list.sort((a, b) => (a['date'] ?? '').toString().compareTo((b['date'] ?? '').toString()));
+      raw = list.map((m) => (m['score'] ?? m['average_score'] ?? 0) as num).toList();
+    }
+    // Shape 3: { trends: { 'YYYY-MM-DD': score, ... } }
+    else if (api['trends'] is Map) {
+      final m = api['trends'] as Map;
+      final keys = m.keys.map((k) => k.toString()).toList()..sort();
+      raw = keys.map((k) => (m[k] ?? 0) as num).toList();
+    }
+    // Shape 4: top-level map keyed by date
+    else {
+      final dateLike = api.entries
+          .where((e) => RegExp(r'^\d{4}-\d{2}-\d{2}').hasMatch(e.key))
+          .toList();
+      if (dateLike.isNotEmpty) {
+        dateLike.sort((a, b) => a.key.compareTo(b.key));
+        raw = dateLike.map((e) => (e.value as num? ?? 0)).toList();
+      }
+    }
+
+    if (raw == null || raw.isEmpty) {
+      debugPrint('[MOOD_TRENDS] could not find scores in response keys: ${api.keys.toList()}');
+      return List<double>.filled(expectedLength, 0);
+    }
+
+    // Take the last N (pad with zeros at the start if fewer).
+    final tail = raw.length >= expectedLength
+        ? raw.sublist(raw.length - expectedLength)
+        : raw;
+    final padded = <num>[
+      ...List<num>.filled(expectedLength - tail.length, 0),
+      ...tail,
+    ];
+
+    // Normalize to 0.0-1.0. If any value > 1, assume 0-100 scale.
+    final maxVal = padded.fold<num>(0, (m, v) => v > m ? v : m);
+    final divisor = maxVal > 1 ? 100.0 : 1.0;
+    return padded.map((v) => (v.toDouble() / divisor).clamp(0.0, 1.0)).toList();
   }
 
   /// GET /api/v1/mood/trend — Get mood trend summary.

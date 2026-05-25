@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -9,6 +10,7 @@ import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../services/mood_detection_service.dart';
 import '../services/mood_history_service.dart';
+import '../services/notification_api_service.dart';
 import 'camera_permission_screen.dart';
 import 'mood_history_screen.dart';
 import 'mood_scan_screen.dart';
@@ -20,6 +22,7 @@ import 'settings_screen.dart';
 import 'feed_screen.dart';
 import 'reels_tab.dart';
 import 'search_screen.dart';
+import 'create_post_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,8 +32,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  int _currentIndex = 0;
-  final GlobalKey _feedKey = GlobalKey();
+  // PageView page index (0..4). Bottom-nav highlight is derived from this.
+  // Pages: 0=Home, 1=Mood (hidden swipe-reveal), 2=Reels, 3=Search, 4=Profile.
+  int _pageIndex = 0;
+  late final PageController _pageCtrl;
+
+  GlobalKey _feedKey = GlobalKey();
   Map<String, dynamic>? _user;
   bool _isLoggingOut = false;
   String _selectedMood = 'Happy';
@@ -42,12 +49,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // Weekly mood history
   List<double> _weeklyScores = [0, 0, 0, 0, 0, 0, 0];
 
+  // Unread notification count
+  int _unreadNotifCount = 0;
+
+  // Feed type for dropdown
+  String _feedType = 'following'; // 'following', 'for_you', 'favorites'
+
+  // Back-press-to-exit: tracks last back press for the "press again to exit" pattern.
+  DateTime? _lastBackPress;
+
+  // Animated app-bar height: 1.0 = fully visible, 0.0 = fully hidden.
+  // Hidden when scrolling down, shown when scrolling up (Instagram-style).
+  late final AnimationController _appBarAnim;
+  static const double _appBarHeight = 40.0;
+
   @override
   void initState() {
     super.initState();
+    _pageCtrl = PageController();
+    _appBarAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+      value: 1.0,
+    );
     _loadUser();
     _requestNotificationPermission();
     _loadWeeklyScores();
+    _loadUnreadCount();
   }
 
   Future<void> _requestNotificationPermission() async {
@@ -58,10 +86,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _loadWeeklyScores() async {
-    final scores = await MoodHistoryService.getWeeklyScores();
+    final scores = await MoodHistoryService.getWeeklyScoresFromApi();
     if (mounted) {
       setState(() => _weeklyScores = scores);
     }
+  }
+
+  Future<void> _loadUnreadCount() async {
+    try {
+      final result = await NotificationApiService.getNotifications(page: 1);
+      if (mounted && result.success) {
+        setState(() => _unreadNotifCount = result.unreadCount);
+      }
+    } catch (_) {}
+  }
+
+  String? _getProfileImageUrl() {
+    var url = _user?['profile_image_url'] as String? ?? _user?['profile_image'] as String?;
+    if (url != null && url.isNotEmpty && !url.startsWith('http')) {
+      url = '${ApiService.baseUrl}/storage/$url';
+    }
+    return (url != null && url.isNotEmpty) ? url : null;
   }
 
   Future<void> _loadUser() async {
@@ -132,7 +177,62 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _appBarAnim.dispose();
+    _pageCtrl.dispose();
     super.dispose();
+  }
+
+  // ── Bottom-nav ↔ PageView mapping ──
+  // Bottom-nav order (7 items): 0=Home, 1=Reels, 2=Mood, 3=Messages*, 4=Dating*,
+  // 5=Search, 6=Profile  (* = coming soon — intercepted).
+  // PageView pages follow the same order, just skipping the intercepted ones:
+  //   page 0=Home, 1=Reels, 2=Mood, 3=Search, 4=Profile
+  int _pageForNav(int nav) {
+    switch (nav) {
+      case 0:
+        return 0; // Home
+      case 1:
+        return 1; // Reels
+      case 2:
+        return 2; // Mood
+      case 5:
+        return 3; // Search
+      case 6:
+        return 4; // Profile
+      default:
+        return _pageIndex; // Messages/Dating intercept — stay where we are.
+    }
+  }
+
+  int _navForPage(int page) {
+    switch (page) {
+      case 0:
+        return 0; // Home
+      case 1:
+        return 1; // Reels
+      case 2:
+        return 2; // Mood
+      case 3:
+        return 5; // Search
+      case 4:
+        return 6; // Profile
+      default:
+        return 0;
+    }
+  }
+
+  /// Hide/show the top app bar based on user scroll direction (Instagram style).
+  /// Only react to vertical scrolls — horizontal PageView swipes are ignored.
+  bool _onScrollNotification(UserScrollNotification n) {
+    if (n.metrics.axis != Axis.vertical) return false;
+    if (n.direction == ScrollDirection.reverse) {
+      // User swiping up (going deeper into feed) → hide.
+      _appBarAnim.reverse();
+    } else if (n.direction == ScrollDirection.forward) {
+      // User swiping down (back towards top) → show.
+      _appBarAnim.forward();
+    }
+    return false;
   }
 
   String _getTimeGreeting(AppLocalizations l10n) {
@@ -150,99 +250,136 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        // If not on the first tab, go to first tab instead of exiting
-        if (_currentIndex != 0) {
-          setState(() => _currentIndex = 0);
+        // If not on the Home page, swipe back to Home instead of exiting.
+        if (_pageIndex != 0) {
+          _pageCtrl.animateToPage(
+            0,
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+          );
           return;
         }
-        // Show exit confirmation dialog
-        final shouldExit = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            backgroundColor: AppTheme.bg(context),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Text(
-              l10n.translate('exit_app'),
-              style: GoogleFonts.cormorantGaramond(
-                color: AppTheme.text1(context),
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            content: Text(
-              l10n.translate('exit_app_message'),
-              style: GoogleFonts.jost(
-                color: AppTheme.text2(context),
-                fontSize: 15,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(
-                  l10n.translate('no'),
-                  style: GoogleFonts.jost(color: AppTheme.textMuted(context)),
+        // Modern "press back again to exit" pattern — two taps within 2s exits.
+        final now = DateTime.now();
+        if (_lastBackPress == null ||
+            now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
+          _lastBackPress = now;
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: Text(
+                  l10n.translate('press_back_to_exit'),
+                  style: GoogleFonts.jost(
+                    color: AppTheme.text1(context),
+                    fontSize: 14,
+                  ),
                 ),
+                backgroundColor: AppTheme.bg2(context),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                margin: const EdgeInsets.all(16),
+                duration: const Duration(seconds: 2),
               ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: Text(
-                  l10n.translate('yes'),
-                  style: GoogleFonts.jost(color: AppTheme.goldColor(context), fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
-        );
-        if (shouldExit == true) {
-          SystemNavigator.pop();
+            );
+          return;
         }
+        SystemNavigator.pop();
       },
-      child: Scaffold(
+      child: AnimatedBuilder(
+        animation: _appBarAnim,
+        builder: (context, _) => Scaffold(
         backgroundColor: AppTheme.bg(context),
         extendBodyBehindAppBar: true,
         appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(40),
-        child: AppBar(
+        preferredSize: Size.fromHeight(_appBarHeight * _appBarAnim.value),
+        child: ClipRect(
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          heightFactor: _appBarAnim.value.clamp(0.0, 1.0),
+          child: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           scrolledUnderElevation: 0,
-          toolbarHeight: 40,
+          toolbarHeight: _appBarHeight,
           automaticallyImplyLeading: false,
-          title: Row(
-            children: [
-              AppTheme.logo(context, size: 24),
-              const SizedBox(width: 8),
-              Text(
-                'ENOM',
-                style: GoogleFonts.cormorantGaramond(
-                  color: AppTheme.text1(context),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 5,
+          title: GestureDetector(
+            onTap: _showFeedTypeSheet,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppTheme.logo(context, size: 24),
+                const SizedBox(width: 6),
+                Text(
+                  'ENOM',
+                  style: GoogleFonts.cormorantGaramond(
+                    color: AppTheme.text1(context),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 4,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 2),
+                Icon(Icons.keyboard_arrow_down_rounded,
+                    color: AppTheme.text1(context), size: 20),
+              ],
+            ),
           ),
           actions: [
             IconButton(
-              icon: Icon(Icons.notifications_outlined,
+              icon: Icon(Icons.add_box_outlined,
                   color: AppTheme.text2(context), size: 22),
               onPressed: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const NotificationScreen())),
+                  MaterialPageRoute(builder: (_) => const CreatePostScreen())),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            ),
+            IconButton(
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(Icons.notifications_outlined,
+                      color: AppTheme.text2(context), size: 22),
+                  if (_unreadNotifCount > 0)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.red,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              onPressed: () async {
+                await Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const NotificationScreen()));
+                _loadUnreadCount();
+              },
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
             ),
             const SizedBox(width: 4),
           ],
         ),
+        ),
+        ),
       ),
-      body: _isLoggingOut
+      body: NotificationListener<UserScrollNotification>(
+        onNotification: _onScrollNotification,
+        child: _isLoggingOut
           ? Center(
               child: CircularProgressIndicator(
                   color: AppTheme.goldColor(context)),
             )
           : _buildBody(l10n),
+      ),
       extendBody: true,
       bottomNavigationBar: ClipRect(
         child: BackdropFilter(
@@ -260,49 +397,86 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 canvasColor: Colors.transparent,
               ),
               child: BottomNavigationBar(
-                currentIndex: _currentIndex,
+                currentIndex: _navForPage(_pageIndex),
                 onTap: (index) {
-                  if (index == 0 && _currentIndex == 0) {
-                    // Re-tapped home tab — scroll to top and refresh
+                  // Messages (3) and Dating (4) — intercept with the coming-soon
+                  // sheet and stay on the current page.
+                  if (index == 3) {
+                    _showComingSoonSheet(
+                      title: l10n.translate('messages'),
+                      icon: Icons.forum_outlined,
+                    );
+                    return;
+                  }
+                  if (index == 4) {
+                    _showComingSoonSheet(
+                      title: l10n.translate('dating'),
+                      icon: Icons.local_fire_department_outlined,
+                    );
+                    return;
+                  }
+                  final targetPage = _pageForNav(index);
+                  // Tap Home while already on Home (page 0) → scroll feed to top + refresh.
+                  if (index == 0 && _pageIndex == 0) {
                     try {
                       (_feedKey.currentState as dynamic).scrollToTopAndRefresh();
                     } catch (_) {}
                   }
-                  setState(() => _currentIndex = index);
+                  if (targetPage != _pageIndex) {
+                    _pageCtrl.animateToPage(
+                      targetPage,
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOut,
+                    );
+                  }
                 },
                 selectedItemColor: AppTheme.goldColor(context),
                 unselectedItemColor: AppTheme.textMuted(context),
                 backgroundColor: Colors.transparent,
                 type: BottomNavigationBarType.fixed,
                 elevation: 0,
+                iconSize: 20,
+                selectedFontSize: 9,
+                unselectedFontSize: 9,
+                showUnselectedLabels: true,
                 selectedLabelStyle:
-                    GoogleFonts.jost(fontSize: 9, letterSpacing: 2),
+                    GoogleFonts.jost(fontSize: 8, letterSpacing: 1.0),
                 unselectedLabelStyle:
-                    GoogleFonts.jost(fontSize: 9, letterSpacing: 2),
+                    GoogleFonts.jost(fontSize: 8, letterSpacing: 1.0),
                 items: [
                   BottomNavigationBarItem(
-                    icon: const Icon(Icons.home_outlined),
-                    activeIcon: const Icon(Icons.home),
+                    icon: const Icon(Icons.home_outlined, size: 20),
+                    activeIcon: const Icon(Icons.home, size: 20),
                     label: l10n.translate('home').toUpperCase(),
                   ),
                   BottomNavigationBarItem(
-                    icon: const Icon(Icons.play_circle_outline),
-                    activeIcon: const Icon(Icons.play_circle_filled),
+                    icon: const Icon(Icons.play_circle_outline, size: 20),
+                    activeIcon: const Icon(Icons.play_circle_filled, size: 20),
                     label: l10n.translate('reels').toUpperCase(),
                   ),
                   BottomNavigationBarItem(
-                    icon: const Icon(Icons.bar_chart_outlined),
-                    activeIcon: const Icon(Icons.bar_chart),
-                    label: l10n.translate('stats').toUpperCase(),
+                    icon: const Icon(Icons.sentiment_satisfied_alt_outlined, size: 20),
+                    activeIcon: const Icon(Icons.sentiment_satisfied_alt, size: 20),
+                    label: l10n.translate('mood').toUpperCase(),
                   ),
                   BottomNavigationBarItem(
-                    icon: const Icon(Icons.search_outlined),
-                    activeIcon: const Icon(Icons.search),
+                    icon: const Icon(Icons.forum_outlined, size: 20),
+                    activeIcon: const Icon(Icons.forum, size: 20),
+                    label: l10n.translate('messages').toUpperCase(),
+                  ),
+                  BottomNavigationBarItem(
+                    icon: const Icon(Icons.local_fire_department_outlined, size: 20),
+                    activeIcon: const Icon(Icons.local_fire_department, size: 20),
+                    label: l10n.translate('dating').toUpperCase(),
+                  ),
+                  BottomNavigationBarItem(
+                    icon: const Icon(Icons.search_outlined, size: 20),
+                    activeIcon: const Icon(Icons.search, size: 20),
                     label: l10n.translate('search').toUpperCase(),
                   ),
                   BottomNavigationBarItem(
-                    icon: const Icon(Icons.person_outline_rounded),
-                    activeIcon: const Icon(Icons.person_rounded),
+                    icon: _buildProfileNavIcon(false),
+                    activeIcon: _buildProfileNavIcon(true),
                     label: l10n.translate('profile').toUpperCase(),
                   ),
                 ],
@@ -312,24 +486,281 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
     ),
+    ),
+    );
+  }
+
+  void _showFeedTypeSheet() {
+    final l10n = AppLocalizations.of(context)!;
+    final goldC = AppTheme.goldColor(context);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.bg(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36, height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.textMuted(context),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                _feedTypeOption(ctx, 'following', Icons.people_outline,
+                    l10n.translate('following'), goldC),
+                _feedTypeOption(ctx, 'for_you', Icons.auto_awesome_outlined,
+                    l10n.translate('for_you'), goldC),
+                _feedTypeOption(ctx, 'favorites', Icons.favorite_border,
+                    l10n.translate('favorites'), goldC),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _feedTypeOption(BuildContext ctx, String type, IconData icon,
+      String label, Color goldC) {
+    final isSelected = _feedType == type;
+    return ListTile(
+      leading: Icon(icon,
+          color: isSelected ? goldC : AppTheme.text2(context), size: 22),
+      title: Text(
+        label,
+        style: GoogleFonts.jost(
+          color: isSelected ? goldC : AppTheme.text1(context),
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          fontSize: 15,
+        ),
+      ),
+      trailing: isSelected
+          ? Icon(Icons.check_circle, color: goldC, size: 20)
+          : null,
+      onTap: () {
+        Navigator.pop(ctx);
+        if (_feedType != type) {
+          setState(() {
+            _feedType = type;
+            _feedKey = GlobalKey();
+          });
+        }
+      },
+    );
+  }
+
+  Widget _buildProfileNavIcon(bool isActive) {
+    final imageUrl = _getProfileImageUrl();
+    final size = 20.0;
+    final borderColor = isActive
+        ? AppTheme.goldColor(context)
+        : Colors.transparent;
+
+    if (imageUrl != null) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: borderColor, width: 2),
+        ),
+        child: ClipOval(
+          child: Image.network(
+            imageUrl,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            cacheWidth: (size * 3).toInt(),
+            errorBuilder: (_, __, ___) => Icon(
+              isActive ? Icons.person_rounded : Icons.person_outline_rounded,
+              size: size,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Icon(
+      isActive ? Icons.person_rounded : Icons.person_outline_rounded,
+    );
+  }
+
+  void _showComingSoonSheet({required String title, required IconData icon}) {
+    final l10n = AppLocalizations.of(context)!;
+    final goldC = AppTheme.goldColor(context);
+    final isDark = AppTheme.isDark(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        minChildSize: 0.4,
+        maxChildSize: 0.7,
+        builder: (_, scrollCtrl) => Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark
+                  ? [AppTheme.darkBg2, AppTheme.darkBg]
+                  : [AppTheme.lightBg2, AppTheme.lightBg],
+            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border.all(color: goldC.withValues(alpha: 0.25), width: 1),
+          ),
+          child: SingleChildScrollView(
+            controller: scrollCtrl,
+            padding: const EdgeInsets.fromLTRB(28, 14, 28, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Drag handle
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: AppTheme.textMuted(context).withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                // Glowing icon halo
+                Container(
+                  width: 110,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        goldC.withValues(alpha: 0.35),
+                        goldC.withValues(alpha: 0.05),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 76,
+                      height: 76,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: AppTheme.goldGradient2,
+                        boxShadow: [
+                          BoxShadow(
+                            color: goldC.withValues(alpha: 0.4),
+                            blurRadius: 18,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                      child: Icon(icon, size: 38, color: Colors.white),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                // Sparkles row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.auto_awesome, size: 14, color: goldC),
+                    const SizedBox(width: 6),
+                    Text(
+                      l10n.translate('coming_soon').toUpperCase(),
+                      style: GoogleFonts.jost(
+                        color: goldC,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 3,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(Icons.auto_awesome, size: 14, color: goldC),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                // Feature title
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.cormorantGaramond(
+                    color: AppTheme.text1(context),
+                    fontSize: 30,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Tagline
+                Text(
+                  l10n.translate('coming_soon_message'),
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.jost(
+                    color: AppTheme.text2(context),
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Got it button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: goldC,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      l10n.translate('got_it').toUpperCase(),
+                      style: GoogleFonts.jost(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildBody(AppLocalizations l10n) {
-    switch (_currentIndex) {
-      case 0:
-        return FeedScreen(key: _feedKey);
-      case 1:
-        return const ReelsTab();
-      case 2:
-        return _buildHomeTab(l10n);
-      case 3:
-        return const SearchScreen();
-      case 4:
-        return _buildProfileTab(l10n);
-      default:
-        return const FeedScreen();
-    }
+    // Instagram-style swipeable tabs. Page order matches the bottom nav
+    // (skipping the intercepted Messages/Dating items): Home → Reels → Mood
+    // → Search → Profile.
+    return PageView(
+      controller: _pageCtrl,
+      onPageChanged: (page) => setState(() => _pageIndex = page),
+      children: [
+        FeedScreen(key: _feedKey, feedType: _feedType),
+        const ReelsTab(),
+        _buildHomeTab(l10n),
+        const SearchScreen(),
+        _buildProfileTab(l10n),
+      ],
+    );
   }
 
   Widget _buildHomeTab(AppLocalizations l10n) {
