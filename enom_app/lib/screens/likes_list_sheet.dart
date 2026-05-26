@@ -3,13 +3,24 @@ import 'package:google_fonts/google_fonts.dart';
 import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/post_service.dart';
+import '../services/social_service.dart';
 import '../theme/app_theme.dart';
 import 'user_profile_screen.dart';
 
-/// Instagram-style bottom sheet showing who liked/reacted to a post.
+/// Instagram-style "Likes and plays" bottom sheet.
+///
+/// Shows a stats row (likes + views), a searchable list of users who liked
+/// the post, and a Follow button next to each user (except the current user,
+/// who instead gets an unlike control).
 class LikesListSheet extends StatefulWidget {
   final int postId;
   final bool darkMode;
+
+  /// Likes count to display in the stats row (caller's current state).
+  final int likesCount;
+
+  /// Views count to display in the stats row (caller's current state).
+  final int viewsCount;
 
   /// Called when the current user unlikes the post from this sheet.
   final VoidCallback? onUnliked;
@@ -18,12 +29,20 @@ class LikesListSheet extends StatefulWidget {
     super.key,
     required this.postId,
     this.darkMode = false,
+    this.likesCount = 0,
+    this.viewsCount = 0,
     this.onUnliked,
   });
 
   /// Show the likes list as a bottom sheet.
-  static void show(BuildContext context, int postId,
-      {bool darkMode = false, VoidCallback? onUnliked}) {
+  static void show(
+    BuildContext context,
+    int postId, {
+    bool darkMode = false,
+    int likesCount = 0,
+    int viewsCount = 0,
+    VoidCallback? onUnliked,
+  }) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -31,6 +50,8 @@ class LikesListSheet extends StatefulWidget {
       builder: (_) => LikesListSheet(
         postId: postId,
         darkMode: darkMode,
+        likesCount: likesCount,
+        viewsCount: viewsCount,
         onUnliked: onUnliked,
       ),
     );
@@ -42,14 +63,23 @@ class LikesListSheet extends StatefulWidget {
 
 class _LikesListSheetState extends State<LikesListSheet> {
   List<Map<String, dynamic>> _reactions = [];
+  final Map<int, bool> _followStates = {}; // userId → isFollowing
   bool _isLoading = true;
   int? _currentUserId;
+  String _searchQuery = '';
+  final TextEditingController _searchCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadCurrentUser();
     _loadReactions();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCurrentUser() async {
@@ -64,18 +94,40 @@ class _LikesListSheetState extends State<LikesListSheet> {
     final result = await PostService.getReactions(widget.postId);
     if (!mounted) return;
 
+    final reactions = result.reactions.whereType<Map<String, dynamic>>().toList();
     setState(() {
       _isLoading = false;
-      _reactions = result.reactions
-          .whereType<Map<String, dynamic>>()
-          .toList();
+      _reactions = reactions;
     });
 
-    debugPrint('[LikesListSheet] loaded ${_reactions.length} reactions: $_reactions');
+    // Batch-load follow status for everyone in the list (except self).
+    final userIds = <int>[];
+    for (final r in reactions) {
+      final user = r['user'] as Map<String, dynamic>? ?? r;
+      final uid = (user['id'] ?? r['user_id']) as int?;
+      if (uid != null && uid != _currentUserId) userIds.add(uid);
+    }
+    if (userIds.isEmpty) return;
+
+    final statuses = await SocialService.batchFollowStatus(userIds);
+    if (!mounted) return;
+    setState(() => _followStates.addAll(statuses));
+  }
+
+  Future<void> _toggleFollow(int userId) async {
+    final was = _followStates[userId] ?? false;
+    setState(() => _followStates[userId] = !was);
+
+    final result = await SocialService.toggleFollow(userId);
+    if (!mounted) return;
+    if (result.success) {
+      setState(() => _followStates[userId] = result.isFollowing);
+    } else {
+      setState(() => _followStates[userId] = was);
+    }
   }
 
   Future<void> _unlikePost(int index) async {
-    final reaction = _reactions[index];
     setState(() {
       _reactions.removeAt(index);
     });
@@ -102,27 +154,49 @@ class _LikesListSheetState extends State<LikesListSheet> {
       widget.darkMode ? Colors.white12 : AppTheme.glassBorder(context);
   Color get _avatarBgColor =>
       widget.darkMode ? Colors.grey[800]! : AppTheme.glassBg(context);
+  Color get _searchBgColor => widget.darkMode
+      ? Colors.white.withValues(alpha: 0.08)
+      : AppTheme.glassBg(context);
 
   String _getReactionEmoji(String? type) {
     switch (type) {
       case 'love':
-        return '\u2764\uFE0F';
+        return '❤️';
       case 'haha':
-        return '\uD83D\uDE02';
+        return '😂';
       case 'wow':
-        return '\uD83D\uDE2E';
+        return '😮';
       case 'like':
       default:
-        return '\u2764\uFE0F';
+        return '❤️';
     }
+  }
+
+  String _formatCount(int count) {
+    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
+    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
+    return '$count';
+  }
+
+  List<Map<String, dynamic>> get _filteredReactions {
+    if (_searchQuery.isEmpty) return _reactions;
+    final q = _searchQuery.toLowerCase();
+    return _reactions.where((r) {
+      final user = r['user'] as Map<String, dynamic>? ?? r;
+      final name = (user['name'] ?? r['name'] ?? '').toString().toLowerCase();
+      final username =
+          (user['username'] ?? r['username'] ?? '').toString().toLowerCase();
+      return name.contains(q) || username.contains(q);
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return DraggableScrollableSheet(
-      initialChildSize: 0.5,
-      minChildSize: 0.3,
-      maxChildSize: 0.8,
+      initialChildSize: 0.7,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
       builder: (ctx, scrollController) {
         return Container(
           decoration: BoxDecoration(
@@ -143,10 +217,12 @@ class _LikesListSheetState extends State<LikesListSheet> {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
+
+              // Title: "Likes and plays"
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  AppLocalizations.of(context)!.translate('likes'),
+                  l10n.translate('likes_and_plays'),
                   style: GoogleFonts.jost(
                     color: _textColor,
                     fontSize: 15,
@@ -154,7 +230,88 @@ class _LikesListSheetState extends State<LikesListSheet> {
                   ),
                 ),
               ),
+
+              // Stats row: ❤ likes  👁 views
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.favorite_border,
+                        size: 18, color: _textColor),
+                    const SizedBox(width: 6),
+                    Text(
+                      _formatCount(widget.likesCount),
+                      style: GoogleFonts.jost(
+                        color: _textColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Icon(Icons.visibility_outlined,
+                        size: 18, color: _textColor),
+                    const SizedBox(width: 6),
+                    Text(
+                      _formatCount(widget.viewsCount),
+                      style: GoogleFonts.jost(
+                        color: _textColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               Divider(color: _borderColor, height: 1),
+
+              // "Liked by" header
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                  child: Text(
+                    l10n.translate('liked_by'),
+                    style: GoogleFonts.jost(
+                      color: _textColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Search field
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: _searchBgColor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: TextField(
+                    controller: _searchCtrl,
+                    onChanged: (v) => setState(() => _searchQuery = v.trim()),
+                    style: GoogleFonts.jost(
+                      color: _textColor,
+                      fontSize: 14,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: l10n.translate('search'),
+                      hintStyle: GoogleFonts.jost(
+                        color: _mutedColor,
+                        fontSize: 14,
+                      ),
+                      prefixIcon: Icon(Icons.search,
+                          size: 20, color: _mutedColor),
+                      border: InputBorder.none,
+                      contentPadding:
+                          const EdgeInsets.symmetric(vertical: 12),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+              ),
 
               // List
               Expanded(
@@ -165,16 +322,23 @@ class _LikesListSheetState extends State<LikesListSheet> {
                           strokeWidth: 2,
                         ),
                       )
-                    : _reactions.isEmpty
+                    : _filteredReactions.isEmpty
                         ? Center(
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.favorite_border,
-                                    size: 48, color: _mutedColor),
+                                Icon(
+                                  _searchQuery.isEmpty
+                                      ? Icons.favorite_border
+                                      : Icons.search_off,
+                                  size: 48,
+                                  color: _mutedColor,
+                                ),
                                 const SizedBox(height: 12),
                                 Text(
-                                  'No likes yet',
+                                  _searchQuery.isEmpty
+                                      ? l10n.translate('no_likes_yet')
+                                      : l10n.translate('no_results'),
                                   style: GoogleFonts.jost(
                                     color: _mutedColor,
                                     fontSize: 14,
@@ -185,10 +349,15 @@ class _LikesListSheetState extends State<LikesListSheet> {
                           )
                         : ListView.builder(
                             controller: scrollController,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            itemCount: _reactions.length,
-                            itemBuilder: (_, i) =>
-                                _buildReactionTile(_reactions[i], i),
+                            padding: const EdgeInsets.only(bottom: 16),
+                            itemCount: _filteredReactions.length,
+                            itemBuilder: (_, i) {
+                              final reaction = _filteredReactions[i];
+                              // We need the index from _reactions, not the
+                              // filtered list, so unlike removes the right one.
+                              final originalIndex = _reactions.indexOf(reaction);
+                              return _buildReactionTile(reaction, originalIndex);
+                            },
                           ),
               ),
             ],
@@ -199,6 +368,7 @@ class _LikesListSheetState extends State<LikesListSheet> {
   }
 
   Widget _buildReactionTile(Map<String, dynamic> reaction, int index) {
+    final l10n = AppLocalizations.of(context)!;
     // Support both nested user object and flat structure
     final user = reaction['user'] as Map<String, dynamic>? ?? reaction;
     final name = (user['name'] ?? reaction['name'] ?? 'Anonymous') as String;
@@ -213,6 +383,7 @@ class _LikesListSheetState extends State<LikesListSheet> {
     final reactionType = reaction['type'] as String? ?? 'like';
     final emoji = _getReactionEmoji(reactionType);
     final isCurrentUser = _currentUserId != null && userId == _currentUserId;
+    final isFollowing = userId != null && (_followStates[userId] ?? false);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -226,63 +397,62 @@ class _LikesListSheetState extends State<LikesListSheet> {
               ),
             ),
             child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _avatarBgColor,
-                  border: Border.all(
-                    color: widget.darkMode
-                        ? Colors.white12
-                        : AppTheme.goldColor(context).withValues(alpha: 0.4),
-                    width: 1.5,
-                  ),
-                ),
-                child: ClipOval(
-                  child: avatar != null && avatar.isNotEmpty
-                      ? Image.network(
-                          avatar,
-                          width: 44,
-                          height: 44,
-                          fit: BoxFit.cover,
-                          cacheWidth: 120,
-                          loadingBuilder: (_, child, progress) {
-                            if (progress == null) return child;
-                            return Center(
-                              child: SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 1.5,
-                                  color: AppTheme.gold1,
-                                ),
-                              ),
-                            );
-                          },
-                          errorBuilder: (_, __, ___) =>
-                              _avatarFallback(name),
-                        )
-                      : _avatarFallback(name),
-                ),
-              ),
-              // Reaction emoji badge
-              Positioned(
-                bottom: -2,
-                right: -2,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    color: _bgColor,
                     shape: BoxShape.circle,
+                    color: _avatarBgColor,
+                    border: Border.all(
+                      color: widget.darkMode
+                          ? Colors.white12
+                          : AppTheme.goldColor(context).withValues(alpha: 0.4),
+                      width: 1.5,
+                    ),
                   ),
-                  child: Text(emoji, style: const TextStyle(fontSize: 14)),
+                  child: ClipOval(
+                    child: avatar != null && avatar.isNotEmpty
+                        ? Image.network(
+                            avatar,
+                            width: 44,
+                            height: 44,
+                            fit: BoxFit.cover,
+                            cacheWidth: 120,
+                            loadingBuilder: (_, child, progress) {
+                              if (progress == null) return child;
+                              return Center(
+                                child: SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1.5,
+                                    color: AppTheme.gold1,
+                                  ),
+                                ),
+                              );
+                            },
+                            errorBuilder: (_, __, ___) => _avatarFallback(name),
+                          )
+                        : _avatarFallback(name),
+                  ),
                 ),
-              ),
-            ],
-          ),
+                // Reaction emoji badge
+                Positioned(
+                  bottom: -2,
+                  right: -2,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: _bgColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(emoji, style: const TextStyle(fontSize: 14)),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(width: 12),
           // Name + username
@@ -297,43 +467,55 @@ class _LikesListSheetState extends State<LikesListSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    name,
+                    username.isNotEmpty ? username : name,
                     style: GoogleFonts.jost(
                       color: _textColor,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  if (username.isNotEmpty)
+                  if (name.isNotEmpty && username.isNotEmpty)
                     Text(
-                      '@$username',
+                      name,
                       style: GoogleFonts.jost(
                         color: _text2Color,
                         fontSize: 12,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                 ],
               ),
             ),
           ),
-          // Unlike button — only for current user's like
+          // Self → small unlike control; others → Follow / Following button.
           if (isCurrentUser)
             GestureDetector(
               onTap: () => _unlikePost(index),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: _mutedColor.withValues(alpha: 0.4),
                   ),
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.favorite,
                   size: 20,
                   color: Colors.redAccent,
                 ),
               ),
+            )
+          else if (userId != null)
+            _FollowPill(
+              isFollowing: isFollowing,
+              onTap: () => _toggleFollow(userId),
+              label: isFollowing
+                  ? l10n.translate('following')
+                  : l10n.translate('follow'),
+              darkMode: widget.darkMode,
             ),
         ],
       ),
@@ -348,6 +530,57 @@ class _LikesListSheetState extends State<LikesListSheet> {
           color: AppTheme.gold1,
           fontSize: 16,
           fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+class _FollowPill extends StatelessWidget {
+  final bool isFollowing;
+  final VoidCallback onTap;
+  final String label;
+  final bool darkMode;
+
+  const _FollowPill({
+    required this.isFollowing,
+    required this.onTap,
+    required this.label,
+    required this.darkMode,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final goldC = AppTheme.goldColor(context);
+    final filledBg = goldC;
+    final outlineBg = darkMode
+        ? Colors.white.withValues(alpha: 0.06)
+        : AppTheme.glassBg(context);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isFollowing ? outlineBg : filledBg,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isFollowing
+                ? (darkMode
+                    ? Colors.white24
+                    : AppTheme.glassBorder(context))
+                : filledBg,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.jost(
+            color: isFollowing
+                ? (darkMode ? Colors.white : AppTheme.text1(context))
+                : Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );

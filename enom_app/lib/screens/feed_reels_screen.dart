@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../services/social_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/double_tap_heart.dart';
 import 'likes_list_sheet.dart';
 import 'share_sheet.dart';
 import 'threaded_comments_sheet.dart';
@@ -77,6 +78,9 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Fixed 100px bottom margin for the reels area (per user request).
+    const effectiveBottomPadding = 100.0;
+
     return Scaffold(
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
@@ -93,7 +97,7 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
                 post: _videoPosts[index],
                 isActive: index == _currentIndex,
                 onCommentTap: (onCommentAdded) => _showComments(_videoPosts[index], onCommentAdded),
-                bottomPadding: widget.bottomPadding,
+                bottomPadding: effectiveBottomPadding,
               );
             },
           ),
@@ -447,6 +451,12 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
     }
   }
 
+  /// Instagram-style double-tap: only ever LIKES; never un-likes.
+  /// The heart animation always plays (handled by [DoubleTapHeart]).
+  void _doubleTapLike() {
+    if (!_isLiked) _toggleLike();
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = widget.post['user'] as Map<String, dynamic>? ?? {};
@@ -454,8 +464,14 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
     final userAvatar = (user['profile_image_url'] ?? user['profile_image']) as String?;
     final content = widget.post['content'] as String? ?? '';
 
-    return GestureDetector(
+    // Reserve room at the bottom for the home-screen bottom-nav so video,
+    // username row, right-rail icons, and progress bar all sit cleanly
+    // above it. In route mode (no nav) bottomPadding is 0 → no effect.
+    return Padding(
+      padding: EdgeInsets.only(bottom: widget.bottomPadding),
+      child: DoubleTapHeart(
       onTap: _togglePlayPause,
+      onDoubleTap: _doubleTapLike,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -527,7 +543,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
           // ── Right side action buttons (compact, TikTok/Reels style) ──
           Positioned(
             right: 10,
-            bottom: 80 + widget.bottomPadding,
+            bottom: 80,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -535,13 +551,9 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                 _buildProfileAvatar(userAvatar, userName),
                 const SizedBox(height: 18),
 
-                // Like
-                _buildCompactAction(
-                  icon: _isLiked ? Icons.favorite : Icons.favorite_border,
-                  label: _likesCount > 0 ? _formatCount(_likesCount) : '',
-                  color: _isLiked ? Colors.redAccent : Colors.white,
-                  onTap: _toggleLike,
-                ),
+                // Like — heart toggles reaction, count opens the
+                // Likes-and-plays sheet.
+                _buildLikeAction(),
                 const SizedBox(height: 14),
 
                 // Comment
@@ -586,15 +598,8 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                 ),
                 const SizedBox(height: 14),
 
-                // Views (eye icon)
-                if (_viewsCount > 0)
-                  _buildCompactAction(
-                    icon: Icons.visibility_outlined,
-                    label: _formatCount(_viewsCount),
-                    color: Colors.white,
-                    onTap: () {},
-                  ),
-                if (_viewsCount > 0) const SizedBox(height: 14),
+                // Views moved into the Likes-and-plays sheet; no longer
+                // shown as a standalone right-rail action.
 
                 // Dating / Connect
                 _buildCompactAction(
@@ -611,7 +616,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
           Positioned(
             left: 14,
             right: 56,
-            bottom: 50 + widget.bottomPadding,
+            bottom: 50,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -656,10 +661,11 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
             ),
           ),
 
-          // ── Video progress bar at very bottom (only for video posts) ──
+          // ── Video progress bar — sits flush against the bottom edge of
+          // the padded reels box, which itself stops above the bottom-nav.
           if (_isVideoPost && _initialized && _controller != null)
             Positioned(
-              bottom: widget.bottomPadding,
+              bottom: 0,
               left: 0,
               right: 0,
               child: VideoProgressIndicator(
@@ -674,6 +680,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
               ),
             ),
         ],
+      ),
       ),
     );
   }
@@ -790,9 +797,11 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
       );
     }
 
+    // Preserve original aspect ratio (no center-crop) — matches the inline
+    // feed preview. Non-9:16 videos get black bars instead of being cropped.
     return SizedBox.expand(
       child: FittedBox(
-        fit: BoxFit.cover,
+        fit: BoxFit.contain,
         child: SizedBox(
           width: _controller!.value.size.width == 0 ? 360 : _controller!.value.size.width,
           height: _controller!.value.size.height == 0 ? 640 : _controller!.value.size.height,
@@ -905,6 +914,45 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
 
 
   /// Compact action button — smaller icon + optional count label.
+  /// Like control with split tap targets — heart toggles, count opens the
+  /// Likes-and-plays sheet (Instagram-style).
+  Widget _buildLikeAction() {
+    final hasCount = _likesCount > 0;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: _toggleLike,
+          child: Icon(
+            _isLiked ? Icons.favorite : Icons.favorite_border,
+            size: 24,
+            color: _isLiked ? Colors.redAccent : Colors.white,
+          ),
+        ),
+        if (hasCount) ...[
+          const SizedBox(height: 2),
+          GestureDetector(
+            onTap: () => LikesListSheet.show(
+              context,
+              widget.post['id'] as int,
+              darkMode: true,
+              likesCount: _likesCount,
+              viewsCount: _viewsCount,
+            ),
+            child: Text(
+              _formatCount(_likesCount),
+              style: GoogleFonts.jost(
+                color: Colors.white70,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildCompactAction({
     required IconData icon,
     required String label,

@@ -226,6 +226,9 @@
 
   "like": "like",
   "likes": "likes",
+  "likes_and_plays": "Likes and plays",
+  "liked_by": "Liked by",
+  "no_likes_yet": "No likes yet",
   "comments": "Comments",
   "comment": "Comment",
   "follow": "Follow",

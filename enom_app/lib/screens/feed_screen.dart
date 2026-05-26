@@ -10,6 +10,7 @@ import '../services/social_service.dart';
 import '../services/upload_manager.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../widgets/double_tap_heart.dart';
 import 'create_post_screen.dart';
 import 'edit_post_screen.dart';
 import 'feed_reels_screen.dart';
@@ -294,6 +295,16 @@ class _FeedScreenState extends State<FeedScreen> {
       setState(() => post['is_saved'] = result.isSaved);
     } else if (mounted) {
       setState(() => post['is_saved'] = wasSaved);
+    }
+  }
+
+  /// Instagram-style double-tap: only ever LIKES; never un-likes.
+  /// The heart animation always plays (handled by [DoubleTapHeart]).
+  void _doubleTapLike(int index) {
+    if (index < 0 || index >= _posts.length) return;
+    final post = _posts[index];
+    if (post['user_reaction'] == null) {
+      _toggleReaction(index, 'like');
     }
   }
 
@@ -846,7 +857,7 @@ class _FeedScreenState extends State<FeedScreen> {
 
         // ── Media (full width, no padding, no rounded corners) ──
         if (media.isNotEmpty)
-          _buildMediaGrid(media, post),
+          _buildMediaGrid(media, post, index),
 
         // ── Caption ABOVE actions for text-only posts ──
         if (media.isEmpty && content.isNotEmpty)
@@ -884,34 +895,37 @@ class _FeedScreenState extends State<FeedScreen> {
           padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
           child: Row(
             children: [
-              // Heart + inline count
+              // Heart icon — tap toggles reaction
               GestureDetector(
                 onTap: () => _toggleReaction(index, 'like'),
-                onLongPress: reactionsCount > 0
-                    ? () => LikesListSheet.show(context, post['id'] as int)
-                    : null,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      userReaction != null ? Icons.favorite : Icons.favorite_border,
-                      size: 22,
-                      color: userReaction != null ? Colors.redAccent : AppTheme.text1(context),
-                    ),
-                    if (reactionsCount > 0) ...[
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatCount(reactionsCount),
-                        style: GoogleFonts.jost(
-                          color: AppTheme.text1(context),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ],
+                child: Icon(
+                  userReaction != null ? Icons.favorite : Icons.favorite_border,
+                  size: 22,
+                  color: userReaction != null
+                      ? Colors.redAccent
+                      : AppTheme.text1(context),
                 ),
               ),
+              // Like count — tap opens the Likes-and-plays sheet
+              if (reactionsCount > 0) ...[
+                const SizedBox(width: 4),
+                GestureDetector(
+                  onTap: () => LikesListSheet.show(
+                    context,
+                    post['id'] as int,
+                    likesCount: reactionsCount,
+                    viewsCount: viewsCount,
+                  ),
+                  child: Text(
+                    _formatCount(reactionsCount),
+                    style: GoogleFonts.jost(
+                      color: AppTheme.text1(context),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(width: 14),
               // Comment + inline count
               GestureDetector(
@@ -959,27 +973,8 @@ class _FeedScreenState extends State<FeedScreen> {
                 ),
               ),
               const Spacer(),
-              // Views (moved into action row to drop the standalone line)
-              if (viewsCount > 0)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.visibility_outlined,
-                      size: 18,
-                      color: AppTheme.textMuted(context),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatCount(viewsCount),
-                      style: GoogleFonts.jost(
-                        color: AppTheme.textMuted(context),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+              // Views moved into the new Likes-and-plays sheet, so the
+              // standalone view-count chip is no longer rendered here.
             ],
           ),
         ),
@@ -1040,11 +1035,15 @@ class _FeedScreenState extends State<FeedScreen> {
         .toList();
   }
 
-  Widget _buildMediaGrid(List<dynamic> media, Map<String, dynamic> post) {
+  Widget _buildMediaGrid(
+    List<dynamic> media,
+    Map<String, dynamic> post,
+    int index,
+  ) {
     final imageUrls = _getImageUrls(media);
 
     if (media.length == 1) {
-      return _buildMediaItem(media[0], imageUrls, post);
+      return _buildMediaItem(media[0], imageUrls, post, index);
     }
 
     // Multiple media: PageView with dot indicators
@@ -1052,7 +1051,7 @@ class _FeedScreenState extends State<FeedScreen> {
       media: media,
       imageUrls: imageUrls,
       post: post,
-      buildItem: (item) => _buildMediaItem(item, imageUrls, post),
+      buildItem: (item) => _buildMediaItem(item, imageUrls, post, index),
     );
   }
 
@@ -1088,14 +1087,16 @@ class _FeedScreenState extends State<FeedScreen> {
     dynamic item,
     List<String> imageUrls,
     Map<String, dynamic> post,
+    int index,
   ) {
     final fullUrl = _getMediaUrl(item);
     final type = _getMediaType(item);
     final screenWidth = MediaQuery.of(context).size.width;
 
     if (type.contains('video')) {
-      return GestureDetector(
+      return DoubleTapHeart(
         onTap: () => _openReelsScreen(post),
+        onDoubleTap: () => _doubleTapLike(index),
         child: Container(
           width: double.infinity,
           constraints: BoxConstraints(minHeight: screenWidth * 0.56),
@@ -1109,8 +1110,9 @@ class _FeedScreenState extends State<FeedScreen> {
       );
     }
 
-    return GestureDetector(
+    return DoubleTapHeart(
       onTap: () => _openReelsScreen(post),
+      onDoubleTap: () => _doubleTapLike(index),
       child: Container(
         width: double.infinity,
         constraints: BoxConstraints(minHeight: screenWidth * 0.56),

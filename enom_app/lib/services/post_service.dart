@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'api_service.dart';
 
@@ -20,6 +21,27 @@ class PostService {
 
     if (status == 200 && body is Map<String, dynamic>) {
       final posts = body['data'] as List<dynamic>? ?? [];
+
+      // ── TEMP DIAGNOSTIC (thumbnail issue) ──
+      // Dump the media field for the first page so the backend team can see
+      // exactly what the API is returning for recent video posts. Only fires
+      // on the first page (no cursor) to keep logs manageable.
+      if (cursor == null) {
+        debugPrint('[THUMB_DEBUG] endpoint=$endpoint  postCount=${posts.length}');
+        for (final p in posts.take(8)) {
+          if (p is Map<String, dynamic>) {
+            final summary = {
+              'id': p['id'],
+              'created_at': p['created_at'],
+              'user_id': (p['user'] is Map ? p['user']['id'] : p['user_id']),
+              'media': p['media'],
+            };
+            debugPrint('[THUMB_DEBUG] post=${jsonEncode(summary)}');
+          }
+        }
+      }
+      // ── END DIAGNOSTIC ──
+
       final pagination = <String, dynamic>{
         'next_cursor': body['next_cursor'],
         'prev_cursor': body['prev_cursor'],
