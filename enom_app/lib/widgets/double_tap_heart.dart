@@ -14,6 +14,7 @@ class DoubleTapHeart extends StatefulWidget {
   final Widget child;
   final VoidCallback onDoubleTap;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   /// Size of the heart icon at full scale.
   final double heartSize;
@@ -26,6 +27,7 @@ class DoubleTapHeart extends StatefulWidget {
     required this.child,
     required this.onDoubleTap,
     this.onTap,
+    this.onLongPress,
     this.heartSize = 110,
     this.heartColor = Colors.white,
   });
@@ -90,6 +92,7 @@ class _DoubleTapHeartState extends State<DoubleTapHeart>
     return GestureDetector(
       onTap: widget.onTap,
       onDoubleTap: _handleDoubleTap,
+      onLongPress: widget.onLongPress,
       behavior: HitTestBehavior.opaque,
       child: Stack(
         alignment: Alignment.center,

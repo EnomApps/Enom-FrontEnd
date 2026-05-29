@@ -27,9 +27,12 @@ class NotificationApiService {
       final status = result['statusCode'] as int;
       final body = result['body'];
       debugPrint('[NOTIF] status=$status');
-      // Dump the raw body so we can see the actual contract. Truncate long ones.
       final bodyStr = body.toString();
-      debugPrint('[NOTIF] body=${bodyStr.length > 800 ? '${bodyStr.substring(0, 800)}...(${bodyStr.length} chars)' : bodyStr}');
+      debugPrint('[NOTIF] body length=${bodyStr.length}');
+      for (var i = 0; i < bodyStr.length; i += 1000) {
+        final end = (i + 1000 < bodyStr.length) ? i + 1000 : bodyStr.length;
+        debugPrint('[NOTIF] body[$i-$end]=${bodyStr.substring(i, end)}');
+      }
 
       if (status == 200 && body is Map<String, dynamic>) {
         // Server response shape:

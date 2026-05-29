@@ -11,6 +11,7 @@ import '../services/upload_manager.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../widgets/double_tap_heart.dart';
+import '../widgets/pinch_to_zoom.dart';
 import 'create_post_screen.dart';
 import 'edit_post_screen.dart';
 import 'feed_reels_screen.dart';
@@ -480,14 +481,33 @@ class _FeedScreenState extends State<FeedScreen> {
       }
     }
     final initialIndex = allPosts.indexWhere((p) => p['id'] == tappedPost['id']);
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => FeedReelsScreen(
-          videoPosts: allPosts,
-          initialIndex: initialIndex >= 0 ? initialIndex : 0,
-        ),
-      ),
-    );
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => FeedReelsScreen(
+              videoPosts: allPosts,
+              initialIndex: initialIndex >= 0 ? initialIndex : 0,
+            ),
+          ),
+        )
+        .then((_) {
+      if (!mounted) return;
+      // Sync follow-state cache with any toggles done in reels.
+      for (final post in allPosts) {
+        final user = post['user'] as Map<String, dynamic>? ?? {};
+        final uid = user['id'] as int?;
+        final isFollowing = post['is_following'] as bool?;
+        if (uid != null && isFollowing != null) {
+          _followStates[uid] = isFollowing;
+        }
+        // Refresh like cache from any reactions toggled in reels.
+        final pid = post['id'] as int?;
+        if (pid != null) {
+          _likeCache[pid] = post['user_reaction'] as String?;
+        }
+      }
+      setState(() {});
+    });
   }
 
   @override
@@ -513,24 +533,31 @@ class _FeedScreenState extends State<FeedScreen> {
                       : RefreshIndicator(
                         onRefresh: _onRefresh,
                         color: AppTheme.goldColor(context),
-                        child: ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.only(bottom: 90),
-                          itemCount: _posts.length + (_isLoadingMore ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index == _posts.length) {
-                              return Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    color: AppTheme.goldColor(context),
-                                    strokeWidth: 2,
+                        child: ValueListenableBuilder<bool>(
+                          valueListenable: PinchToZoom.isPinching,
+                          builder: (_, pinching, __) => ListView.builder(
+                            controller: _scrollController,
+                            physics: pinching
+                                ? const NeverScrollableScrollPhysics()
+                                : const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.only(bottom: 90),
+                            itemCount:
+                                _posts.length + (_isLoadingMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index == _posts.length) {
+                                return Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      color: AppTheme.goldColor(context),
+                                      strokeWidth: 2,
+                                    ),
                                   ),
-                                ),
-                              );
-                            }
-                            return _buildPostCard(index);
-                          },
+                                );
+                              }
+                              return _buildPostCard(index);
+                            },
+                          ),
                         ),
                       ),
             ),
@@ -1101,10 +1128,12 @@ class _FeedScreenState extends State<FeedScreen> {
           width: double.infinity,
           constraints: BoxConstraints(minHeight: screenWidth * 0.56),
           color: Colors.black,
-          child: FeedInlineVideoPlayer(
-            url: fullUrl,
-            width: screenWidth,
-            height: screenWidth * 0.56,
+          child: PinchToZoom(
+            child: FeedInlineVideoPlayer(
+              url: fullUrl,
+              width: screenWidth,
+              height: screenWidth * 0.56,
+            ),
           ),
         ),
       );
@@ -1120,7 +1149,8 @@ class _FeedScreenState extends State<FeedScreen> {
             AppTheme.isDark(context)
                 ? const Color(0xFF1A1A1A)
                 : const Color(0xFFFAFAFA),
-        child: Image.network(
+        child: PinchToZoom(
+          child: Image.network(
           fullUrl,
           fit: BoxFit.cover,
           width: double.infinity,
@@ -1149,6 +1179,7 @@ class _FeedScreenState extends State<FeedScreen> {
                   ),
                 ),
               ),
+        ),
         ),
       ),
     );
@@ -1206,10 +1237,14 @@ class _MediaCarouselState extends State<_MediaCarousel> {
       children: [
         AspectRatio(
           aspectRatio: 1,
-          child: PageView.builder(
-            itemCount: widget.media.length,
-            onPageChanged: (i) => setState(() => _current = i),
-            itemBuilder: (_, i) => widget.buildItem(widget.media[i]),
+          child: ValueListenableBuilder<bool>(
+            valueListenable: PinchToZoom.isPinching,
+            builder: (_, pinching, __) => PageView.builder(
+              physics: pinching ? const NeverScrollableScrollPhysics() : null,
+              itemCount: widget.media.length,
+              onPageChanged: (i) => setState(() => _current = i),
+              itemBuilder: (_, i) => widget.buildItem(widget.media[i]),
+            ),
           ),
         ),
         const SizedBox(height: 10),

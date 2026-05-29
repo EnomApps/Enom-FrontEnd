@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:simple_pip_mode/simple_pip.dart';
 import 'package:video_player/video_player.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../services/social_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/double_tap_heart.dart';
+import '../widgets/pinch_to_zoom.dart';
 import 'likes_list_sheet.dart';
 import 'share_sheet.dart';
 import 'threaded_comments_sheet.dart';
 import 'user_profile_screen.dart';
+import 'video_actions_sheet.dart';
 
 /// TikTok / Instagram Reels style vertical feed for both images and videos.
 class FeedReelsScreen extends StatefulWidget {
@@ -44,6 +48,8 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
   late List<Map<String, dynamic>> _videoPosts;
   String? _nextCursor;
   bool _isLoadingMore = false;
+  // ignore: unused_field — held so the platform channel listener stays alive
+  late final SimplePip _pip;
 
   @override
   void initState() {
@@ -51,6 +57,18 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
     _videoPosts = List.from(widget.videoPosts);
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
+
+    // PiP lifecycle: keep the shared notifier in sync so reels overlays hide
+    // (and the activity header) while in Picture-in-Picture. Holding a
+    // reference keeps the channel listener alive for this screen.
+    _pip = SimplePip(
+      onPipEntered: () => VideoActionsSheet.pipActive.value = true,
+      onPipExited: () => VideoActionsSheet.pipActive.value = false,
+    );
+
+    // Keep the screen awake while reels is open — users shouldn't get a
+    // dark-screen timeout mid-video. Released in dispose.
+    WakelockPlus.enable();
 
     // Immersive mode
     SystemChrome.setSystemUIOverlayStyle(
@@ -67,6 +85,9 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    WakelockPlus.disable();
+    // Failsafe in case we leave reels while still in PiP.
+    VideoActionsSheet.pipActive.value = false;
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -74,6 +95,16 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
       ),
     );
     super.dispose();
+  }
+
+  void _advanceToNext() {
+    final next = _currentIndex + 1;
+    if (next >= _videoPosts.length) return;
+    _pageController.animateToPage(
+      next,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -86,51 +117,67 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
       extendBodyBehindAppBar: true,
       body: Stack(
         children: [
-          // Vertical swipeable video pages
-          PageView.builder(
-            controller: _pageController,
-            scrollDirection: Axis.vertical,
-            itemCount: _videoPosts.length,
-            onPageChanged: _onPageChanged,
-            itemBuilder: (context, index) {
-              return _ReelVideoPage(
-                post: _videoPosts[index],
-                isActive: index == _currentIndex,
-                onCommentTap: (onCommentAdded) => _showComments(_videoPosts[index], onCommentAdded),
-                bottomPadding: effectiveBottomPadding,
-              );
-            },
+          // Vertical swipeable video pages — disable scroll while pinching
+          // so the gesture arena doesn't steal the 2-finger zoom.
+          ValueListenableBuilder<bool>(
+            valueListenable: PinchToZoom.isPinching,
+            builder: (_, pinching, __) => PageView.builder(
+              controller: _pageController,
+              scrollDirection: Axis.vertical,
+              physics: pinching ? const NeverScrollableScrollPhysics() : null,
+              itemCount: _videoPosts.length,
+              onPageChanged: _onPageChanged,
+              itemBuilder: (context, index) {
+                return _ReelVideoPage(
+                  post: _videoPosts[index],
+                  isActive: index == _currentIndex,
+                  onCommentTap: (onCommentAdded) => _showComments(_videoPosts[index], onCommentAdded),
+                  onNotInterested: () => _removePost(_videoPosts[index]),
+                  onVideoEnded: _advanceToNext,
+                  bottomPadding: effectiveBottomPadding,
+                );
+              },
+            ),
           ),
 
-          // Top bar — back button
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 8,
-            right: 16,
-            child: Row(
-              children: [
-                if (widget.showBackButton)
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(
-                      Icons.arrow_back_ios_rounded,
-                      color: Colors.white,
-                      size: 22,
+          // Top bar — back button. Hidden in PiP so the floating window shows
+          // only the video.
+          ValueListenableBuilder<bool>(
+            valueListenable: VideoActionsSheet.pipActive,
+            builder: (_, pip, __) {
+              final s = MediaQuery.of(context).size;
+              final small = s.width < 320 || s.height < 320;
+              if (pip || small) return const SizedBox.shrink();
+              return Positioned(
+                top: MediaQuery.of(context).padding.top + 8,
+                left: 8,
+                right: 16,
+                child: Row(
+                  children: [
+                    if (widget.showBackButton)
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(
+                          Icons.arrow_back_ios_rounded,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                    const Spacer(),
+                    Text(
+                      'Reels',
+                      style: GoogleFonts.jost(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                const Spacer(),
-                Text(
-                  'Reels',
-                  style: GoogleFonts.jost(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
+                    const Spacer(),
+                    const SizedBox(width: 40), // balance
+                  ],
                 ),
-                const Spacer(),
-                const SizedBox(width: 40), // balance
-              ],
-            ),
+              );
+            },
           ),
         ],
       ),
@@ -172,6 +219,15 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
     }
   }
 
+  void _removePost(Map<String, dynamic> post) {
+    setState(() {
+      _videoPosts.remove(post);
+      if (_currentIndex >= _videoPosts.length) {
+        _currentIndex = (_videoPosts.length - 1).clamp(0, 1 << 30);
+      }
+    });
+  }
+
   void _showComments(Map<String, dynamic> post, VoidCallback onCommentAdded) {
     final postId = post['id'] as int;
     showModalBottomSheet(
@@ -195,12 +251,16 @@ class _ReelVideoPage extends StatefulWidget {
   final Map<String, dynamic> post;
   final bool isActive;
   final void Function(VoidCallback onCommentAdded) onCommentTap;
+  final VoidCallback onNotInterested;
+  final VoidCallback onVideoEnded;
   final double bottomPadding;
 
   const _ReelVideoPage({
     required this.post,
     required this.isActive,
     required this.onCommentTap,
+    required this.onNotInterested,
+    required this.onVideoEnded,
     this.bottomPadding = 0,
   });
 
@@ -215,9 +275,8 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
   bool _isPaused = false;
   bool _showPauseIcon = false;
 
-  // Media type detection
-  bool _isVideoPost = false;
-  List<String> _imageUrls = [];
+  // Ordered list of media items in the post (videos + images).
+  List<({String url, bool isVideo})> _mediaItems = [];
 
   // Reaction state
   bool _isLiked = false;
@@ -231,9 +290,31 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
   bool _viewRecorded = false;
   bool _isOwner = false;
 
-  // Image page indicator
-  int _currentImageIndex = 0;
-  final PageController _imagePageController = PageController();
+  // Inner media page (horizontal swipe across this post's media).
+  int _currentMediaIndex = 0;
+  final PageController _mediaPageController = PageController();
+
+  // Long-press menu state
+  double _playbackSpeed = 1.0;
+  bool _clearMode = false;
+  bool _endHandled = false;
+
+  void _onControllerTick() {
+    final c = _controller;
+    if (c == null || !_initialized || !widget.isActive || _endHandled) return;
+    if (!VideoActionsSheet.autoScrollEnabled.value) return;
+    final v = c.value;
+    if (v.duration <= Duration.zero) return;
+    if (v.position >= v.duration - const Duration(milliseconds: 120)) {
+      _endHandled = true;
+      widget.onVideoEnded();
+    }
+  }
+
+  bool get _isCurrentVideo =>
+      _mediaItems.isNotEmpty &&
+      _currentMediaIndex < _mediaItems.length &&
+      _mediaItems[_currentMediaIndex].isVideo;
 
   @override
   void initState() {
@@ -246,18 +327,26 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
     _viewsCount = widget.post['views_count'] as int? ?? 0;
     _isOwner = widget.post['is_owner'] as bool? ?? false;
     _detectMediaType();
-    if (_isVideoPost) {
-      _initVideo();
+    if (_isCurrentVideo) {
+      _initVideoFor(_mediaItems[_currentMediaIndex].url);
     }
     if (widget.isActive) _recordView();
     if (!_isOwner) _checkFollowStatus();
     _loadCurrentUserId();
+    // Flip looping live when the user toggles auto-scroll in the menu.
+    VideoActionsSheet.autoScrollEnabled.addListener(_onAutoScrollChanged);
+  }
+
+  void _onAutoScrollChanged() {
+    final c = _controller;
+    if (c == null || !_initialized) return;
+    c.setLooping(!VideoActionsSheet.autoScrollEnabled.value);
+    _endHandled = false;
   }
 
   void _detectMediaType() {
     final media = widget.post['media'] as List<dynamic>? ?? [];
-    _isVideoPost = false;
-    _imageUrls = [];
+    _mediaItems = [];
 
     for (final item in media) {
       if (item is Map) {
@@ -266,31 +355,28 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
         final fullUrl = url.startsWith('http')
             ? url
             : '${ApiService.baseUrl}/${url.replaceAll(RegExp(r'^/'), '')}';
-
-        if (type.contains('video')) {
-          _isVideoPost = true;
-        } else {
-          _imageUrls.add(fullUrl);
-        }
+        _mediaItems.add((url: fullUrl, isVideo: type.contains('video')));
       }
     }
   }
 
-  void _initVideo() {
-    final videoUrl = _getVideoUrl(widget.post);
-    if (videoUrl == null) return;
-
+  void _initVideoFor(String videoUrl) {
     final controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
     _controller = controller;
+    _initialized = false;
+    _hasError = false;
+    _endHandled = false;
+    controller.addListener(_onControllerTick);
     controller.initialize().then((_) {
-      // If dispose ran before init completed, _controller has been nulled out;
-      // dispose() any orphaned player we just finished setting up.
+      // If dispose ran (or the user swiped to another inner page) before init
+      // completed, _controller no longer points at us — dispose the orphan.
       if (!mounted || _controller != controller) {
         controller.dispose();
         return;
       }
       setState(() => _initialized = true);
-      controller.setLooping(true);
+      // Loop unless auto-scroll is on — then play once and advance on end.
+      controller.setLooping(!VideoActionsSheet.autoScrollEnabled.value);
       if (widget.isActive) {
         controller.play();
       }
@@ -301,20 +387,21 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
     });
   }
 
-  String? _getVideoUrl(Map<String, dynamic> post) {
-    final media = post['media'] as List<dynamic>? ?? [];
-    for (final item in media) {
-      if (item is Map) {
-        final type = (item['type'] ?? item['mime_type'] ?? item['file_type'] ?? 'image').toString();
-        if (type.contains('video')) {
-          final url = (item['url'] ?? item['file_url'] ?? item['path'] ?? item['file_path'] ?? item['media_url'] ?? '').toString();
-          return url.startsWith('http')
-              ? url
-              : '${ApiService.baseUrl}/${url.replaceAll(RegExp(r'^/'), '')}';
-        }
-      }
+  void _onInnerPageChanged(int index) {
+    final old = _controller;
+    setState(() {
+      _currentMediaIndex = index;
+      _controller = null;
+      _initialized = false;
+      _hasError = false;
+      _isPaused = false;
+      _showPauseIcon = false;
+    });
+    old?.removeListener(_onControllerTick);
+    old?.dispose();
+    if (_isCurrentVideo) {
+      _initVideoFor(_mediaItems[_currentMediaIndex].url);
     }
-    return null;
   }
 
   @override
@@ -322,30 +409,32 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
     super.didUpdateWidget(oldWidget);
     if (widget.isActive != oldWidget.isActive) {
       if (widget.isActive) {
-        if (_isVideoPost) {
+        if (_isCurrentVideo) {
           _controller?.play();
           _isPaused = false;
         }
         _recordView();
       } else {
-        if (_isVideoPost) _controller?.pause();
+        if (_isCurrentVideo) _controller?.pause();
       }
     }
   }
 
   @override
   void dispose() {
+    VideoActionsSheet.autoScrollEnabled.removeListener(_onAutoScrollChanged);
     // Null out the field BEFORE disposing so any in-flight `initialize().then`
     // callback sees `_controller != controller` and bails out.
     final c = _controller;
     _controller = null;
+    c?.removeListener(_onControllerTick);
     c?.dispose();
-    _imagePageController.dispose();
+    _mediaPageController.dispose();
     super.dispose();
   }
 
   void _togglePlayPause() {
-    if (!_isVideoPost || _controller == null || !_initialized) return;
+    if (!_isCurrentVideo || _controller == null || !_initialized) return;
 
     setState(() {
       if (_controller!.value.isPlaying) {
@@ -401,12 +490,15 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
 
     final was = _isFollowing;
     setState(() => _isFollowing = !was);
+    widget.post['is_following'] = !was;
 
     final result = await SocialService.toggleFollow(userId);
     if (mounted && result.success) {
       setState(() => _isFollowing = result.isFollowing);
+      widget.post['is_following'] = result.isFollowing;
     } else if (mounted) {
       setState(() => _isFollowing = was);
+      widget.post['is_following'] = was;
     }
   }
 
@@ -414,12 +506,15 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
     final postId = widget.post['id'] as int;
     final was = _isSaved;
     setState(() => _isSaved = !was);
+    widget.post['is_saved'] = !was;
 
     final result = await SocialService.toggleSave(postId);
     if (mounted && result.success) {
       setState(() => _isSaved = result.isSaved);
+      widget.post['is_saved'] = result.isSaved;
     } else if (mounted) {
       setState(() => _isSaved = was);
+      widget.post['is_saved'] = was;
     }
   }
 
@@ -429,6 +524,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
     // Save previous state for rollback
     final wasLiked = _isLiked;
     final prevCount = _likesCount;
+    final prevReaction = widget.post['user_reaction'];
 
     setState(() {
       if (_isLiked) {
@@ -439,6 +535,10 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
         _likesCount += 1;
       }
     });
+    // Mirror into the post Map so the upstream screen (feed/profile) shows
+    // the updated state when the reels route pops.
+    widget.post['user_reaction'] = _isLiked ? 'like' : null;
+    widget.post['reactions_count'] = _likesCount;
 
     final result = await PostService.toggleReaction(postId, 'like');
     if (!result.success && mounted) {
@@ -447,8 +547,30 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
         _isLiked = wasLiked;
         _likesCount = prevCount;
       });
+      widget.post['user_reaction'] = prevReaction;
+      widget.post['reactions_count'] = prevCount;
       debugPrint('[Reels] toggleReaction FAILED for postId=$postId: ${result.message}');
     }
+  }
+
+  void _showActionsSheet() {
+    if (!_isCurrentVideo) return;
+    final url = _mediaItems[_currentMediaIndex].url;
+    VideoActionsSheet.show(
+      context,
+      postId: widget.post['id'] as int,
+      videoUrl: url,
+      controller: _controller,
+      currentSpeed: _playbackSpeed,
+      clearMode: _clearMode,
+      onSpeedChanged: (s) {
+        if (mounted) setState(() => _playbackSpeed = s);
+      },
+      onClearModeToggled: () {
+        if (mounted) setState(() => _clearMode = !_clearMode);
+      },
+      onNotInterested: widget.onNotInterested,
+    );
   }
 
   /// Instagram-style double-tap: only ever LIKES; never un-likes.
@@ -467,11 +589,24 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
     // Reserve room at the bottom for the home-screen bottom-nav so video,
     // username row, right-rail icons, and progress bar all sit cleanly
     // above it. In route mode (no nav) bottomPadding is 0 → no effect.
-    return Padding(
-      padding: EdgeInsets.only(bottom: widget.bottomPadding),
-      child: DoubleTapHeart(
+    final mqSize = MediaQuery.of(context).size;
+    // PiP windows on Android are tiny; treat any viewport <320 in either
+    // dimension as PiP-equivalent so we hide overlays during the resize
+    // transition (before the platform callback fires).
+    final smallViewport = mqSize.width < 320 || mqSize.height < 320;
+    return ValueListenableBuilder<bool>(
+      valueListenable: VideoActionsSheet.pipActive,
+      builder: (_, pip, __) {
+        final hideUi = _clearMode || pip || smallViewport;
+        // In PiP, drop the bottom nav-bar reservation so the video fills the
+        // whole floating window.
+        final bottomPad = hideUi ? 0.0 : widget.bottomPadding;
+        return Padding(
+          padding: EdgeInsets.only(bottom: bottomPad),
+          child: DoubleTapHeart(
       onTap: _togglePlayPause,
       onDoubleTap: _doubleTapLike,
+      onLongPress: _showActionsSheet,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -479,48 +614,50 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
           _buildMedia(),
 
           // ── Gradient overlays for readability ──
-          // Bottom gradient
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 300,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    Colors.black87,
-                    Colors.transparent,
-                  ],
+          if (!hideUi) ...[
+            // Bottom gradient
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 300,
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Colors.black87,
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // Top gradient — minimal to maximize reel visibility
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 60,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black38,
-                    Colors.transparent,
-                  ],
+            // Top gradient — minimal to maximize reel visibility
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 60,
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black38,
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
 
           // ── Play/Pause icon overlay (video only) ──
-          if (_isVideoPost && _showPauseIcon)
+          if (_isCurrentVideo && _showPauseIcon)
             Center(
               child: AnimatedOpacity(
                 opacity: _showPauseIcon ? 1.0 : 0.0,
@@ -541,6 +678,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
             ),
 
           // ── Right side action buttons (compact, TikTok/Reels style) ──
+          if (!hideUi)
           Positioned(
             right: 10,
             bottom: 80,
@@ -562,7 +700,10 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                   label: _commentsCount > 0 ? _formatCount(_commentsCount) : '',
                   color: Colors.white,
                   onTap: () => widget.onCommentTap(() {
-                    if (mounted) setState(() => _commentsCount += 1);
+                    if (mounted) {
+                      setState(() => _commentsCount += 1);
+                      widget.post['comments_count'] = _commentsCount;
+                    }
                   }),
                 ),
                 const SizedBox(height: 14),
@@ -613,6 +754,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
           ),
 
           // ── Bottom user info & caption ──
+          if (!hideUi)
           Positioned(
             left: 14,
             right: 56,
@@ -663,7 +805,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
 
           // ── Video progress bar — sits flush against the bottom edge of
           // the padded reels box, which itself stops above the bottom-nav.
-          if (_isVideoPost && _initialized && _controller != null)
+          if (!hideUi && _isCurrentVideo && _initialized && _controller != null)
             Positioned(
               bottom: 0,
               left: 0,
@@ -681,131 +823,133 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
             ),
         ],
       ),
-      ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildMedia() {
-    // ── Image post ──
-    if (!_isVideoPost) {
-      if (_imageUrls.isEmpty) {
-        return const Center(
-          child: Icon(Icons.image_not_supported, size: 48, color: Colors.white70),
-        );
-      }
+    if (_mediaItems.isEmpty) {
+      return const Center(
+        child: Icon(Icons.image_not_supported, size: 48, color: Colors.white70),
+      );
+    }
 
-      if (_imageUrls.length == 1) {
-        return SizedBox.expand(
-          child: Image.network(
-            _imageUrls[0],
-            fit: BoxFit.contain,
-            cacheWidth: 1080,
-            loadingBuilder: (_, child, progress) {
-              if (progress == null) return child;
-              return Center(
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppTheme.gold1,
-                  value: progress.expectedTotalBytes != null
-                      ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
-                      : null,
+    if (_mediaItems.length == 1) {
+      return _buildSingleMedia(0);
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ValueListenableBuilder<bool>(
+          valueListenable: PinchToZoom.isPinching,
+          builder: (_, pinching, __) => PageView.builder(
+            controller: _mediaPageController,
+            physics: pinching ? const NeverScrollableScrollPhysics() : null,
+            itemCount: _mediaItems.length,
+            onPageChanged: _onInnerPageChanged,
+            itemBuilder: (_, i) => _buildSingleMedia(i),
+          ),
+        ),
+        // Page indicator dots
+        Positioned(
+          bottom: 100,
+          left: 0,
+          right: 80,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(_mediaItems.length, (i) {
+              return Container(
+                width: _currentMediaIndex == i ? 8 : 6,
+                height: _currentMediaIndex == i ? 8 : 6,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _currentMediaIndex == i
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.4),
                 ),
               );
-            },
-            errorBuilder: (_, __, ___) => const Center(
-              child: Icon(Icons.broken_image, size: 48, color: Colors.white70),
-            ),
+            }),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSingleMedia(int index) {
+    final item = _mediaItems[index];
+    if (item.isVideo) {
+      // Only the currently visible media page owns a VideoPlayerController;
+      // adjacent pages render a lightweight placeholder until swiped to.
+      if (index != _currentMediaIndex) {
+        return Container(
+          color: Colors.black,
+          alignment: Alignment.center,
+          child: const Icon(Icons.play_circle_outline, size: 48, color: Colors.white24),
+        );
+      }
+      if (_hasError) {
+        return const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: Colors.white70),
+              SizedBox(height: 12),
+              Text(
+                'Failed to load video',
+                style: TextStyle(color: Colors.white, fontSize: 14),
+              ),
+            ],
           ),
         );
       }
+      if (!_initialized || _controller == null) {
+        return Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppTheme.gold1,
+          ),
+        );
+      }
+      return PinchToZoom(
+        child: SizedBox.expand(
+          child: FittedBox(
+            fit: BoxFit.contain,
+            child: SizedBox(
+              width: _controller!.value.size.width == 0 ? 360 : _controller!.value.size.width,
+              height: _controller!.value.size.height == 0 ? 640 : _controller!.value.size.height,
+              child: VideoPlayer(_controller!),
+            ),
+          ),
+        ),
+      );
+    }
 
-      // Multiple images — swipeable
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          PageView.builder(
-            controller: _imagePageController,
-            itemCount: _imageUrls.length,
-            onPageChanged: (i) => setState(() => _currentImageIndex = i),
-            itemBuilder: (_, i) => Image.network(
-              _imageUrls[i],
-              fit: BoxFit.contain,
-              cacheWidth: 1080,
-              loadingBuilder: (_, child, progress) {
-                if (progress == null) return child;
-                return Center(
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppTheme.gold1,
-                  ),
-                );
-              },
-              errorBuilder: (_, __, ___) => const Center(
-                child: Icon(Icons.broken_image, size: 48, color: Colors.white70),
+    // Image
+    return PinchToZoom(
+      child: SizedBox.expand(
+        child: Image.network(
+          item.url,
+          fit: BoxFit.contain,
+          cacheWidth: 1080,
+          loadingBuilder: (_, child, progress) {
+            if (progress == null) return child;
+            return Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppTheme.gold1,
+                value: progress.expectedTotalBytes != null
+                    ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
+                    : null,
               ),
-            ),
+            );
+          },
+          errorBuilder: (_, __, ___) => const Center(
+            child: Icon(Icons.broken_image, size: 48, color: Colors.white70),
           ),
-          // Page indicator dots
-          Positioned(
-            bottom: 100,
-            left: 0,
-            right: 80,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_imageUrls.length, (i) {
-                return Container(
-                  width: _currentImageIndex == i ? 8 : 6,
-                  height: _currentImageIndex == i ? 8 : 6,
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _currentImageIndex == i
-                        ? Colors.white
-                        : Colors.white.withValues(alpha: 0.4),
-                  ),
-                );
-              }),
-            ),
-          ),
-        ],
-      );
-    }
-
-    // ── Video post ──
-    if (_hasError) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: Colors.white70),
-            SizedBox(height: 12),
-            Text(
-              'Failed to load video',
-              style: TextStyle(color: Colors.white, fontSize: 14),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (!_initialized || _controller == null) {
-      return Center(
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          color: AppTheme.gold1,
-        ),
-      );
-    }
-
-    // Preserve original aspect ratio (no center-crop) — matches the inline
-    // feed preview. Non-9:16 videos get black bars instead of being cropped.
-    return SizedBox.expand(
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: _controller!.value.size.width == 0 ? 360 : _controller!.value.size.width,
-          height: _controller!.value.size.height == 0 ? 640 : _controller!.value.size.height,
-          child: VideoPlayer(_controller!),
         ),
       ),
     );

@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
 import '../services/post_service.dart';
 import '../theme/app_theme.dart';
 
-/// Instagram-style share bottom sheet.
+/// TikTok-style share bottom sheet.
 class ShareSheet extends StatefulWidget {
   final int postId;
   final bool darkMode;
@@ -55,7 +56,10 @@ class _ShareSheetState extends State<ShareSheet> {
     await Clipboard.setData(ClipboardData(text: _shareLink));
     if (!mounted) return;
     Navigator.pop(context);
-    AppTheme.showSnackBar(context, AppLocalizations.of(context)!.translate('link_copied'));
+    AppTheme.showSnackBar(
+      context,
+      AppLocalizations.of(context)!.translate('link_copied'),
+    );
   }
 
   Future<void> _shareExternal() async {
@@ -64,6 +68,39 @@ class _ShareSheetState extends State<ShareSheet> {
     if (!mounted) return;
     Navigator.pop(context);
   }
+
+  /// Open a URL in its native app when installed, browser otherwise. Closes
+  /// the sheet on success; shows a snackbar if nothing can handle the URI.
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!mounted) return;
+      if (launched) {
+        Navigator.pop(context);
+      } else {
+        AppTheme.showSnackBar(context, 'No app available to open this link');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      AppTheme.showSnackBar(context, 'No app available to open this link');
+    }
+  }
+
+  // ── Brand-target handlers ──
+  String get _encoded => Uri.encodeComponent(_shareLink);
+  void _shareWhatsApp() => _openUrl('https://wa.me/?text=$_encoded');
+  void _shareFacebook() =>
+      _openUrl('https://www.facebook.com/sharer/sharer.php?u=$_encoded');
+  void _shareTelegram() => _openUrl('https://t.me/share/url?url=$_encoded');
+  void _shareTwitter() =>
+      _openUrl('https://twitter.com/intent/tweet?url=$_encoded');
+  void _shareSms() => _openUrl('sms:?body=$_encoded');
+  void _shareEmail() =>
+      _openUrl('mailto:?subject=Check%20this%20out&body=$_encoded');
 
   // ── Color helpers ──
   Color get _bgColor =>
@@ -74,16 +111,65 @@ class _ShareSheetState extends State<ShareSheet> {
       widget.darkMode ? Colors.white70 : AppTheme.textMuted(context);
   Color get _borderColor =>
       widget.darkMode ? Colors.white12 : AppTheme.glassBorder(context);
-  Color get _tileBgColor =>
-      widget.darkMode ? const Color(0xFF2A2A2A) : AppTheme.moodCardBg(context);
+
+  List<_ShareTarget> get _targets => [
+        _ShareTarget(
+          icon: Icons.chat_bubble,
+          color: const Color(0xFF25D366),
+          label: 'WhatsApp',
+          onTap: _shareWhatsApp,
+        ),
+        _ShareTarget(
+          icon: Icons.facebook,
+          color: const Color(0xFF1877F2),
+          label: 'Facebook',
+          onTap: _shareFacebook,
+        ),
+        _ShareTarget(
+          icon: Icons.send_rounded,
+          color: const Color(0xFF0088CC),
+          label: 'Telegram',
+          onTap: _shareTelegram,
+        ),
+        _ShareTarget(
+          icon: Icons.alternate_email,
+          color: Colors.black,
+          label: 'X',
+          onTap: _shareTwitter,
+        ),
+        _ShareTarget(
+          icon: Icons.sms_rounded,
+          color: const Color(0xFF34C759),
+          label: 'SMS',
+          onTap: _shareSms,
+        ),
+        _ShareTarget(
+          icon: Icons.email_rounded,
+          color: const Color(0xFFEA4335),
+          label: 'Email',
+          onTap: _shareEmail,
+        ),
+        _ShareTarget(
+          icon: Icons.link_rounded,
+          color: AppTheme.gold1,
+          label: 'Copy link',
+          onTap: _copyLink,
+        ),
+        _ShareTarget(
+          icon: Icons.share_rounded,
+          color: const Color(0xFF6C7280),
+          label: 'More',
+          onTap: _shareExternal,
+        ),
+      ];
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return DraggableScrollableSheet(
-      initialChildSize: 0.45,
-      minChildSize: 0.3,
-      maxChildSize: 0.7,
+      initialChildSize: 0.32,
+      minChildSize: 0.25,
+      maxChildSize: 0.6,
       builder: (ctx, scrollController) {
         return Container(
           decoration: BoxDecoration(
@@ -94,9 +180,9 @@ class _ShareSheetState extends State<ShareSheet> {
           ),
           child: Column(
             children: [
-              // Handle
+              // Drag handle
               Container(
-                margin: const EdgeInsets.only(top: 10, bottom: 6),
+                margin: const EdgeInsets.only(top: 10, bottom: 8),
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
@@ -104,15 +190,32 @@ class _ShareSheetState extends State<ShareSheet> {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
+              // Title + close
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  l10n.translate('share'),
-                  style: GoogleFonts.jost(
-                    color: _textColor,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: Text(
+                        l10n.translate('share'),
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.jost(
+                          color: _textColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Icon(Icons.close_rounded,
+                          color: _textColor, size: 22),
+                    ),
+                  ],
                 ),
               ),
               Divider(color: _borderColor, height: 1),
@@ -138,58 +241,21 @@ class _ShareSheetState extends State<ShareSheet> {
                           )
                         : ListView(
                             controller: scrollController,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 16,
-                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 20),
                             children: [
-                              // Share link preview
-                              Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: _tileBgColor,
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: _borderColor),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.link,
-                                        color: AppTheme.gold1, size: 20),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        _shareLink,
-                                        style: GoogleFonts.jost(
-                                          color: _mutedColor,
-                                          fontSize: 13,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-
-                              // Action buttons row
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  _buildShareAction(
-                                    icon: Icons.copy_rounded,
-                                    label: l10n.translate('copy_link'),
-                                    color: AppTheme.gold1,
-                                    onTap: _copyLink,
+                              SizedBox(
+                                height: 96,
+                                child: ListView.separated(
+                                  scrollDirection: Axis.horizontal,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 18,
                                   ),
-                                  _buildShareAction(
-                                    icon: Icons.share_rounded,
-                                    label: l10n.translate('share'),
-                                    color: const Color(0xFF3897F0),
-                                    onTap: _shareExternal,
-                                  ),
-                                ],
+                                  itemCount: _targets.length,
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(width: 18),
+                                  itemBuilder: (_, i) =>
+                                      _buildTargetTile(_targets[i]),
+                                ),
                               ),
                             ],
                           ),
@@ -201,40 +267,51 @@ class _ShareSheetState extends State<ShareSheet> {
     );
   }
 
-  Widget _buildShareAction({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildTargetTile(_ShareTarget t) {
     return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color.withValues(alpha: 0.15),
-              border: Border.all(
-                color: color.withValues(alpha: 0.3),
-                width: 1.5,
+      onTap: t.onTap,
+      child: SizedBox(
+        width: 64,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: t.color,
+              ),
+              child: Icon(t.icon, color: Colors.white, size: 26),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              t.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.jost(
+                color: _textColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: GoogleFonts.jost(
-              color: _textColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+class _ShareTarget {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final VoidCallback onTap;
+  const _ShareTarget({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.onTap,
+  });
 }

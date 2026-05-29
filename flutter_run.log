@@ -1,0 +1,353 @@
+Launching lib\main.dart on I2220 in debug mode...
+Running Gradle task 'assembleDebug'...                             31.4s
+√ Built build\app\outputs\flutter-apk\app-debug.apk
+Installing build\app\outputs\flutter-apk\app-debug.apk...           7.7s
+I/flutter (19801): [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(60)] Using the Impeller rendering backend (Vulkan).
+I/flutter (19801): [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(60)] Using the Impeller rendering backend (Vulkan).
+Syncing files to device I2220...                                
+I/FLTFireMsgService(19801): FlutterFirebaseMessagingBackgroundService started!
+I/flutter (19801): [FCM] Permission: AuthorizationStatus.authorized
+I/flutter (19801): [FCM] Token: e9LXcHAoQg6m7f1anSWXJm:APA91bFkSrW1g2AIzmGnBXwII-g4sCuyfzndjY--s8z16DmfJrqPJkDouoXUnV6L-GfFC7iEG3bNqjGPFpeeLB3QBItBNRCGDxEd_JSVKEDFpdT9VFsybgA
+I/flutter (19801): [NOTIF] Register device token → 200
+Syncing files to device I2220...                                   211ms
+
+Flutter run key commands.
+r Hot reload. 
+R Hot restart.
+h List all available interactive commands.
+d Detach (terminate "flutter run" but leave application running).
+c Clear the screen
+q Quit (terminate the application on the device).
+
+A Dart VM Service on I2220 is available at: http://127.0.0.1:50412/Dva-kFBoMoc=/
+The Flutter DevTools debugger and profiler on I2220 is available at: http://127.0.0.1:9101?uri=http://127.0.0.1:50412/Dva-kFBoMoc=/
+I/Choreographer(19801): Skipped 83 frames!  The application may be doing too much work on its main thread.
+I/HWUI    (19801): [destroy] CanvasContext will be destroyed.
+I/ExoPlayerImpl(19801): Init 4013249 [AndroidXMedia3/1.4.1] [I2220, I2220, vivo, 36]
+D/AudioSystem(19801): onNewService: media.audio_policy service obtained 0xb4000077de8e57f0
+D/AudioSystem(19801): getService: checking for service media.audio_policy: 0xb4000077de8e57f0
+W/AidlConversionCppNdk(19801): aidl2legacy_AudioChannelLayout_audio_channel_mask_t: no legacy output audio_channel_mask_t found for AudioChannelLayout{layoutMask: 16}
+I/m.enom.enom_app(19801): hiddenapi: Accessing hidden method Landroid/media/AudioTrack;->getLatency()I (runtime_flags=0, domain=platform, api=unsupported) from Landroidx/media3/exoplayer/audio/AudioTrackPositionTracker; (domain=app, TargetSdkVersion=35) using reflection: allowed
+D/VivoSpatializer(19801): checkGoogleApiEnabled, mGoogleApiEnabled: true, originalArdVersion: 34, deniedPkg: false, clientPkg: com.enom.enom_app
+D/AudioSystem(19801): onNewServiceWithAdapter: media.audio_flinger service obtained 0xb40000773e941f40
+D/AudioSystem(19801): getService: checking for service media.audio_flinger: 0xb4000077de896e20
+D/ImageReader_JNI(19801): ImageReader_init: ctx[0xb40000788e89c830], 1x1, HalFormat[34], maxImages[5], ndkUsage[256], consumerUsage[256]
+W/AudioCapabilities(19801): Unsupported mediaType audio/x-ms-wma
+W/AudioCapabilities(19801): Unsupported mediaType audio/mpeg-L1
+W/AudioCapabilities(19801): Unsupported mediaType audio/mpeg-L2
+W/AudioCapabilities(19801): Unsupported mediaType audio/ra
+W/AudioCapabilities(19801): Unsupported mediaType audio/alac
+W/AudioCapabilities(19801): Unsupported mediaType audio/ape
+W/AudioCapabilities(19801): Unsupported mediaType audio/x-ape
+W/AudioCapabilities(19801): Unsupported mediaType audio/adpcm
+W/AudioCapabilities(19801): Unsupported mediaType audio/x-ms-adpcm
+W/AudioCapabilities(19801): Unsupported mediaType audio/pcm
+W/AudioCapabilities(19801): Unsupported mediaType audio/dsd
+W/VideoCapabilities(19801): Unsupported mime video/rv
+W/VideoCapabilities(19801): Unsupported mime video/x-ms-wmv
+W/VideoCapabilities(19801): Unsupported mime video/x-ms-wmv2
+W/VideoCapabilities(19801): Unsupported mime video/divx3
+W/VideoCapabilities(19801): Unsupported mime video/flv1
+W/VideoCapabilities(19801): Unsupported mime video/x-flv
+W/VideoCapabilities(19801): Unsupported mime video/mjpeg
+W/VideoCapabilities(19801): Unsupported mime video/x-motion-jpeg
+W/AudioCapabilities(19801): Unsupported mediaType audio/iamf
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unsupported mime image/vnd.android.heic
+W/AudioCapabilities(19801): Unsupported mediaType audio/x-ms-wma
+W/AudioCapabilities(19801): Unsupported mediaType audio/mpeg-L1
+W/AudioCapabilities(19801): Unsupported mediaType audio/mpeg-L2
+W/AudioCapabilities(19801): Unsupported mediaType audio/ra
+W/AudioCapabilities(19801): Unsupported mediaType audio/alac
+W/AudioCapabilities(19801): Unsupported mediaType audio/ape
+W/AudioCapabilities(19801): Unsupported mediaType audio/x-ape
+W/AudioCapabilities(19801): Unsupported mediaType audio/adpcm
+W/AudioCapabilities(19801): Unsupported mediaType audio/x-ms-adpcm
+W/AudioCapabilities(19801): Unsupported mediaType audio/pcm
+W/AudioCapabilities(19801): Unsupported mediaType audio/dsd
+W/VideoCapabilities(19801): Unsupported mime video/rv
+W/VideoCapabilities(19801): Unsupported mime video/x-ms-wmv
+W/VideoCapabilities(19801): Unsupported mime video/x-ms-wmv2
+W/VideoCapabilities(19801): Unsupported mime video/divx3
+W/VideoCapabilities(19801): Unsupported mime video/flv1
+W/VideoCapabilities(19801): Unsupported mime video/x-flv
+W/VideoCapabilities(19801): Unsupported mime video/mjpeg
+W/VideoCapabilities(19801): Unsupported mime video/x-motion-jpeg
+W/AudioCapabilities(19801): Unsupported mediaType audio/iamf
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unsupported mime image/vnd.android.heic
+W/AudioCapabilities(19801): Unsupported mime audio/x-ms-wma
+W/AudioCapabilities(19801): Unsupported mime audio/mpeg-L1
+W/AudioCapabilities(19801): Unsupported mime audio/mpeg-L2
+W/AudioCapabilities(19801): Unsupported mime audio/ra
+W/AudioCapabilities(19801): Unsupported mime audio/alac
+W/AudioCapabilities(19801): Unsupported mime audio/ape
+W/AudioCapabilities(19801): Unsupported mime audio/x-ape
+W/AudioCapabilities(19801): Unsupported mime audio/adpcm
+W/AudioCapabilities(19801): Unsupported mime audio/x-ms-adpcm
+W/AudioCapabilities(19801): Unsupported mime audio/pcm
+W/AudioCapabilities(19801): Unsupported mime audio/dsd
+W/VideoCapabilities(19801): Unsupported mime video/rv
+W/VideoCapabilities(19801): Unsupported mime video/x-ms-wmv
+W/VideoCapabilities(19801): Unsupported mime video/x-ms-wmv2
+W/VideoCapabilities(19801): Unsupported mime video/divx3
+W/VideoCapabilities(19801): Unsupported mime video/flv1
+W/VideoCapabilities(19801): Unsupported mime video/x-flv
+W/VideoCapabilities(19801): Unsupported mime video/mjpeg
+W/VideoCapabilities(19801): Unsupported mime video/x-motion-jpeg
+W/AudioCapabilities(19801): Unsupported mime audio/iamf
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unsupported mime image/vnd.android.heic
+W/AudioCapabilities(19801): Unsupported mime audio/x-ms-wma
+W/AudioCapabilities(19801): Unsupported mime audio/mpeg-L1
+W/AudioCapabilities(19801): Unsupported mime audio/mpeg-L1
+W/AudioCapabilities(19801): Unsupported mime audio/ra
+W/AudioCapabilities(19801): Unsupported mime audio/alac
+W/AudioCapabilities(19801): Unsupported mime audio/ape
+W/AudioCapabilities(19801): Unsupported mime audio/ape
+W/AudioCapabilities(19801): Unsupported mime audio/pcm
+W/AudioCapabilities(19801): Unsupported mime audio/dsd
+W/VideoCapabilities(19801): Unsupported mime video/rv
+W/VideoCapabilities(19801): Unsupported mime video/x-ms-wmv
+W/VideoCapabilities(19801): Unsupported mime video/x-ms-wmv
+W/VideoCapabilities(19801): Unsupported mime video/divx3
+W/VideoCapabilities(19801): Unsupported mime video/flv1
+W/VideoCapabilities(19801): Unsupported mime video/flv1
+W/VideoCapabilities(19801): Unsupported mime video/mjpeg
+W/VideoCapabilities(19801): Unsupported mime video/mjpeg
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unrecognized profile 8 for video/hevc
+W/VideoCapabilities(19801): Unsupported mime image/vnd.android.heic
+I/DMCodecAdapterFactory(19801): Creating an asynchronous MediaCodec adapter for track type video
+W/AString (19801): ctor got NULL, using empty string instead
+I/VideoRenderQualityTracker(19801): mConfiguration.enabled:0
+I/CCodecBufferChannel(19801): mIsVivoLogEnable = 0 renderMetricsEnabled = 0
+D/CCodec  (19801): allocate(c2.qti.avc.decoder)
+I/ApexCodecsLazy(19801): Failed to load libcom.android.media.swcodec.apexcodecs.so: dlopen failed: library "libcom.android.media.swcodec.apexcodecs.so" not found
+I/Codec2Client(19801): Available Codec2 services: "default" "software" "vivocodec"
+I/CCodec  (19801): setting up 'default' as default (vendor) store
+I/CCodec  (19801): Created component [c2.qti.avc.decoder] for [c2.qti.avc.decoder]
+D/CCodecConfig(19801): read media type: video/avc
+D/ReflectedParamUpdater(19801): ignored struct field vendor.output.configs.portConfigs
+D/ReflectedParamUpdater(19801): extent() != 1 for single value type: output.subscribed-indices.values
+D/ReflectedParamUpdater(19801): extent() != 1 for single value type: vendor.qti-ext-transcode-info-stats.stats_info
+D/ReflectedParamUpdater(19801): extent() != 1 for single value type: output.buffers.pool-ids.values
+D/ReflectedParamUpdater(19801): ignored struct field vendor.input.configs.portConfigs
+D/CCodecConfig(19801): ignoring local param raw.size (0xd2001800) as it is already supported
+D/CCodecConfig(19801): ignoring local param default.color (0x5200180b) as it is already supported
+D/CCodecConfig(19801): ignoring local param raw.hdr-static-info (0xd200180a) as it is already supported
+I/CCodecConfig(19801): query failed after returning 17 values (BAD_INDEX)
+W/ColorUtils(19801): expected specified color aspects (0:0:0:0)
+I/MediaCodec(19801): MediaCodec will operate in async mode
+D/MediaCodec(19801): [0xb40000771e911920] [c2.qti.avc.decoder] configure
+D/VivoCodecProcessSdk(19801): get client pid:19801
+D/SurfaceUtils(19801): connecting to surface 0xb40000770e8a9a00, reason connectToSurface
+I/MediaCodec(19801): [c2.qti.avc.decoder] setting surface generation to 20276225
+D/SurfaceUtils(19801): disconnecting from surface 0xb40000770e8a9a00, reason connectToSurface(reconnect)
+D/SurfaceUtils(19801): connecting to surface 0xb40000770e8a99f0, reason connectToSurface(reconnect-with-listener)
+D/CCodec  (19801): [c2.qti.avc.decoder] buffers are bound to CCodec for this session
+W/Codec2Client(19801): query -- param skipped: index = 1107298332.
+D/CCodec  (19801): client requested max input size 190114, which is smaller than what component recommended (3133440); overriding with component recommendation.
+W/CCodec  (19801): This behavior is subject to change. It is recommended that app developers double check whether the requested max input size is in reasonable range.
+D/CCodec  (19801): encoding statistics level = 0
+D/CCodec  (19801): setup formats input: AMessage(what = 0x00000000) = {
+D/CCodec  (19801):   int32_t feature-secure-playback = 0
+D/CCodec  (19801):   int32_t frame-rate = 30
+D/CCodec  (19801):   int32_t height = 1080
+D/CCodec  (19801):   int32_t max-input-size = 3133440
+D/CCodec  (19801):   string mime = "video/avc"
+D/CCodec  (19801):   int32_t priority = 0
+D/CCodec  (19801):   int32_t profile = 8
+D/CCodec  (19801):   int32_t width = 1080
+D/CCodec  (19801):   Rect crop(0, 0, 1079, 1079)
+D/CCodec  (19801): }
+D/CCodec  (19801): setup formats output: AMessage(what = 0x00000000) = {
+D/CCodec  (19801):   int32_t android._color-format = 0
+D/CCodec  (19801):   int32_t android._video-scaling = 1
+D/CCodec  (19801):   int32_t android._dataspace = 260
+D/CCodec  (19801):   int32_t color-standard = 1
+D/CCodec  (19801):   int32_t color-range = 2
+D/CCodec  (19801):   int32_t color-transfer = 3
+D/CCodec  (19801):   int32_t sar-height = 1
+D/CCodec  (19801):   int32_t rotation-degrees = 0
+D/CCodec  (19801):   Buffer hdr-static-info = {
+D/CCodec  (19801):     00000000:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  ................
+D/CCodec  (19801):     00000010:  00 00 00 00 00 00 00 00  00                       .........
+D/CCodec  (19801):   }
+D/CCodec  (19801):   int32_t sar-width = 1
+D/CCodec  (19801):   Rect crop(0, 0, 1079, 1079)
+D/CCodec  (19801):   int32_t width = 1080
+D/CCodec  (19801):   int32_t feature-secure-playback = 0
+D/CCodec  (19801):   int32_t frame-rate = 30
+D/CCodec  (19801):   int32_t height = 1080
+D/CCodec  (19801):   int32_t max-height = 1080
+D/CCodec  (19801):   int32_t max-width = 1080
+D/CCodec  (19801):   string mime = "video/raw"
+D/CCodec  (19801):   int32_t priority = 0
+D/CCodec  (19801):   int32_t color-format = 2130708361
+D/CCodec  (19801): }
+I/CCodecConfig(19801): query failed after returning 17 values (BAD_INDEX)
+E/m.enom.enom_app(19801): Failed to query component interface for required system resources: 6
+D/MediaCodec(19801): [0xb40000771e911920] [c2.qti.avc.decoder] start
+D/MediaCodec(19801): keep callback message for reclaim
+D/CCodec  (19801): comp->start() begin
+D/CCodec  (19801): comp->start() end
+W/Codec2Client(19801): query -- param skipped: index = 1342179345.
+W/Codec2Client(19801): query -- param skipped: index = 2415921170.
+W/Codec2Client(19801): query -- param skipped: index = 1610614798.
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] Query input allocators returned 0 params => BAD_INDEX (6)
+D/C2Store (19801): debug.c2.use_dmabufheaps set, forcing DMABUF Heaps
+D/C2Store (19801): Using DMABUF Heaps
+D/CCodecBufferChannel(19801): inputDelay:6 pipeDelay:0 inputSlot:10
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] start: max output delay 21
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] Query output allocators returned 0 params => BAD_INDEX (6)
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] Query output surface allocator returned 0 params => BAD_INDEX (6)
+D/Codec2-OutputBufferQueue(19801): C2SurfaceSyncMemory created 20(20)
+D/Codec2-OutputBufferQueue(19801): remote graphic buffer migration 0/0
+D/Codec2Client(19801): setOutputSurface -- failed to set consumer usage (6/BAD_INDEX)
+D/Codec2Client(19801): setOutputSurface -- generation=20276225 consumer usage=0x900 sync
+D/Codec2Client(19801): Surface configure completed
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] start: updating output delay 4
+I/DMABUFHEAPS(19801): Using DMA-BUF heap named: system
+I/VivoVideoDumpInfo(19801): property persist.sys.log.ctrl-->no
+I/VivoVideoDumpInfo(19801): logger is not running,videoDump is disable.
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] Ignoring stale input buffer done callback: last flush index = 0, frameIndex = 0
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] onWorkDone: updating output delay 11
+I/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] onWorkDone: updating max output delay 18
+D/Codec2-OutputBufferQueue(19801): set max dequeue count 18 from update
+D/CCodecBuffers(19801): [c2.qti.avc.decoder#315:2D-Output] popFromStashAndRegister: at 1000000000000us, output format changed to AMessage(what = 0x00000000) = {
+D/CCodecBuffers(19801):   int32_t android._color-format = 0
+D/CCodecBuffers(19801):   int32_t android._video-scaling = 1
+D/CCodecBuffers(19801):   int32_t android._dataspace = 260
+D/CCodecBuffers(19801):   int32_t color-standard = 1
+D/CCodecBuffers(19801):   int32_t color-range = 2
+D/CCodecBuffers(19801):   int32_t color-transfer = 3
+D/CCodecBuffers(19801):   int32_t sar-height = 1
+D/CCodecBuffers(19801):   int32_t rotation-degrees = 0
+D/CCodecBuffers(19801):   Buffer hdr-static-info = {
+D/CCodecBuffers(19801):     00000000:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  ................
+D/CCodecBuffers(19801):     00000010:  00 00 00 00 00 00 00 00  00                       .........
+D/CCodecBuffers(19801):   }
+D/CCodecBuffers(19801):   int32_t sar-width = 1
+D/CCodecBuffers(19801):   Rect crop(0, 0, 1079, 1079)
+D/CCodecBuffers(19801):   int32_t width = 1088
+D/CCodecBuffers(19801):   int32_t feature-secure-playback = 0
+D/CCodecBuffers(19801):   int32_t frame-rate = 30
+D/CCodecBuffers(19801):   int32_t height = 1088
+D/CCodecBuffers(19801):   int32_t max-height = 1080
+D/CCodecBuffers(19801):   int32_t max-width = 1080
+D/CCodecBuffers(19801):   string mime = "video/raw"
+D/CCodecBuffers(19801):   int32_t priority = 0
+D/CCodecBuffers(19801):   int32_t color-format = 2130708361
+D/CCodecBuffers(19801): }
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] first render dataSpace=260
+D/ProfileInstaller(19801): Installing profile for com.enom.enom_app
+D/BufferPoolAccessor2.0(19801): bufferpool2 0xb40000781e9145f8 : 11(34467840 size) total buffers - 10(31334400 size) used buffers - 19/30 (recycle/alloc) - 11/31 (fetch/transfer)
+D/BufferPoolAccessor2.0(19801): evictor expired: 1, evicted: 1
+D/VRI[MainActivity](19801): visibilityChanged oldVisibility=false newVisibility=true
+D/ViewRootImpl(19801): AppSizeAfterRelayout, size: Point(1080, 2400), rotation: ROTATION_0
+W/qdgralloc(19801): GetSize: Pixel format: 0x3b is not supported by gralloc
+W/qdgralloc(19801): gralloc failed to allocate buffer for size 0 format 59 AWxAH 1x1 usage 2816
+E/Gralloc4(19801): isSupported(1, 1, 59, 1, ...) failed with 7
+E/GraphicBufferAllocator(19801): Failed to allocate (4 x 4) layerCount 1 format 59 usage b00: 2
+E/AHardwareBuffer(19801): GraphicBuffer(w=4, h=4, lc=1) failed (Unknown error -2), handle=0x0
+W/qdgralloc(19801): GetSize: Pixel format: 0x3b is not supported by gralloc
+W/qdgralloc(19801): gralloc failed to allocate buffer for size 0 format 59 AWxAH 1x1 usage 2816
+E/Gralloc4(19801): isSupported(1, 1, 59, 1, ...) failed with 7
+E/GraphicBufferAllocator(19801): Failed to allocate (4 x 4) layerCount 1 format 59 usage b00: 2
+E/AHardwareBuffer(19801): GraphicBuffer(w=4, h=4, lc=1) failed (Unknown error -2), handle=0x0
+W/qdgralloc(19801): getInterlacedFlag: getMetaData returned 3, defaulting to interlaced_flag = 0
+W/qdgralloc(19801): getInterlacedFlag: getMetaData returned 3, defaulting to interlaced_flag = 0
+W/qdgralloc(19801): getInterlacedFlag: getMetaData returned 3, defaulting to interlaced_flag = 0
+W/qdgralloc(19801): getInterlacedFlag: getMetaData returned 3, defaulting to interlaced_flag = 0
+W/qdgralloc(19801): getInterlacedFlag: getMetaData returned 3, defaulting to interlaced_flag = 0
+I/flutter (19801): [NOTIF] GET /api/notifications?page=1
+I/Choreographer(19801): Skipped 54 frames!  The application may be doing too much work on its main thread.
+W/WindowOnBackDispatcher(19801): OnBackInvokedCallback is not enabled for the application.
+W/WindowOnBackDispatcher(19801): Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+I/ExoPlayerImpl(19801): Release 4013249 [AndroidXMedia3/1.4.1] [I2220, I2220, vivo, 36] [media3.common, media3.exoplayer, media3.decoder, media3.datasource, media3.extractor]
+D/MediaCodec(19801): [0xb40000771e911920] [c2.qti.avc.decoder] start
+D/MediaCodec(19801): keep callback message for reclaim
+I/CCodecConfig(19801): query failed after returning 17 values (BAD_INDEX)
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] Discard frames from previous generation.
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] Discard frames from previous generation.
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] Discard frames from previous generation.
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] Discard frames from previous generation.
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] Discard frames from previous generation.
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] Discard frames from previous generation.
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] Discard frames from previous generation.
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] Discard frames from previous generation.
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] Discard frames from previous generation.
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] Discard frames from previous generation.
+W/Codec2Client(19801): query -- param skipped: index = 1342179345.
+W/Codec2Client(19801): query -- param skipped: index = 2415921170.
+W/Codec2Client(19801): query -- param skipped: index = 1610614798.
+D/CCodecBufferChannel(19801): [c2.qti.avc.decoder#315] start: updating output delay 11
+D/MediaCodec(19801): [0xb40000771e911920] [c2.qti.avc.decoder] releaseAsync
+I/MediaCodec(19801): [0xb40000771e911920] ++kWhatRelease   mState :6/STARTED, rel =1
+D/SurfaceUtils(19801): connecting to surface 0xb40000770e8e5930, reason connectToSurface
+I/MediaCodec(19801): [c2.qti.avc.decoder] setting surface generation to 20276226
+D/SurfaceUtils(19801): disconnecting from surface 0xb40000770e8e5930, reason connectToSurface(reconnect)
+D/SurfaceUtils(19801): connecting to surface 0xb40000770e8e5920, reason connectToSurface(reconnect-with-listener)
+D/Codec2-OutputBufferQueue(19801): C2SurfaceSyncMemory created 20(20)
+D/Codec2-OutputBufferQueue(19801): remote graphic buffer migration 0/0
+D/Codec2Client(19801): setOutputSurface -- failed to set consumer usage (6/BAD_INDEX)
+D/Codec2Client(19801): setOutputSurface -- generation=20276226 consumer usage=0x900 sync
+D/Codec2Client(19801): Surface configure completed
+D/SurfaceUtils(19801): disconnecting from surface 0xb40000770e8a9a00, reason disconnectFromSurface
+I/CCodec  (19801): comp->release() begin
+I/MediaCodec(19801): [0xb40000771e911920] --kWhatRelease   mState :10/RELEASING
+D/ImageReader_JNI(19801): ImageReader_close: ctx[0xb40000788e89c830], 1x1, HalFormat[34]
+I/CCodec  (19801): comp->release() end
+D/MediaCodec(19801): [0xb40000771e911920] [c2.qti.avc.decoder] kWhatReleaseCompleted
+D/SurfaceUtils(19801): disconnecting from surface 0xb40000770e8e5930, reason disconnectFromSurface
+I/hw-BpHwBinder(19801): onLastStrongRef automatically unlinking death recipients
+W/MediaCodec(19801): no metrics handle found
+I/flutter (19801): [NOTIF] status=200
+I/flutter (19801): [NOTIF] body length=5242
+I/flutter (19801): [NOTIF] body[0-1000]={notifications: {current_page: 1, data: [{id: 178, user_id: 3, type: comment, data: {post_id: 73, comment_id: 64, from_user_id: 1, from_user_name: veera}, is_read: false, created_at: 2026-05-29T15:20:11.000000Z, updated_at: 2026-05-29T15:20:11.000000Z}, {id: 177, user_id: 3, type: like, data: {post_id: 73, from_user_id: 1, reaction_type: like, from_user_name: veera}, is_read: false, created_at: 2026-05-29T15:20:05.000000Z, updated_at: 2026-05-29T15:20:05.000000Z}, {id: 173, user_id: 3, type: comment, data: {post_id: 72, comment_id: 63, from_user_id: 2, from_user_name: Magendran}, is_read: false, created_at: 2026-05-29T07:29:42.000000Z, updated_at: 2026-05-29T07:29:42.000000Z}, {id: 172, user_id: 3, type: like, data: {post_id: 69, from_user_id: 2, reaction_type: like, from_user_name: Magendran}, is_read: false, created_at: 2026-05-29T07:27:09.000000Z, updated_at: 2026-05-29T07:27:09.000000Z}, {id: 170, user_id: 3, type: like, data: {post_id: 73, from_user_id: 2, reaction_type: like, fro
+I/flutter (19801): [NOTIF] body[1000-2000]=m_user_name: Magendran}, is_read: false, created_at: 2026-05-29T06:44:59.000000Z, updated_at: 2026-05-29T06:44:59.000000Z}, {id: 169, user_id: 3, type: comment, data: {post_id: 72, comment_id: 62, from_user_id: 2, from_user_name: Magendran}, is_read: false, created_at: 2026-05-29T06:44:29.000000Z, updated_at: 2026-05-29T06:44:29.000000Z}, {id: 168, user_id: 3, type: like, data: {post_id: 72, from_user_id: 2, reaction_type: like, from_user_name: Magendran}, is_read: false, created_at: 2026-05-29T06:44:22.000000Z, updated_at: 2026-05-29T06:44:22.000000Z}, {id: 153, user_id: 3, type: comment, data: {post_id: 57, comment_id: 59, from_user_id: 1, from_user_name: veera}, is_read: false, created_at: 2026-05-27T06:56:03.000000Z, updated_at: 2026-05-27T06:56:03.000000Z}, {id: 143, user_id: 3, type: comment, data: {post_id: 58, comment_id: 55, from_user_id: 2, from_user_name: Magendran}, is_read: false, created_at: 2026-05-26T05:11:32.000000Z, updated_at: 2026-05-26T05:11:32.000000Z}, {id: 142,
+I/flutter (19801): [NOTIF] body[2000-3000]=user_id: 3, type: like, data: {post_id: 57, from_user_id: 1, reaction_type: like, from_user_name: veera}, is_read: false, created_at: 2026-05-26T04:32:29.000000Z, updated_at: 2026-05-26T04:32:29.000000Z}, {id: 140, user_id: 3, type: like, data: {post_id: 42, from_user_id: 2, reaction_type: like, from_user_name: Magendran}, is_read: false, created_at: 2026-05-26T04:17:56.000000Z, updated_at: 2026-05-26T04:17:56.000000Z}, {id: 138, user_id: 3, type: like, data: {post_id: 57, from_user_id: 2, reaction_type: like, from_user_name: Magendran}, is_read: false, created_at: 2026-05-26T04:16:12.000000Z, updated_at: 2026-05-26T04:16:12.000000Z}, {id: 137, user_id: 3, type: like, data: {post_id: 58, from_user_id: 2, reaction_type: like, from_user_name: Magendran}, is_read: false, created_at: 2026-05-26T04:16:03.000000Z, updated_at: 2026-05-26T04:16:03.000000Z}, {id: 135, user_id: 3, type: comment, data: {post_id: 52, comment_id: 53, from_user_id: 1, from_user_name: veera}, is_read: true, created_
+I/flutter (19801): [NOTIF] body[3000-4000]=t: 2026-05-25T18:05:03.000000Z, updated_at: 2026-05-25T18:11:04.000000Z}, {id: 132, user_id: 3, type: comment, data: {post_id: 52, comment_id: 52, from_user_id: 5, from_user_name: Kanagaambigai}, is_read: true, created_at: 2026-05-23T23:22:35.000000Z, updated_at: 2026-05-25T18:40:28.000000Z}, {id: 131, user_id: 3, type: like, data: {post_id: 52, from_user_id: 5, reaction_type: like, from_user_name: Kanagaambigai}, is_read: false, created_at: 2026-05-23T23:22:20.000000Z, updated_at: 2026-05-23T23:22:20.000000Z}, {id: 124, user_id: 3, type: comment_like, data: {post_id: 54, comment_id: 50, from_user_id: 1, from_user_name: veera}, is_read: false, created_at: 2026-05-23T14:55:33.000000Z, updated_at: 2026-05-23T14:55:33.000000Z}, {id: 123, user_id: 3, type: comment_like, data: {post_id: 54, comment_id: 50, from_user_id: 1, from_user_name: veera}, is_read: false, created_at: 2026-05-23T14:55:24.000000Z, updated_at: 2026-05-23T14:55:24.000000Z}, {id: 122, user_id: 3, type: comment_like, data
+I/flutter (19801): [NOTIF] body[4000-5000]= {post_id: 54, comment_id: 50, from_user_id: 1, from_user_name: veera}, is_read: false, created_at: 2026-05-23T14:55:20.000000Z, updated_at: 2026-05-23T14:55:20.000000Z}, {id: 120, user_id: 3, type: comment_like, data: {post_id: 54, comment_id: 50, from_user_id: 1, from_user_name: veera}, is_read: false, created_at: 2026-05-23T14:55:04.000000Z, updated_at: 2026-05-23T14:55:04.000000Z}], first_page_url: http://52.221.249.30/api/notifications?page=1, from: 1, last_page: 4, last_page_url: http://52.221.249.30/api/notifications?page=4, links: [{url: null, label: &laquo; Previous, page: null, active: false}, {url: http://52.221.249.30/api/notifications?page=1, label: 1, page: 1, active: true}, {url: http://52.221.249.30/api/notifications?page=2, label: 2, page: 2, active: false}, {url: http://52.221.249.30/api/notifications?page=3, label: 3, page: 3, active: false}, {url: http://52.221.249.30/api/notifications?page=4, label: 4, page: 4, active: false}, {url: http://52.221.249.30/api/notifi
+I/flutter (19801): [NOTIF] body[5000-5242]=ations?page=2, label: Next &raquo;, page: 2, active: false}], next_page_url: http://52.221.249.30/api/notifications?page=2, path: http://52.221.249.30/api/notifications, per_page: 20, prev_page_url: null, to: 20, total: 65}, unread_count: 21}
+I/flutter (19801): [NOTIF] Parsed 20 items, unread=21, page=1, total=65, top-level keys=[notifications, unread_count]
+V/ImeFocusController(19801): onWindowFocus: com.android.internal.policy.DecorView{58088e1 V.E...... R....... 0,0-1080,2400}[MainActivity] softInputMode=STATE_UNSPECIFIED|ADJUST_RESIZE
+I/flutter (19801): [THUMB_DEBUG] endpoint=/api/posts?per_page=10  postCount=10
+I/flutter (19801): [THUMB_DEBUG] post={"id":80,"created_at":"2026-05-29T10:21:49.000000Z","user_id":2,"media":[{"id":104,"post_id":80,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/hpuJtrEequzWLltJD4lQHtilmmncHw1lTfwwyd20.jpg","thumbnail_url":null,"width":1600,"height":1200},{"id":105,"post_id":80,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/Eko5az0AZGhEyBK2T7XY6s9215XnHKhPZZp2osmN.jpg","thumbnail_url":null,"width":1600,"height":1200},{"id":106,"post_id":80,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/7qj0dEKsf6aQIeL96V2BtwR2eKOwS5D4Iy1FwHV3.jpg","thumbnail_url":null,"width":1600,"height":1200},{"id":107,"post_id":80,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/ceYoOpYRPtsI8In9ShLrH70Hvy3Ije6TwIhIyq4V.jpg","thumbnail_url":null,"width":1600,"height":1200},{"id":108,"post_id":80,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/qjJm6O4xVxM8kmGdA92BtzYC17tFnH8cEl4SEHiB.jpg","thumbnail_url":null,"width":1600,"
+I/flutter (19801): [THUMB_DEBUG] post={"id":79,"created_at":"2026-05-29T10:15:40.000000Z","user_id":2,"media":[{"id":99,"post_id":79,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/wVrJrEARPdcWnebiR9KXajjTnblDGz3rq2Ep8Oq7.jpg","thumbnail_url":null,"width":1600,"height":1200},{"id":100,"post_id":79,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/gSr47iy0Cfc0pX5sqU0QPyN5A0hgZSMqtSzDs05d.jpg","thumbnail_url":null,"width":1600,"height":1200},{"id":101,"post_id":79,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/ue7BB4VXX9t6LyQMoXtzpk3n0ENO5hYDRyLAdwva.jpg","thumbnail_url":null,"width":1600,"height":1200},{"id":102,"post_id":79,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/0bzfNB55JOjBIQI0VV6zhQuBMlVT9BCIcegVIoHW.jpg","thumbnail_url":null,"width":1600,"height":1200},{"id":103,"post_id":79,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/LUNme5LjXDImoboW0y1rODAGlyc7JBAJOyZOW6Ua.jpg","thumbnail_url":null,"width":1600,"h
+I/flutter (19801): [THUMB_DEBUG] post={"id":78,"created_at":"2026-05-29T10:14:22.000000Z","user_id":2,"media":[{"id":96,"post_id":78,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/k0Dxr0DuDoqfKQZGe9At00U01Jgf1ARvmD3Ltp3E.jpg","thumbnail_url":null,"width":1600,"height":1200},{"id":97,"post_id":78,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/YahcbvkL9GRrKwJiEZ1IrYAlrcEud039Wb64TjEy.jpg","thumbnail_url":null,"width":1600,"height":1200},{"id":98,"post_id":78,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/6y6PDma9SOCsj94FKwvxNGTF5SBtbpge3dfTabXe.jpg","thumbnail_url":null,"width":1600,"height":1200}]}
+I/flutter (19801): [THUMB_DEBUG] post={"id":77,"created_at":"2026-05-29T10:13:53.000000Z","user_id":2,"media":[{"id":95,"post_id":77,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/MY85uXsA7og3Y4fiADLuxdz7zj8T4MfgSWiYiLzV.jpg","thumbnail_url":null,"width":1600,"height":1200}]}
+I/flutter (19801): [THUMB_DEBUG] post={"id":76,"created_at":"2026-05-29T10:13:07.000000Z","user_id":2,"media":[{"id":85,"post_id":76,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/sY4kWlfT2YSR1oINWpAiPAIq34ks7uCjPMu2f4zm.jpg","thumbnail_url":null,"width":1600,"height":1200},{"id":86,"post_id":76,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/LxCcNjgMANXGcKmbfymHSbPdNyzZ414ko3EFArvv.jpg","thumbnail_url":null,"width":1600,"height":1200},{"id":87,"post_id":76,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/Z4ZTaWRDhQNajrRIoYdcG2Y2aYeeMl9B3gAcMaj9.jpg","thumbnail_url":null,"width":1600,"height":1200},{"id":88,"post_id":76,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/97r6wqx0xK0WyJ7AJ0uRJN1fdpJHjMcB925MKO6i.jpg","thumbnail_url":null,"width":1600,"height":1200},{"id":89,"post_id":76,"type":"image","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/fODZBx8gCOF8bVOxMBLxOcqV4m2qgzEb3g46TlNg.jpg","thumbnail_url":null,"width":1600,"heigh
+I/flutter (19801): [THUMB_DEBUG] post={"id":75,"created_at":"2026-05-29T09:18:46.000000Z","user_id":2,"media":[{"id":84,"post_id":75,"type":"video","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/B05TFzW9vcFk5gGyRSP4ZXTRkyiWjVrDIdMK2Q5A.mp4","thumbnail_url":"https://d1wk74ch4zkyve.cloudfront.net/thumbnails/2fSxXCEvlF5wPGfXPtturDvHOL7hTDmBAadV2L55.jpg","width":null,"height":null}]}
+I/flutter (19801): [THUMB_DEBUG] post={"id":74,"created_at":"2026-05-29T07:36:02.000000Z","user_id":2,"media":[{"id":83,"post_id":74,"type":"video","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/49VuMRDLYS0moRG3zZqCZSUrAgf66dBPbYhyVZwt.mp4","thumbnail_url":"https://d1wk74ch4zkyve.cloudfront.net/thumbnails/0LO7fuwx4JbYRgNYzCk1DJf35emkEv4Zc7aerG2y.jpg","width":null,"height":null}]}
+I/flutter (19801): [THUMB_DEBUG] post={"id":73,"created_at":"2026-05-29T06:44:49.000000Z","user_id":3,"media":[{"id":82,"post_id":73,"type":"video","url":"https://d1wk74ch4zkyve.cloudfront.net/post-media/Dn5SH0de5tBrRmrzP0vhSnPFDgotz4fMIekz5GRB.mp4","thumbnail_url":"https://d1wk74ch4zkyve.cloudfront.net/thumbnails/BOo93jshRN9ozO4WTsG5LHY7Zm6yo9BBUkxVdtQs.jpg","width":null,"height":null}]}
+I/ImeTracker(19801): com.enom.enom_app:8e4fc96: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+I/flutter (19801): [MOOD_TRENDS] GET /api/v1/mood/analytics/trends?period=7d status=200
+I/flutter (19801): [MOOD_TRENDS] response keys: [period, days, total_entries, dominant_mood, mood_distribution, daily_timeline]
+I/flutter (19801): [MOOD_TRENDS] response body: {period: 7d, days: 7, total_entries: 13, dominant_mood: Angry, mood_distribution: {Angry: {count: 6, percentage: 46.2, avg_confidence: 0.783}, Happy: {count: 5, percentage: 38.5, avg_confidence: 0.793}, Neutral: {count: 2, percentage: 15.4, avg_confidence: 0.716}}, daily_timeline: [{date: 2026-05-30, Happy: 1, Neutral: 0, Low: 0, Angry: 2, total: 3}, {date: 2026-05-29, Happy: 1, Neutral: 0, Low: 0, Angry: 2, total: 3}, {date: 2026-05-23, Happy: 3, Neutral: 2, Low: 0, Angry: 2, total: 7}]}
+I/flutter (19801): [MOOD_TRENDS] could not find scores in response keys: [period, days, total_entries, dominant_mood, mood_distribution, daily_timeline]
+I/flutter (19801): [MOOD_TRENDS] parsed weekly scores: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+D/VRI[MainActivity](19801): visibilityChanged oldVisibility=true newVisibility=false
+I/HWUI    (19801): [setStopped] CanvasContext will be destroyed.
+I/HWUI    (19801): [destroy] CanvasContext will be destroyed.
+D/ViewRootImpl(19801): AppSizeAfterRelayout, size: Point(1080, 2400), rotation: ROTATION_0
+Lost connection to device.

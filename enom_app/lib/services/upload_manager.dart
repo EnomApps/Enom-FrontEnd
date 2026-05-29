@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart' show MediaType;
 import 'package:video_compress/video_compress.dart';
+import '../main.dart' show rootNavigatorKey;
+import '../screens/feed_reels_screen.dart';
 import 'api_service.dart';
 
 /// Instagram-style background upload manager.
@@ -18,6 +21,10 @@ class UploadManager {
 
   bool _initialized = false;
   bool _isUploading = false;
+
+  /// Holds the most recently uploaded post so a notification tap can push
+  /// the user straight into the Reels view of it without a refetch.
+  static Map<String, dynamic>? _lastUploadedPost;
 
   /// Stream that emits when an upload completes successfully.
   final StreamController<bool> _uploadCompleteController =
@@ -35,7 +42,7 @@ class UploadManager {
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
-      requestBadgePermission: true,
+      requestBadgePermission: false,
       requestSoundPermission: true,
     );
     const settings = InitializationSettings(
@@ -43,8 +50,43 @@ class UploadManager {
       iOS: iosSettings,
     );
 
-    await _notifications.initialize(settings);
+    await _notifications.initialize(
+      settings,
+      onDidReceiveNotificationResponse: _onNotificationTap,
+    );
+
+    // If the app was launched from a tap on the completion notification while
+    // killed, navigate after the first frame so the navigator is mounted.
+    final launchDetails =
+        await _notifications.getNotificationAppLaunchDetails();
+    if (launchDetails?.didNotificationLaunchApp == true) {
+      final payload = launchDetails!.notificationResponse?.payload;
+      if (payload != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _handlePayload(payload);
+        });
+      }
+    }
     _initialized = true;
+  }
+
+  static void _onNotificationTap(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload != null) _handlePayload(payload);
+  }
+
+  static void _handlePayload(String payload) {
+    if (!payload.startsWith('post:')) return;
+    final post = _lastUploadedPost;
+    if (post == null) return;
+    final nav = rootNavigatorKey.currentState;
+    if (nav == null) return;
+    nav.push(MaterialPageRoute(
+      builder: (_) => FeedReelsScreen(
+        videoPosts: [post],
+        initialIndex: 0,
+      ),
+    ));
   }
 
   bool get isUploading => _isUploading;
@@ -97,6 +139,10 @@ class UploadManager {
       // Compress videos in background before uploading
       final processedBytes = <Uint8List>[];
       final processedNames = <String>[];
+      // Thumbnails for each video, in the same relative order as the videos
+      // appear in media[]. Backend maps thumbnails[i] → i-th video.
+      final thumbnailBytes = <Uint8List>[];
+      final thumbnailNames = <String>[];
 
       if (mediaBytes != null && mediaNames != null) {
         for (int i = 0; i < mediaBytes.length; i++) {
@@ -108,6 +154,23 @@ class UploadManager {
               : null;
 
           if (type == 'video' && filePath != null) {
+            // Grab a frame at ~1s to use as the video thumbnail. Done before
+            // compression so we sample the original quality.
+            try {
+              final thumbFile = await VideoCompress.getFileThumbnail(
+                filePath,
+                quality: 75,
+                position: 1000,
+              );
+              final tBytes = await thumbFile.readAsBytes();
+              thumbnailBytes.add(tBytes);
+              thumbnailNames.add(
+                'thumb_${i}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+              );
+            } catch (_) {
+              // Thumbnail is best-effort; backend can derive one later.
+            }
+
             // Compress video in background
             await _showProgressNotification(
               0, 'Uploading post...',
@@ -206,6 +269,17 @@ class UploadManager {
         ));
       }
 
+      // Attach video thumbnails — one entry per video, in the same relative
+      // order as videos in media[]. Backend pairs thumbnails[i] → i-th video.
+      for (int i = 0; i < thumbnailBytes.length; i++) {
+        request.files.add(http.MultipartFile.fromBytes(
+          'thumbnails[]',
+          thumbnailBytes[i],
+          filename: thumbnailNames[i],
+          contentType: MediaType('image', 'jpeg'),
+        ));
+      }
+
       await _showProgressNotification(uploadBase, 'Uploading post...');
 
       // Finalize the multipart request to get body bytes
@@ -251,16 +325,25 @@ class UploadManager {
       }
 
       if (response.statusCode == 201) {
-        await _showCompletedNotification('Post uploaded successfully!');
+        // Cache the post Map so a notification tap can open Reels on it.
+        Map<String, dynamic>? post;
+        if (decoded is Map<String, dynamic>) {
+          final p = decoded['post'];
+          if (p is Map<String, dynamic>) {
+            post = p;
+          } else if (decoded['id'] != null) {
+            post = decoded;
+          }
+        }
+        _lastUploadedPost = post;
+        final postId = post?['id'];
+        await _showCompletedNotification(postId);
         _uploadCompleteController.add(true);
       } else {
-        final msg = decoded is Map
-            ? (decoded['message'] as String? ?? 'Upload failed')
-            : 'Upload failed';
-        await _showFailedNotification(msg);
+        await _showFailedNotification();
       }
-    } catch (e) {
-      await _showFailedNotification('Upload failed: ${e.toString().length > 50 ? '${e.toString().substring(0, 50)}...' : e}');
+    } catch (_) {
+      await _showFailedNotification();
     } finally {
       _isUploading = false;
     }
@@ -271,6 +354,7 @@ class UploadManager {
       _channelId,
       _channelName,
       channelDescription: 'Shows upload progress for posts',
+      channelShowBadge: false,
       importance: Importance.low,
       priority: Priority.low,
       showProgress: true,
@@ -294,11 +378,14 @@ class UploadManager {
     );
   }
 
-  Future<void> _showCompletedNotification(String body) async {
+  Future<void> _showCompletedNotification(dynamic postId) async {
+    const title = 'Upload Complete';
+    const body = 'See your post';
     final androidDetails = AndroidNotificationDetails(
       _channelId,
       _channelName,
       channelDescription: 'Shows upload progress for posts',
+      channelShowBadge: false,
       importance: Importance.defaultImportance,
       priority: Priority.defaultPriority,
       ongoing: false,
@@ -306,23 +393,27 @@ class UploadManager {
       icon: '@mipmap/ic_launcher',
     );
 
-    final iosDetails = DarwinNotificationDetails(
+    const iosDetails = DarwinNotificationDetails(
       subtitle: body,
     );
 
     await _notifications.show(
       _notificationId,
-      'Enom',
+      title,
       body,
       NotificationDetails(android: androidDetails, iOS: iosDetails),
+      payload: postId != null ? 'post:$postId' : null,
     );
   }
 
-  Future<void> _showFailedNotification(String body) async {
+  Future<void> _showFailedNotification() async {
+    const title = 'Upload Failed';
+    const body = 'Please try again';
     final androidDetails = AndroidNotificationDetails(
       _channelId,
       _channelName,
       channelDescription: 'Shows upload progress for posts',
+      channelShowBadge: false,
       importance: Importance.high,
       priority: Priority.high,
       ongoing: false,
@@ -330,13 +421,13 @@ class UploadManager {
       icon: '@mipmap/ic_launcher',
     );
 
-    final iosDetails = DarwinNotificationDetails(
+    const iosDetails = DarwinNotificationDetails(
       subtitle: body,
     );
 
     await _notifications.show(
       _notificationId,
-      'Enom',
+      title,
       body,
       NotificationDetails(android: androidDetails, iOS: iosDetails),
     );
