@@ -664,6 +664,7 @@ class _FeedScreenState extends State<FeedScreen> {
     _recordView(postId);
 
     return Column(
+      key: ValueKey('post_$postId'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ── User header (Instagram style) ──

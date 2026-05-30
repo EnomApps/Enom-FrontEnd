@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:simple_pip_mode/simple_pip.dart';
 import 'package:video_player/video_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../services/social_service.dart';
@@ -220,12 +221,28 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
   }
 
   void _removePost(Map<String, dynamic> post) {
+    // Tell the backend to show fewer posts like this. Fire-and-forget — we
+    // remove the post locally right away so the user gets instant feedback.
+    final id = post['id'];
+    if (id is int) {
+      PostService.markNotInterested(id);
+    }
+
     setState(() {
       _videoPosts.remove(post);
       if (_currentIndex >= _videoPosts.length) {
         _currentIndex = (_videoPosts.length - 1).clamp(0, 1 << 30);
       }
     });
+
+    if (mounted) {
+      final l10n = AppLocalizations.of(context);
+      AppTheme.showSnackBar(
+        context,
+        l10n?.translate('not_interested_feedback') ??
+            "Thanks. We'll show you fewer posts like this.",
+      );
+    }
   }
 
   void _showComments(Map<String, dynamic> post, VoidCallback onCommentAdded) {

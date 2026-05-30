@@ -11,7 +11,16 @@ import '../screens/feed_reels_screen.dart';
 import 'api_service.dart';
 
 /// Instagram-style background upload manager.
-/// Handles post upload in background with progress notification.
+///
+/// Handles post uploads in the background with a progress notification.
+/// Multiple videos can upload at the same time — the user never has to wait
+/// for one upload to finish before posting another. Each upload runs
+/// independently and shows its own progress notification.
+///
+/// The only step that is serialized is the native video compression: the
+/// [VideoCompress] plugin is a process-global singleton, so two compressions
+/// must not run at the same moment or they corrupt each other's state. The
+/// (much longer) HTTP upload phase runs fully concurrently.
 class UploadManager {
   UploadManager._();
   static final UploadManager instance = UploadManager._();
@@ -20,18 +29,30 @@ class UploadManager {
       FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
-  bool _isUploading = false;
 
-  /// Holds the most recently uploaded post so a notification tap can push
-  /// the user straight into the Reels view of it without a refetch.
-  static Map<String, dynamic>? _lastUploadedPost;
+  /// How many uploads are currently in flight.
+  int _activeCount = 0;
+
+  /// Generates a unique id per upload so each gets its own notification slot.
+  int _nextUploadId = 0;
+
+  /// Holds uploaded posts keyed by post id so a notification tap can push the
+  /// user straight into the Reels view of the right post, even when several
+  /// uploads have completed.
+  static final Map<String, Map<String, dynamic>> _uploadedPosts = {};
+
+  /// Serializes the native video-compression step. Each compression chains
+  /// onto the previous one so only a single video is compressed at a time.
+  Future<void> _compressionLock = Future<void>.value();
 
   /// Stream that emits when an upload completes successfully.
   final StreamController<bool> _uploadCompleteController =
       StreamController<bool>.broadcast();
   Stream<bool> get onUploadComplete => _uploadCompleteController.stream;
 
-  static const int _notificationId = 9001;
+  /// Base id for upload notifications. Each upload uses [_notificationBaseId]
+  /// plus its own offset so progress bars stack instead of overwriting.
+  static const int _notificationBaseId = 9001;
   static const String _channelId = 'enom_upload';
   static const String _channelName = 'Post Upload';
 
@@ -77,7 +98,8 @@ class UploadManager {
 
   static void _handlePayload(String payload) {
     if (!payload.startsWith('post:')) return;
-    final post = _lastUploadedPost;
+    final postId = payload.substring('post:'.length);
+    final post = _uploadedPosts[postId];
     if (post == null) return;
     final nav = rootNavigatorKey.currentState;
     if (nav == null) return;
@@ -89,9 +111,12 @@ class UploadManager {
     ));
   }
 
-  bool get isUploading => _isUploading;
+  /// True while at least one upload is still in progress.
+  bool get isUploading => _activeCount > 0;
 
-  /// Start a background upload. Returns immediately.
+  /// Start a background upload. Returns immediately. Can be called again while
+  /// other uploads are still running — each upload is independent.
+  ///
   /// [mediaTypes] should match [mediaBytes] — each entry is 'image' or 'video'.
   /// [mediaFilePaths] are original file paths (needed for video compression).
   void startUpload({
@@ -104,11 +129,13 @@ class UploadManager {
     List<String>? mediaTypes,
     List<String?>? mediaFilePaths,
   }) {
-    if (_isUploading) return;
-    _isUploading = true;
+    final uploadId = _nextUploadId++;
+    final notificationId = _notificationBaseId + (uploadId % 1000);
+    _activeCount++;
 
-    // Fire and forget — runs in background
+    // Fire and forget — runs in background, concurrently with other uploads.
     _doUpload(
+      notificationId: notificationId,
       content: content,
       visibility: visibility,
       hashtags: hashtags,
@@ -121,6 +148,7 @@ class UploadManager {
   }
 
   Future<void> _doUpload({
+    required int notificationId,
     String? content,
     String visibility = 'public',
     List<String>? hashtags,
@@ -132,11 +160,11 @@ class UploadManager {
   }) async {
     try {
       // Show initial notification
-      await _showProgressNotification(0, 'Uploading post...');
+      await _showProgressNotification(notificationId, 0, 'Uploading post...');
 
       final token = await ApiService.getToken();
 
-      // Compress videos in background before uploading
+      // Compress videos in background before uploading.
       final processedBytes = <Uint8List>[];
       final processedNames = <String>[];
       // Thumbnails for each video, in the same relative order as the videos
@@ -154,60 +182,20 @@ class UploadManager {
               : null;
 
           if (type == 'video' && filePath != null) {
-            // Grab a frame at ~1s to use as the video thumbnail. Done before
-            // compression so we sample the original quality.
-            try {
-              final thumbFile = await VideoCompress.getFileThumbnail(
-                filePath,
-                quality: 75,
-                position: 1000,
-              );
-              final tBytes = await thumbFile.readAsBytes();
-              thumbnailBytes.add(tBytes);
-              thumbnailNames.add(
-                'thumb_${i}_${DateTime.now().millisecondsSinceEpoch}.jpg',
-              );
-            } catch (_) {
-              // Thumbnail is best-effort; backend can derive one later.
-            }
-
-            // Compress video in background
-            await _showProgressNotification(
-              0, 'Uploading post...',
+            // Compression touches the global VideoCompress plugin, so it must
+            // run exclusively — one video at a time across all uploads.
+            final result = await _compressVideoExclusive(
+              notificationId: notificationId,
+              filePath: filePath,
+              originalBytes: mediaBytes[i],
+              originalName: mediaNames[i],
+              index: i,
             );
-
-            final subscription = VideoCompress.compressProgress$.subscribe(
-              (progress) async {
-                final percent = (progress * 0.5).round(); // 0-50% for compression
-                await _showProgressNotification(
-                  percent, 'Uploading post... $percent%',
-                );
-              },
-            );
-
-            try {
-              final info = await VideoCompress.compressVideo(
-                filePath,
-                quality: VideoQuality.MediumQuality,
-                deleteOrigin: false,
-                includeAudio: true,
-              );
-
-              if (info != null && info.file != null) {
-                final compressedBytes = await info.file!.readAsBytes();
-                processedBytes.add(compressedBytes);
-                processedNames.add(mediaNames[i]);
-              } else {
-                // Compression failed, use original
-                processedBytes.add(mediaBytes[i]);
-                processedNames.add(mediaNames[i]);
-              }
-            } catch (_) {
-              // Fallback to original on error
-              processedBytes.add(mediaBytes[i]);
-              processedNames.add(mediaNames[i]);
-            } finally {
-              subscription.unsubscribe();
+            processedBytes.add(result.videoBytes);
+            processedNames.add(result.videoName);
+            if (result.thumbBytes != null && result.thumbName != null) {
+              thumbnailBytes.add(result.thumbBytes!);
+              thumbnailNames.add(result.thumbName!);
             }
           } else {
             // Images — already compressed by image_picker
@@ -217,15 +205,17 @@ class UploadManager {
         }
       }
 
-      await _showProgressNotification(50, 'Uploading post... 50%');
-
       final hasVideos = mediaTypes?.contains('video') ?? false;
-      final uploadBase = hasVideos ? 50 : 0; // If videos were compressed, start at 50%
+      // If videos were compressed, the compression phase already covered 0-50%.
+      final uploadBase = hasVideos ? 50 : 0;
+      await _showProgressNotification(
+          notificationId, uploadBase, 'Uploading post... $uploadBase%');
 
       final fields = <String, String>{
         if (content != null && content.isNotEmpty) 'content': content,
         'visibility': visibility,
-        if (locationName != null && locationName.isNotEmpty) 'location_name': locationName,
+        if (locationName != null && locationName.isNotEmpty)
+          'location_name': locationName,
       };
 
       // Add hashtags as individual fields: hashtags[0], hashtags[1], etc.
@@ -280,8 +270,6 @@ class UploadManager {
         ));
       }
 
-      await _showProgressNotification(uploadBase, 'Uploading post...');
-
       // Finalize the multipart request to get body bytes
       final bodyStream = request.finalize();
       final bodyBytes = await bodyStream.toBytes();
@@ -305,10 +293,12 @@ class UploadManager {
               : offset + chunkSize;
           rawRequest.sink.add(bodyBytes.sublist(offset, end));
 
-          final percent = uploadBase + (end * uploadRange / totalUploadBytes).round();
+          final percent =
+              uploadBase + (end * uploadRange / totalUploadBytes).round();
           if (percent != lastPercent && percent % 5 == 0) {
             lastPercent = percent;
-            await _showProgressNotification(percent, 'Uploading post... $percent%');
+            await _showProgressNotification(
+                notificationId, percent, 'Uploading post... $percent%');
           }
         }
         rawRequest.sink.close();
@@ -335,21 +325,99 @@ class UploadManager {
             post = decoded;
           }
         }
-        _lastUploadedPost = post;
         final postId = post?['id'];
-        await _showCompletedNotification(postId);
+        if (post != null && postId != null) {
+          _uploadedPosts[postId.toString()] = post;
+        }
+        await _showCompletedNotification(notificationId, postId);
         _uploadCompleteController.add(true);
       } else {
-        await _showFailedNotification();
+        await _showFailedNotification(notificationId);
       }
     } catch (_) {
-      await _showFailedNotification();
+      await _showFailedNotification(notificationId);
     } finally {
-      _isUploading = false;
+      _activeCount--;
     }
   }
 
-  Future<void> _showProgressNotification(int percent, String body) async {
+  /// Result of compressing a single video under the global compression lock.
+  Future<_ProcessedVideo> _compressVideoExclusive({
+    required int notificationId,
+    required String filePath,
+    required Uint8List originalBytes,
+    required String originalName,
+    required int index,
+  }) {
+    final completer = Completer<_ProcessedVideo>();
+    final previous = _compressionLock;
+
+    // Chain this compression after any compression already running.
+    _compressionLock = previous.then((_) async {
+      Uint8List? thumbBytes;
+      String? thumbName;
+
+      // Grab a frame at ~1s for the thumbnail. Done before compression so we
+      // sample the original quality. Best-effort — backend can derive one.
+      try {
+        final thumbFile = await VideoCompress.getFileThumbnail(
+          filePath,
+          quality: 75,
+          position: 1000,
+        );
+        thumbBytes = await thumbFile.readAsBytes();
+        thumbName =
+            'thumb_${index}_${notificationId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      } catch (_) {
+        // Thumbnail is best-effort.
+      }
+
+      // Map compression progress to 0-50% on this upload's notification.
+      final subscription = VideoCompress.compressProgress$.subscribe(
+        (progress) async {
+          final percent = (progress * 0.5).round(); // 0-50% for compression
+          await _showProgressNotification(
+              notificationId, percent, 'Uploading post... $percent%');
+        },
+      );
+
+      Uint8List videoBytes;
+      String videoName = originalName;
+      try {
+        final info = await VideoCompress.compressVideo(
+          filePath,
+          quality: VideoQuality.MediumQuality,
+          deleteOrigin: false,
+          includeAudio: true,
+        );
+        if (info != null && info.file != null) {
+          videoBytes = await info.file!.readAsBytes();
+        } else {
+          videoBytes = originalBytes; // compression failed, use original
+        }
+      } catch (_) {
+        videoBytes = originalBytes; // fallback to original on error
+      } finally {
+        subscription.unsubscribe();
+      }
+
+      completer.complete(_ProcessedVideo(
+        videoBytes: videoBytes,
+        videoName: videoName,
+        thumbBytes: thumbBytes,
+        thumbName: thumbName,
+      ));
+    });
+
+    // Make sure a failure in one compression never stalls the lock chain for
+    // the next upload.
+    _compressionLock = _compressionLock.catchError((_) {});
+
+    return completer.future;
+  }
+
+  Future<void> _showProgressNotification(
+      int notificationId, int percent, String body) async {
     final androidDetails = AndroidNotificationDetails(
       _channelId,
       _channelName,
@@ -368,17 +436,19 @@ class UploadManager {
 
     final iosDetails = DarwinNotificationDetails(
       subtitle: body,
+      threadIdentifier: 'upload_$notificationId',
     );
 
     await _notifications.show(
-      _notificationId,
+      notificationId,
       'Enom',
       body,
       NotificationDetails(android: androidDetails, iOS: iosDetails),
     );
   }
 
-  Future<void> _showCompletedNotification(dynamic postId) async {
+  Future<void> _showCompletedNotification(
+      int notificationId, dynamic postId) async {
     const title = 'Upload Complete';
     const body = 'See your post';
     final androidDetails = AndroidNotificationDetails(
@@ -398,7 +468,7 @@ class UploadManager {
     );
 
     await _notifications.show(
-      _notificationId,
+      notificationId,
       title,
       body,
       NotificationDetails(android: androidDetails, iOS: iosDetails),
@@ -406,7 +476,7 @@ class UploadManager {
     );
   }
 
-  Future<void> _showFailedNotification() async {
+  Future<void> _showFailedNotification(int notificationId) async {
     const title = 'Upload Failed';
     const body = 'Please try again';
     final androidDetails = AndroidNotificationDetails(
@@ -426,7 +496,7 @@ class UploadManager {
     );
 
     await _notifications.show(
-      _notificationId,
+      notificationId,
       title,
       body,
       NotificationDetails(android: androidDetails, iOS: iosDetails),
@@ -436,4 +506,19 @@ class UploadManager {
   void dispose() {
     _uploadCompleteController.close();
   }
+}
+
+/// A single processed (compressed) video plus its optional thumbnail.
+class _ProcessedVideo {
+  _ProcessedVideo({
+    required this.videoBytes,
+    required this.videoName,
+    this.thumbBytes,
+    this.thumbName,
+  });
+
+  final Uint8List videoBytes;
+  final String videoName;
+  final Uint8List? thumbBytes;
+  final String? thumbName;
 }

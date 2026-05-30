@@ -293,5 +293,6 @@
   "repost": "Repost",
   "quote_repost": "Quote Repost",
   "for_you": "For You",
-  "favorites": "Favorites"
+  "favorites": "Favorites",
+  "not_interested_feedback": "Thanks. We'll show you fewer posts like this."
 }

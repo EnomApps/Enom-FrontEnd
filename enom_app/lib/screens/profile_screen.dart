@@ -1174,7 +1174,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               ),
             );
           }
-          return _buildPostGridTile(index);
+          return KeyedSubtree(
+            key: ValueKey('mypost_${_myPosts[index]['id']}'),
+            child: _buildPostGridTile(index),
+          );
         },
       ),
     );

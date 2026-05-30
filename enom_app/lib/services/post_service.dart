@@ -406,6 +406,25 @@ class PostService {
     return false;
   }
 
+  /// POST /api/posts/{postId}/not-interested — Tell the feed to show fewer
+  /// posts like this one. Fire-and-forget; we remove the post locally either
+  /// way so the user gets instant feedback.
+  static Future<bool> markNotInterested(int postId) async {
+    final result =
+        await ApiService.post('/api/posts/$postId/not-interested', {}, auth: true);
+    final status = result['statusCode'] as int;
+    return status == 200 || status == 201;
+  }
+
+  /// DELETE /api/posts/{postId}/not-interested — Undo a "not interested" mark
+  /// (rarely needed).
+  static Future<bool> undoNotInterested(int postId) async {
+    final result =
+        await ApiService.delete('/api/posts/$postId/not-interested', auth: true);
+    final status = result['statusCode'] as int;
+    return status == 200;
+  }
+
   /// GET /api/posts/for-you — Personalized "For You" feed.
   static Future<({bool success, List<dynamic> posts, String? nextCursor})>
       getForYouFeed({String? cursor, int perPage = 15}) async {
