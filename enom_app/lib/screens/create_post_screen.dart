@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:video_player/video_player.dart';
 import '../services/upload_manager.dart';
+import '../services/places_service.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 
@@ -18,10 +20,11 @@ class CreatePostScreen extends StatefulWidget {
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final _HashtagTextEditingController _contentController = _HashtagTextEditingController();
-  // final TextEditingController _locationController = TextEditingController();
-  // TODO: re-enable once Google Places search endpoint is wired up.
   final List<_MediaFile> _mediaFiles = [];
   String _visibility = 'public';
+
+  // Selected location (via Google Places search through the backend proxy).
+  PlaceSuggestion? _selectedPlace;
 
   static const int _maxMedia = 10;
   static const int _maxHashtags = 6;
@@ -29,7 +32,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   @override
   void dispose() {
     _contentController.dispose();
-    // _locationController.dispose();
     super.dispose();
   }
 
@@ -202,6 +204,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     setState(() => _mediaFiles.removeAt(index));
   }
 
+  Future<void> _openLocationPicker() async {
+    final selected = await showModalBottomSheet<PlaceSuggestion>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _LocationPickerSheet(),
+    );
+    if (selected != null && mounted) {
+      setState(() => _selectedPlace = selected);
+    }
+  }
+
   void _createPost() {
     if (!_canPost) return;
 
@@ -214,13 +228,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     final hashtags = _extractHashtags();
 
     // Start background compress + upload via UploadManager
-    // final locationName = _locationController.text.trim();
-
     UploadManager.instance.startUpload(
       content: _contentController.text.trim(),
       visibility: _visibility,
       hashtags: hashtags,
-      // locationName: locationName.isEmpty ? null : locationName,
+      locationName: _selectedPlace?.label,
+      latitude: _selectedPlace?.latitude,
+      longitude: _selectedPlace?.longitude,
       mediaBytes: _mediaFiles.isNotEmpty ? _mediaFiles.map((f) => f.bytes).toList() : null,
       mediaNames: _mediaFiles.isNotEmpty ? _mediaFiles.map((f) => f.name).toList() : null,
       mediaTypes: _mediaFiles.isNotEmpty ? _mediaFiles.map((f) => f.type).toList() : null,
@@ -383,60 +397,58 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Location — hidden until Google Places API integration is ready.
-                  // TODO: re-enable once GET /api/places/search is live on the backend.
-                  // Text(l10n.translate('location').toUpperCase(), style: AppTheme.label(context, size: 10)),
-                  // const SizedBox(height: 12),
-                  // Container(
-                  //   decoration: BoxDecoration(
-                  //     color: AppTheme.moodCardBg(context),
-                  //     borderRadius: BorderRadius.circular(20),
-                  //     border: Border.all(color: AppTheme.glassBorder(context)),
-                  //   ),
-                  //   child: Row(
-                  //     children: [
-                  //       Padding(
-                  //         padding: const EdgeInsets.only(left: 18),
-                  //         child: Icon(
-                  //           Icons.location_on_outlined,
-                  //           color: AppTheme.goldColor(context),
-                  //           size: 22,
-                  //         ),
-                  //       ),
-                  //       Expanded(
-                  //         child: TextField(
-                  //           controller: _locationController,
-                  //           onChanged: (_) => setState(() {}),
-                  //           textInputAction: TextInputAction.done,
-                  //           style: GoogleFonts.jost(
-                  //             color: AppTheme.text1(context),
-                  //             fontSize: 15,
-                  //           ),
-                  //           decoration: InputDecoration(
-                  //             hintText: l10n.translate('add_location'),
-                  //             hintStyle: GoogleFonts.jost(
-                  //               color: AppTheme.textMuted(context),
-                  //               fontSize: 15,
-                  //             ),
-                  //             border: InputBorder.none,
-                  //             contentPadding: const EdgeInsets.symmetric(
-                  //               horizontal: 14,
-                  //               vertical: 16,
-                  //             ),
-                  //           ),
-                  //         ),
-                  //       ),
-                  //       if (_locationController.text.isNotEmpty)
-                  //         IconButton(
-                  //           icon: Icon(Icons.close, color: AppTheme.textMuted(context), size: 18),
-                  //           onPressed: () {
-                  //             setState(() => _locationController.clear());
-                  //           },
-                  //         ),
-                  //     ],
-                  //   ),
-                  // ),
-                  // const SizedBox(height: 20),
+                  // Location — Google Places search via backend proxy.
+                  Text(l10n.translate('location').toUpperCase(), style: AppTheme.label(context, size: 10)),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: _openLocationPicker,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.moodCardBg(context),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.glassBorder(context)),
+                      ),
+                      child: Row(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(left: 18),
+                            child: Icon(
+                              Icons.location_on_outlined,
+                              color: AppTheme.goldColor(context),
+                              size: 22,
+                            ),
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                              child: Text(
+                                _selectedPlace?.label ?? l10n.translate('add_location'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.jost(
+                                  color: _selectedPlace != null
+                                      ? AppTheme.text1(context)
+                                      : AppTheme.textMuted(context),
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (_selectedPlace != null)
+                            IconButton(
+                              icon: Icon(Icons.close, color: AppTheme.textMuted(context), size: 18),
+                              onPressed: () => setState(() => _selectedPlace = null),
+                            )
+                          else
+                            Padding(
+                              padding: const EdgeInsets.only(right: 14),
+                              child: Icon(Icons.chevron_right, color: AppTheme.textMuted(context), size: 20),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
 
                   // Visibility picker
                   Text(l10n.translate('visibility').toUpperCase(), style: AppTheme.label(context, size: 10)),
@@ -907,5 +919,181 @@ class _HashtagTextEditingController extends TextEditingController {
     }
 
     return TextSpan(children: children, style: style);
+  }
+}
+
+/// Bottom sheet that searches places (via the backend Google Places proxy) and
+/// returns the selected [PlaceSuggestion] through Navigator.pop.
+class _LocationPickerSheet extends StatefulWidget {
+  const _LocationPickerSheet();
+
+  @override
+  State<_LocationPickerSheet> createState() => _LocationPickerSheetState();
+}
+
+class _LocationPickerSheetState extends State<_LocationPickerSheet> {
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
+  List<PlaceSuggestion> _results = [];
+  bool _loading = false;
+  // Monotonic token so a slow earlier request can't overwrite a newer one.
+  int _requestId = 0;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onQueryChanged(String value) {
+    _debounce?.cancel();
+    final query = value.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _results = [];
+        _loading = false;
+      });
+      return;
+    }
+    setState(() => _loading = true);
+    _debounce = Timer(const Duration(milliseconds: 400), () => _search(query));
+  }
+
+  Future<void> _search(String query) async {
+    final id = ++_requestId;
+    final places = await PlacesService.search(query, limit: 12);
+    // Ignore stale responses from earlier keystrokes.
+    if (!mounted || id != _requestId) return;
+    setState(() {
+      _results = places;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.4,
+        maxChildSize: 0.92,
+        expand: false,
+        builder: (context, scrollController) {
+          return Container(
+            decoration: BoxDecoration(
+              color: AppTheme.bg2(context),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.textMuted(context),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.moodCardBg(context),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppTheme.glassBorder(context)),
+                    ),
+                    child: Row(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(left: 14),
+                          child: Icon(Icons.search, color: AppTheme.textMuted(context), size: 20),
+                        ),
+                        Expanded(
+                          child: TextField(
+                            controller: _searchController,
+                            autofocus: true,
+                            onChanged: _onQueryChanged,
+                            style: GoogleFonts.jost(color: AppTheme.text1(context), fontSize: 15),
+                            decoration: InputDecoration(
+                              hintText: l10n.translate('search_for_a_place'),
+                              hintStyle: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 15),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                            ),
+                          ),
+                        ),
+                        if (_searchController.text.isNotEmpty)
+                          IconButton(
+                            icon: Icon(Icons.close, color: AppTheme.textMuted(context), size: 18),
+                            onPressed: () {
+                              _searchController.clear();
+                              _onQueryChanged('');
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(child: _buildResults(l10n, scrollController)),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildResults(AppLocalizations l10n, ScrollController scrollController) {
+    if (_loading) {
+      return Center(
+        child: CircularProgressIndicator(color: AppTheme.goldColor(context), strokeWidth: 2),
+      );
+    }
+    if (_searchController.text.trim().isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.place_outlined, size: 48, color: AppTheme.goldColor(context).withValues(alpha: 0.4)),
+            const SizedBox(height: 12),
+            Text(l10n.translate('search_for_a_place'),
+                style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 14)),
+          ],
+        ),
+      );
+    }
+    if (_results.isEmpty) {
+      return Center(
+        child: Text(l10n.translate('no_places_found'),
+            style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 14)),
+      );
+    }
+    return ListView.builder(
+      controller: scrollController,
+      itemCount: _results.length,
+      itemBuilder: (context, index) {
+        final place = _results[index];
+        return ListTile(
+          leading: Icon(Icons.location_on_outlined, color: AppTheme.goldColor(context), size: 22),
+          title: Text(place.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.jost(color: AppTheme.text1(context), fontSize: 15, fontWeight: FontWeight.w500)),
+          subtitle: place.address.isEmpty
+              ? null
+              : Text(place.address,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 13)),
+          onTap: () => Navigator.of(context).pop(place),
+        );
+      },
+    );
   }
 }

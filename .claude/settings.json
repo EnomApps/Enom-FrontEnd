@@ -7,7 +7,21 @@
       "Bash(cp \"c:/Users/JOSEPH/Downloads/ENOM_Flutter_Handoff_1/enom-handoff/assets/logo/\"* \"c:/Users/JOSEPH/Documents/GitHub/Enom-FrontEnd/enom_app/assets/logo/\")",
       "Bash(adb -s 10BE3T2CX7000CK install -r \"c:/Users/JOSEPH/Documents/GitHub/Enom-FrontEnd/enom_app/build/app/outputs/flutter-apk/app-release.apk\")",
       "Bash(sort -k5 -h -r)",
-      "Bash(du -sh \"c:/Users/JOSEPH/Documents/GitHub/Enom-FrontEnd/enom_app/assets/\"*/)"
+      "Bash(du -sh \"c:/Users/JOSEPH/Documents/GitHub/Enom-FrontEnd/enom_app/assets/\"*/)",
+      "Bash(curl -s -m 20 \"http://47.129.5.68/docs/api-docs.json\" -o /tmp/apidocs.json -w \"HTTP:%{http_code} SIZE:%{size_download}\\\\n\")",
+      "Bash(curl -s -m 20 \"http://47.129.5.68/docs?api-docs.json\" -w \"HTTP:%{http_code} SIZE:%{size_download}\\\\n\" -o /tmp/apidocs2.json)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s -m 25 \"http://52.221.249.30/docs?api-docs.json\" -o apidocs.json)",
+      "Bash(curl -s -m 20 \"http://52.221.249.30/api/places/search?q=central+park&limit=3\" -w \"\\\\nHTTP:%{http_code}\\\\n\")",
+      "Bash(curl -s -m 20 \"http://52.221.249.30/api/posts?per_page=1\" -w \"\\\\nHTTP:%{http_code}\\\\n\")",
+      "Bash(grep -nA15 \"  assets:\" pubspec.yaml)",
+      "Bash(curl -s -m 25 \"http://52.221.249.30/docs?api-docs.json\" -o C:/Users/JOSEPH/Downloads/apidocs.json)",
+      "Bash(sed -n '/static Future.*getSavedPosts/,/^  }/p' lib/services/social_service.dart)",
+      "Bash(sed -n '/static Future.*getFollowStatus/,/^  }/p' lib/services/social_service.dart)",
+      "Bash(grep -nE 'getPost\\\\b|posts/\\\\$postId'\\\\''|/api/posts/\\\\$|getSinglePost|showPost' lib/services/post_service.dart)",
+      "Bash(sed -n '500,536p' lib/screens/feed_screen.dart)",
+      "Bash(sed -n '468,492p' lib/screens/feed_screen.dart)",
+      "Bash(node -e \"const e=require\\('./assets/translations/en.json'\\); console.log\\('guide:',JSON.stringify\\(e.mood_scan_guide\\)\\); console.log\\('countdown:',JSON.stringify\\(e.mood_scan_countdown\\)\\); console.log\\('tap_capture:',JSON.stringify\\(e.mood_scan_tap_capture\\)\\);\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\JOSEPH\\Documents\\GitHub\\Enom-FrontEnd\\enom_app\\assets"

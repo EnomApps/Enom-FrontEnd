@@ -748,11 +748,21 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                   icon: Icons.share_outlined,
                   label: '',
                   color: Colors.white,
-                  onTap: () => ShareSheet.show(
-                    context,
-                    widget.post['id'] as int,
-                    darkMode: true,
-                  ),
+                  onTap: () {
+                    final rawId = widget.post['id'];
+                    final postId = rawId is int
+                        ? rawId
+                        : int.tryParse(rawId?.toString() ?? '');
+                    if (postId == null) {
+                      AppTheme.showSnackBar(
+                        context,
+                        AppLocalizations.of(context)!.translate('could_not_share'),
+                        isError: true,
+                      );
+                      return;
+                    }
+                    ShareSheet.show(context, postId, darkMode: true);
+                  },
                 ),
                 const SizedBox(height: 14),
 
@@ -802,6 +812,28 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
                     ],
                   ),
                 ),
+                if ((widget.post['location_name'] as String?)?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.location_on, size: 13, color: Colors.white),
+                      const SizedBox(width: 2),
+                      Flexible(
+                        child: Text(
+                          (widget.post['location_name'] as String).trim(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.jost(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 if (content.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(

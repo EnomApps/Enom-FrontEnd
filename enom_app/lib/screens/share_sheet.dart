@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
+import '../services/api_service.dart';
 import '../services/post_service.dart';
 import '../theme/app_theme.dart';
 
@@ -42,12 +43,22 @@ class _ShareSheetState extends State<ShareSheet> {
     _loadShareLink();
   }
 
+  /// Fallback so sharing always works even if the backend share-link endpoint
+  /// is unavailable or returns an empty link.
+  String get _fallbackLink => '${ApiService.baseUrl}/post/${widget.postId}';
+
   Future<void> _loadShareLink() async {
-    final result = await PostService.getShareLink(widget.postId);
+    String link = '';
+    try {
+      final result = await PostService.getShareLink(widget.postId);
+      link = result.link;
+    } catch (_) {
+      // Ignore — fall back to a constructed link below.
+    }
     if (!mounted) return;
     setState(() {
       _isLoading = false;
-      _shareLink = result.link;
+      _shareLink = link.isNotEmpty ? link : _fallbackLink;
     });
   }
 

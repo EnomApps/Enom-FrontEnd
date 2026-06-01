@@ -12,11 +12,15 @@ import '../services/social_service.dart';
 import '../theme/app_theme.dart';
 import 'edit_post_screen.dart';
 import 'feed_screen.dart';
+import 'discover_people_screen.dart';
+import 'favourite_users_screen.dart';
 import 'feed_reels_screen.dart';
 import 'follow_list_screen.dart';
 import 'likes_list_sheet.dart';
 import 'mood_history_screen.dart';
 import 'settings_screen.dart';
+import 'share_profile_screen.dart';
+import 'user_profile_screen.dart';
 import 'welcome_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -41,6 +45,12 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   Map<String, dynamic>? _user;
   XFile? _pickedImage;
   Uint8List? _pickedImageBytes;
+
+  // Discover people (suggested follows) state
+  bool _showDiscover = false;
+  bool _loadingDiscover = false;
+  final List<Map<String, dynamic>> _discoverPeople = [];
+  final Set<int> _discoverFollowing = {}; // userIds the user has followed from here
 
   // Tab controller
   late TabController _tabController;
@@ -288,6 +298,288 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     _pickedImage = null;
     _pickedImageBytes = null;
     setState(() => _isEditing = true);
+  }
+
+  /// Open the Instagram-style QR share screen for this profile.
+  void _shareProfile() {
+    if (_user == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ShareProfileScreen(user: _user!)),
+    );
+  }
+
+  /// Toggle the inline "Discover people" suggestions carousel.
+  void _toggleDiscover() {
+    setState(() => _showDiscover = !_showDiscover);
+    if (_showDiscover && _discoverPeople.isEmpty && !_loadingDiscover) {
+      _loadDiscover();
+    }
+  }
+
+  Future<void> _loadDiscover() async {
+    setState(() => _loadingDiscover = true);
+    final people = await SocialService.getDiscoverPeople(limit: 20);
+    if (!mounted) return;
+    setState(() {
+      _discoverPeople
+        ..clear()
+        ..addAll(people);
+      _loadingDiscover = false;
+    });
+  }
+
+  Future<void> _followDiscoverPerson(int userId) async {
+    final wasFollowing = _discoverFollowing.contains(userId);
+    setState(() {
+      if (wasFollowing) {
+        _discoverFollowing.remove(userId);
+      } else {
+        _discoverFollowing.add(userId);
+      }
+    });
+    final result = await SocialService.toggleFollow(userId);
+    if (mounted && !result.success) {
+      // Revert on failure.
+      setState(() {
+        if (wasFollowing) {
+          _discoverFollowing.add(userId);
+        } else {
+          _discoverFollowing.remove(userId);
+        }
+      });
+    }
+  }
+
+  void _dismissDiscoverPerson(int userId) {
+    setState(() => _discoverPeople.removeWhere((p) => p['id'] == userId));
+  }
+
+  void _openDiscoverPerson(Map<String, dynamic> person) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => UserProfileScreen(user: person)),
+    );
+  }
+
+  String? _discoverAvatarUrl(Map<String, dynamic> person) {
+    var url = person['profile_image_url'] as String? ?? person['profile_image'] as String?;
+    if (url == null || url.isEmpty) return null;
+    if (!url.startsWith('http')) url = '${ApiService.baseUrl}/storage/$url';
+    return url;
+  }
+
+  Widget _buildDiscoverPeople() {
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header: "Discover people" + "See all"
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                l10n.translate('discover_people'),
+                style: GoogleFonts.jost(
+                  color: AppTheme.text1(context),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              GestureDetector(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const DiscoverPeopleScreen()),
+                ),
+                child: Text(
+                  l10n.translate('see_all'),
+                  style: GoogleFonts.jost(
+                    color: AppTheme.goldColor(context),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 218,
+          child: _loadingDiscover
+              ? Center(
+                  child: CircularProgressIndicator(
+                      color: AppTheme.goldColor(context), strokeWidth: 2),
+                )
+              : _discoverPeople.isEmpty
+                  ? Center(
+                      child: Text(
+                        l10n.translate('no_suggestions_yet'),
+                        style: GoogleFonts.jost(
+                            color: AppTheme.textMuted(context), fontSize: 13),
+                      ),
+                    )
+                  : ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _discoverPeople.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                      itemBuilder: (_, i) => _buildDiscoverCard(_discoverPeople[i]),
+                    ),
+        ),
+        const SizedBox(height: 10),
+      ],
+    );
+  }
+
+  Widget _buildDiscoverCard(Map<String, dynamic> person) {
+    final l10n = AppLocalizations.of(context)!;
+    final id = person['id'] as int?;
+    final name = (person['name'] as String?)?.trim();
+    final username = (person['username'] as String?)?.trim();
+    final displayName = (name != null && name.isNotEmpty)
+        ? name
+        : (username != null && username.isNotEmpty ? username : 'Enom user');
+    final reason = (person['reason'] as String?)?.trim();
+    final avatarUrl = _discoverAvatarUrl(person);
+    final isFollowing = id != null && _discoverFollowing.contains(id);
+
+    return Container(
+      width: 152,
+      decoration: BoxDecoration(
+        color: AppTheme.moodCardBg(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.glassBorder(context)),
+      ),
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 18, 10, 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: () => _openDiscoverPerson(person),
+                  child: Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppTheme.goldColor(context).withValues(alpha: 0.4),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: avatarUrl != null
+                          ? Image.network(
+                              avatarUrl,
+                              width: 64,
+                              height: 64,
+                              fit: BoxFit.cover,
+                              cacheWidth: 180,
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+                                return Container(
+                                  color: AppTheme.bg2(context),
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 1.5,
+                                      color: AppTheme.goldColor(context),
+                                    ),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (_, __, ___) => Container(
+                                color: AppTheme.bg2(context),
+                                child: Icon(Icons.person,
+                                    size: 32, color: AppTheme.goldColor(context)),
+                              ),
+                            )
+                          : Container(
+                              color: AppTheme.bg2(context),
+                              child: Icon(Icons.person,
+                                  size: 32, color: AppTheme.goldColor(context)),
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.jost(
+                    color: AppTheme.text1(context),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                SizedBox(
+                  height: 28,
+                  child: Text(
+                    reason != null && reason.isNotEmpty
+                        ? reason
+                        : l10n.translate('suggested_for_you'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.jost(
+                      color: AppTheme.textMuted(context),
+                      fontSize: 10,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: id == null ? null : () => _followDiscoverPerson(id),
+                  child: Container(
+                    width: double.infinity,
+                    height: 30,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isFollowing
+                          ? Colors.transparent
+                          : AppTheme.goldColor(context),
+                      borderRadius: BorderRadius.circular(8),
+                      border: isFollowing
+                          ? Border.all(color: AppTheme.glassBorder(context))
+                          : null,
+                    ),
+                    child: Text(
+                      isFollowing
+                          ? l10n.translate('following')
+                          : l10n.translate('follow'),
+                      style: GoogleFonts.jost(
+                        color: isFollowing
+                            ? AppTheme.text1(context)
+                            : const Color(0xFF1A1612),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Dismiss (X) button
+          Positioned(
+            top: 2,
+            right: 2,
+            child: GestureDetector(
+              onTap: id == null ? null : () => _dismissDiscoverPerson(id),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Icon(Icons.close, size: 16, color: AppTheme.textMuted(context)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _cancelEditing() {
@@ -663,6 +955,16 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       },
                     ),
                     _menuItem(
+                      icon: Icons.star_border,
+                      label: l10n.translate('favourites'),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const FavouriteUsersScreen()),
+                        );
+                      },
+                    ),
+                    _menuItem(
                       icon: Icons.bar_chart_outlined,
                       label: l10n.translate('your_activity'),
                       onTap: () {
@@ -771,7 +1073,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _buildStatItem('$postsCount', l10n.translate('posts')),
+                        _buildStatItem('$postsCount', l10n.translate('posts'),
+                            onTap: () => _tabController.animateTo(1)),
                         _buildStatItem('$_followersCount', l10n.translate('followers'), onTap: _openFollowersList),
                         _buildStatItem('$_followingCount', l10n.translate('following'), onTap: _openFollowingList),
                       ],
@@ -842,41 +1145,56 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Container(
-                      height: 36,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppTheme.isDark(context)
-                            ? Colors.white.withValues(alpha: 0.12)
-                            : Colors.black.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        l10n.translate('share_profile'),
-                        style: GoogleFonts.jost(
-                          color: AppTheme.text1(context),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                    child: GestureDetector(
+                      onTap: _shareProfile,
+                      child: Container(
+                        height: 36,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppTheme.isDark(context)
+                              ? Colors.white.withValues(alpha: 0.12)
+                              : Colors.black.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          l10n.translate('share_profile'),
+                          style: GoogleFonts.jost(
+                            color: AppTheme.text1(context),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Container(
-                    height: 36,
-                    width: 36,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppTheme.isDark(context)
-                          ? Colors.white.withValues(alpha: 0.12)
-                          : Colors.black.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(8),
+                  GestureDetector(
+                    onTap: _toggleDiscover,
+                    child: Container(
+                      height: 36,
+                      width: 36,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: _showDiscover
+                            ? AppTheme.goldColor(context).withValues(alpha: 0.18)
+                            : AppTheme.isDark(context)
+                                ? Colors.white.withValues(alpha: 0.12)
+                                : Colors.black.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        _showDiscover ? Icons.person_add : Icons.person_add_outlined,
+                        size: 18,
+                        color: _showDiscover ? AppTheme.goldColor(context) : AppTheme.text1(context),
+                      ),
                     ),
-                    child: Icon(Icons.person_add_outlined, size: 18, color: AppTheme.text1(context)),
                   ),
                 ],
               ),
             ),
+
+            // ── Discover people (Instagram-style suggestions) ──
+            if (_showDiscover) _buildDiscoverPeople(),
 
             // ── Tab bar (icon-based like Instagram) ──
             TabBar(
@@ -1302,6 +1620,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 right: 6,
                 child: Icon(Icons.collections, color: Colors.white, size: 18),
               ),
+            // View count (Instagram reels style) bottom-left.
+            Positioned(left: 6, bottom: 6, child: _viewCountBadge(post)),
           ],
         ),
       );
@@ -1310,20 +1630,60 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     // Text-only post
     return GestureDetector(
       onTap: () => _openPostDetail(index),
-      child: Container(
-        color: AppTheme.bg2(context),
-        padding: const EdgeInsets.all(8),
-        child: Center(
-          child: Text(
-            content,
-            style: GoogleFonts.jost(color: AppTheme.text1(context), fontSize: 12),
-            maxLines: 4,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Container(
+            color: AppTheme.bg2(context),
+            padding: const EdgeInsets.all(8),
+            child: Center(
+              child: Text(
+                content,
+                style: GoogleFonts.jost(color: AppTheme.text1(context), fontSize: 12),
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ),
           ),
-        ),
+          Positioned(left: 6, bottom: 6, child: _viewCountBadge(post)),
+        ],
       ),
     );
+  }
+
+  /// Eye icon + view count overlay shown on each profile grid tile.
+  Widget _viewCountBadge(Map<String, dynamic> post) {
+    final views = (post['views_count'] as int?) ??
+        int.tryParse(post['views_count']?.toString() ?? '') ??
+        0;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.visibility, color: Colors.white, size: 14),
+        const SizedBox(width: 3),
+        Text(
+          _formatCount(views),
+          style: GoogleFonts.jost(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            shadows: const [Shadow(color: Colors.black54, blurRadius: 3)],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Compact count formatting: 1234 → "1.2k", 1500000 → "1.5M".
+  String _formatCount(int n) {
+    if (n >= 1000000) {
+      return '${(n / 1000000).toStringAsFixed(n % 1000000 == 0 ? 0 : 1)}M';
+    }
+    if (n >= 1000) {
+      return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}k';
+    }
+    return '$n';
   }
 
   Widget _buildSavedGridTile(int index) {

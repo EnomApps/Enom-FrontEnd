@@ -24,6 +24,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   late Map<String, dynamic> _user;
   bool _isFollowing = false;
   bool _followLoading = false;
+  bool _isFavourite = false;
 
   // User's posts
   final List<Map<String, dynamic>> _posts = [];
@@ -65,8 +66,40 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     debugPrint('[UserProfile] opened with user keys=${_user.keys.toList()}, id=${_user['id']}, name=${_user['name']}');
     _loadPosts();
     _checkFollowStatus();
+    _checkFavouriteStatus();
     _fetchFullUser();
     _scrollController.addListener(_onScroll);
+  }
+
+  Future<void> _checkFavouriteStatus() async {
+    final id = _userId;
+    if (id == null) return;
+    final result = await SocialService.getFavouriteStatus(id);
+    if (mounted && result.success) {
+      setState(() => _isFavourite = result.isFavourite);
+    }
+  }
+
+  Future<void> _toggleFavourite() async {
+    final id = _userId;
+    if (id == null) return;
+    final l10n = AppLocalizations.of(context)!;
+    final was = _isFavourite;
+    setState(() => _isFavourite = !was);
+
+    final result = await SocialService.toggleFavourite(id);
+    if (!mounted) return;
+    if (result.success) {
+      setState(() => _isFavourite = result.isFavourite);
+      AppTheme.showSnackBar(
+        context,
+        result.isFavourite
+            ? l10n.translate('added_to_favourites')
+            : l10n.translate('removed_from_favourites'),
+      );
+    } else {
+      setState(() => _isFavourite = was);
+    }
   }
 
   /// The user map passed in may be minimal (e.g. just id + name from a
@@ -207,7 +240,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             onSelected: (value) {
               final userId = _user['id'] as int?;
               if (userId == null) return;
-              if (value == 'block') {
+              if (value == 'favourite') {
+                _toggleFavourite();
+              } else if (value == 'block') {
                 BlockReportService.toggleBlock(userId).then((r) {
                   if (mounted && r.success) {
                     AppTheme.showSnackBar(context, r.message);
@@ -221,6 +256,23 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               }
             },
             itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'favourite',
+                child: Row(children: [
+                  Icon(
+                    _isFavourite ? Icons.star : Icons.star_border,
+                    color: AppTheme.goldColor(context),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _isFavourite
+                        ? l10n.translate('remove_from_favourites')
+                        : l10n.translate('add_to_favourites'),
+                    style: TextStyle(color: AppTheme.text1(context)),
+                  ),
+                ]),
+              ),
               PopupMenuItem(
                 value: 'report',
                 child: Row(children: [

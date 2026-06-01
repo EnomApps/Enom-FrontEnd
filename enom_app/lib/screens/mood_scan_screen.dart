@@ -49,6 +49,8 @@ class _MoodScanScreenState extends State<MoodScanScreen>
   // Animations
   late AnimationController _pulseController;
   late AnimationController _borderSpinController;
+  late AnimationController _scanLineController; // sweeping line during analysis
+  late AnimationController _countdownRingController; // ring fill during countdown
   late Animation<double> _pulseAnimation;
 
   @override
@@ -67,6 +69,18 @@ class _MoodScanScreenState extends State<MoodScanScreen>
       vsync: this,
       duration: const Duration(seconds: 3),
     )..repeat();
+
+    // Vertical sweep line shown while the API analyzes the photo.
+    _scanLineController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat();
+
+    // Fills over the 3-second countdown so the ring depletes as 3→2→1 runs.
+    _countdownRingController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    );
 
     _initCamera();
   }
@@ -146,6 +160,7 @@ class _MoodScanScreenState extends State<MoodScanScreen>
       _countdownValue = 3;
     });
 
+    _countdownRingController.forward(from: 0);
     HapticFeedback.mediumImpact();
 
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -309,6 +324,8 @@ class _MoodScanScreenState extends State<MoodScanScreen>
     _autoStartTimer?.cancel();
     _pulseController.dispose();
     _borderSpinController.dispose();
+    _scanLineController.dispose();
+    _countdownRingController.dispose();
     _cameraController?.dispose();
     MoodDetectionService.dispose();
     super.dispose();
@@ -385,7 +402,12 @@ class _MoodScanScreenState extends State<MoodScanScreen>
   Widget _buildViewfinderOverlay(double viewfinderSize, Color goldC) {
     return IgnorePointer(
       child: AnimatedBuilder(
-        animation: _borderSpinController,
+        animation: Listenable.merge([
+          _borderSpinController,
+          _scanLineController,
+          _countdownRingController,
+          _pulseController,
+        ]),
         builder: (context, child) {
           return CustomPaint(
             size: Size.infinite,
@@ -398,6 +420,15 @@ class _MoodScanScreenState extends State<MoodScanScreen>
               isScanning: _state == _ScanState.countdown ||
                   _state == _ScanState.analyzing,
               pulseValue: _pulseAnimation.value,
+              // Ring depletes from full to empty as the countdown runs.
+              countdownProgress: _state == _ScanState.countdown
+                  ? 1.0 - _countdownRingController.value
+                  : -1,
+              // Vertical sweep position while analyzing.
+              scanLineProgress:
+                  _state == _ScanState.analyzing ? _scanLineController.value : -1,
+              // Face-position guide only in the live preview.
+              showFaceGuide: _state == _ScanState.preview,
             ),
           );
         },
@@ -548,12 +579,19 @@ class _MoodScanScreenState extends State<MoodScanScreen>
                   ],
                 ),
               ),
-            Text(
-              l10n.translate('mood_scan_guide'),
-              style: GoogleFonts.jost(
-                color: Colors.white70,
-                fontSize: 14,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.face_retouching_natural, color: goldC, size: 16),
+                const SizedBox(width: 6),
+                Text(
+                  l10n.translate('mood_scan_guide'),
+                  style: GoogleFonts.jost(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 20),
             // Manual capture button
@@ -712,43 +750,110 @@ class _ViewfinderPainter extends CustomPainter {
   final bool isScanning;
   final double pulseValue;
 
+  /// 0..1 remaining fraction of the countdown ring; -1 when not counting down.
+  final double countdownProgress;
+
+  /// 0..1 vertical position of the analysis sweep line; -1 when not analyzing.
+  final double scanLineProgress;
+
+  /// Draw the face-position guide (live preview only).
+  final bool showFaceGuide;
+
   _ViewfinderPainter({
     required this.viewfinderSize,
     required this.borderColor,
     required this.rotation,
     required this.isScanning,
     required this.pulseValue,
+    this.countdownProgress = -1,
+    this.scanLineProgress = -1,
+    this.showFaceGuide = false,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = viewfinderSize / 2;
+    final circle = Rect.fromCircle(center: center, radius: radius);
 
     // Dark overlay with circular cutout
     final overlayPaint = Paint()..color = Colors.black.withValues(alpha: 0.6);
     final path = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
-      ..addOval(Rect.fromCircle(center: center, radius: radius))
+      ..addOval(circle)
       ..fillType = PathFillType.evenOdd;
     canvas.drawPath(path, overlayPaint);
 
-    // Border arc segments (4 arcs with gaps)
+    // Face-position guide — a soft head-and-shoulders silhouette to help the
+    // user centre themselves. Purely a visual aid (no on-device detection).
+    if (showFaceGuide) {
+      _drawFaceGuide(canvas, center, radius);
+    }
+
+    // Analysis sweep line — a bright horizontal band travelling top→bottom,
+    // clipped to the viewfinder circle.
+    if (scanLineProgress >= 0) {
+      canvas.save();
+      canvas.clipPath(Path()..addOval(circle));
+      final y = center.dy - radius + scanLineProgress * (radius * 2);
+      final bandRect = Rect.fromLTWH(
+          center.dx - radius, y - 24, radius * 2, 48);
+      final bandPaint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            borderColor.withValues(alpha: 0.0),
+            borderColor.withValues(alpha: 0.35),
+            borderColor.withValues(alpha: 0.0),
+          ],
+        ).createShader(bandRect);
+      canvas.drawRect(bandRect, bandPaint);
+      // Crisp leading line
+      final linePaint = Paint()
+        ..color = borderColor.withValues(alpha: 0.9)
+        ..strokeWidth = 1.5;
+      canvas.drawLine(
+          Offset(center.dx - radius, y), Offset(center.dx + radius, y), linePaint);
+      canvas.restore();
+    }
+
+    // Border arc segments (4 rotating arcs with gaps)
     final borderPaint = Paint()
       ..color = borderColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
 
-    final arcRect = Rect.fromCircle(center: center, radius: radius);
-
     for (int i = 0; i < 4; i++) {
       final startAngle = rotation + (i * math.pi / 2) + 0.1;
       const sweepAngle = math.pi / 2 - 0.2;
-      canvas.drawArc(arcRect, startAngle, sweepAngle, false, borderPaint);
+      canvas.drawArc(circle, startAngle, sweepAngle, false, borderPaint);
     }
 
-    // Corner markers
+    // Countdown ring — a thick arc that depletes clockwise as 3→2→1 runs.
+    if (countdownProgress >= 0) {
+      final trackPaint = Paint()
+        ..color = borderColor.withValues(alpha: 0.15)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 6;
+      canvas.drawCircle(center, radius + 6, trackPaint);
+
+      final ringPaint = Paint()
+        ..color = borderColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 6
+        ..strokeCap = StrokeCap.round;
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius + 6),
+        -math.pi / 2,
+        2 * math.pi * countdownProgress,
+        false,
+        ringPaint,
+      );
+    }
+
+    // Corner markers (idle preview only)
     if (!isScanning) {
       final markerPaint = Paint()
         ..color = borderColor
@@ -785,9 +890,37 @@ class _ViewfinderPainter extends CustomPainter {
     }
   }
 
+  /// Faint head-and-shoulders outline centred in the viewfinder.
+  void _drawFaceGuide(Canvas canvas, Offset center, double radius) {
+    final guidePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.18)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    // Head (oval), slightly above centre.
+    final headCenter = Offset(center.dx, center.dy - radius * 0.12);
+    final headRect = Rect.fromCenter(
+      center: headCenter,
+      width: radius * 0.78,
+      height: radius * 1.02,
+    );
+    canvas.drawOval(headRect, guidePaint);
+
+    // Shoulders — two arcs sweeping out from the bottom of the head.
+    final shoulderRect = Rect.fromCircle(
+      center: Offset(center.dx, center.dy + radius * 0.85),
+      radius: radius * 0.7,
+    );
+    canvas.drawArc(shoulderRect, math.pi + 0.5, 0.7, false, guidePaint);
+    canvas.drawArc(shoulderRect, -0.5 - 0.7, 0.7, false, guidePaint);
+  }
+
   @override
   bool shouldRepaint(_ViewfinderPainter old) =>
       rotation != old.rotation ||
       isScanning != old.isScanning ||
-      pulseValue != old.pulseValue;
+      pulseValue != old.pulseValue ||
+      countdownProgress != old.countdownProgress ||
+      scanLineProgress != old.scanLineProgress ||
+      showFaceGuide != old.showFaceGuide;
 }

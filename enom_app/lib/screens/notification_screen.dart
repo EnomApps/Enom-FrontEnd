@@ -4,6 +4,7 @@ import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/notification_api_service.dart';
 import '../theme/app_theme.dart';
+import 'feed_screen.dart';
 import 'user_profile_screen.dart';
 
 /// Notification screen — modern list with avatars, action badges, and pagination.
@@ -102,30 +103,72 @@ class _NotificationScreenState extends State<NotificationScreen> {
     return n['read_at'] == null;
   }
 
+  // ── `related` payload accessors (rich notification data) ──
+  Map<String, dynamic> _related(Map<String, dynamic> n) =>
+      (n['related'] as Map?)?.cast<String, dynamic>() ?? const {};
+  Map<String, dynamic>? _fromUser(Map<String, dynamic> n) =>
+      (_related(n)['from_user'] as Map?)?.cast<String, dynamic>();
+  Map<String, dynamic>? _relPost(Map<String, dynamic> n) =>
+      (_related(n)['post'] as Map?)?.cast<String, dynamic>();
+  Map<String, dynamic>? _relComment(Map<String, dynamic> n) =>
+      (_related(n)['comment'] as Map?)?.cast<String, dynamic>();
+
   void _onTileTap(int index) {
     _markRead(index);
     final notif = _notifications[index];
     final type = (notif['type'] as String? ?? '').toLowerCase();
+    final fromUser = _fromUser(notif);
     final data = notif['data'] as Map<String, dynamic>? ?? {};
-    // Only follow notifications navigate to a self-contained destination.
+
+    // Follow → go to the follower's profile.
     if (type.contains('follow')) {
-      final fromUserId = data['from_user_id'];
-      final fromUserName = data['from_user_name'] as String?;
-      if (fromUserId != null) {
+      final userId = fromUser?['id'] ?? data['from_user_id'];
+      if (userId != null) {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => UserProfileScreen(user: {
-              'id': fromUserId,
-              'name': fromUserName ?? '',
+              'id': userId,
+              'name': fromUser?['name'] ?? data['from_user_name'] ?? '',
+              if (fromUser?['username'] != null) 'username': fromUser!['username'],
+              if (fromUser?['profile_image_url'] != null)
+                'profile_image_url': fromUser!['profile_image_url'],
               if (data['from_profile_image'] != null)
                 'profile_image': data['from_profile_image'],
             }),
           ),
         );
       }
+      return;
     }
-    // Like/comment/repost/mention all point at a post — no post-detail route exists
-    // yet; mark-as-read is the only side effect.
+
+    // Like / comment / repost / mention → open the related post.
+    final postId = (_relPost(notif)?['id'] ?? data['post_id']) as int?;
+    if (postId != null) {
+      // Comment / reply → open the post with the comments sheet expanded.
+      final openComments = type.contains('comment') || type.contains('reply');
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => FeedScreen(
+            singlePostId: postId,
+            openCommentsOnLoad: openComments,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Fallback → actor's profile.
+    final userId = fromUser?['id'] ?? data['from_user_id'];
+    if (userId != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => UserProfileScreen(user: {
+            'id': userId,
+            'name': fromUser?['name'] ?? data['from_user_name'] ?? '',
+          }),
+        ),
+      );
+    }
   }
 
   @override
@@ -231,12 +274,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
     final notif = _notifications[index];
     final isUnread = _isUnread(notif);
     final type = (notif['type'] as String? ?? '').toLowerCase();
-    final data = notif['data'] as Map<String, dynamic>? ?? {};
-    final fromName = (data['from_user_name'] as String?)?.trim();
     final createdAt = notif['created_at'] as String? ?? '';
 
     final goldC = AppTheme.goldColor(context);
     final unreadBg = goldC.withValues(alpha: 0.06);
+    final thumb = _buildPostThumb(notif);
 
     return Dismissible(
       key: ValueKey(notif['id']),
@@ -256,19 +298,23 @@ class _NotificationScreenState extends State<NotificationScreen> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _buildAvatarWithBadge(data, type),
+              _buildAvatarWithBadge(notif, type),
               const SizedBox(width: 12),
-              Expanded(child: _buildMessage(fromName, type, createdAt, isUnread)),
+              Expanded(child: _buildMessage(notif, type, createdAt, isUnread)),
               if (isUnread)
                 Container(
                   width: 8,
                   height: 8,
-                  margin: const EdgeInsets.only(left: 8),
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
                     color: goldC,
                     shape: BoxShape.circle,
                   ),
                 ),
+              if (thumb != null) ...[
+                const SizedBox(width: 4),
+                thumb,
+              ],
             ],
           ),
         ),
@@ -276,9 +322,81 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  Widget _buildAvatarWithBadge(Map<String, dynamic> data, String type) {
-    final fromName = (data['from_user_name'] as String?)?.trim() ?? '';
-    var avatar = (data['from_profile_image'] ??
+  /// Small post preview on the right (image/video thumbnail or text snippet).
+  Widget? _buildPostThumb(Map<String, dynamic> notif) {
+    final post = _relPost(notif);
+    if (post == null) return null;
+
+    final isVideo =
+        (post['media_type'] as String?)?.toLowerCase().contains('video') ?? false;
+    var url = (post['thumbnail_url'] as String?) ?? (post['media_url'] as String?);
+    if (url != null && url.isNotEmpty && !url.startsWith('http')) {
+      url = '${ApiService.baseUrl}/$url';
+    }
+
+    // Text-only post → show a content snippet box.
+    if (url == null || url.isEmpty) {
+      final content = (post['content'] as String?)?.trim() ?? '';
+      if (content.isEmpty) return null;
+      return Container(
+        width: 44,
+        height: 44,
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: AppTheme.bg2(context),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          content,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.jost(
+            color: AppTheme.textMuted(context),
+            fontSize: 7,
+            height: 1.2,
+          ),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: Stack(
+        children: [
+          Image.network(
+            url,
+            width: 44,
+            height: 44,
+            fit: BoxFit.cover,
+            cacheWidth: 132,
+            errorBuilder: (_, __, ___) => Container(
+              width: 44,
+              height: 44,
+              color: AppTheme.bg2(context),
+              child: Icon(Icons.image_outlined,
+                  size: 18, color: AppTheme.textMuted(context)),
+            ),
+          ),
+          if (isVideo)
+            const Positioned(
+              right: 2,
+              bottom: 2,
+              child: Icon(Icons.play_circle_fill, size: 14, color: Colors.white),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatarWithBadge(Map<String, dynamic> notif, String type) {
+    final data = notif['data'] as Map<String, dynamic>? ?? {};
+    final fromUser = _fromUser(notif);
+    final fromName = (fromUser?['name'] ?? data['from_user_name'] as String?)
+            ?.toString()
+            .trim() ??
+        '';
+    var avatar = (fromUser?['profile_image_url'] ??
+            data['from_profile_image'] ??
             data['profile_image_url'] ??
             data['profile_image']) as String?;
     if (avatar != null && avatar.isNotEmpty && !avatar.startsWith('http')) {
@@ -358,13 +476,27 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  Widget _buildMessage(String? fromName, String type, String createdAt, bool isUnread) {
+  Widget _buildMessage(
+      Map<String, dynamic> notif, String type, String createdAt, bool isUnread) {
     final l10n = AppLocalizations.of(context)!;
-    final name = (fromName == null || fromName.isEmpty)
+    final data = notif['data'] as Map<String, dynamic>? ?? {};
+    final fromUser = _fromUser(notif);
+    final rawName =
+        (fromUser?['name'] ?? data['from_user_name'] as String?)?.toString().trim();
+    final name = (rawName == null || rawName.isEmpty)
         ? l10n.translate('notif_someone')
-        : fromName;
+        : rawName;
     final action = _actionText(type, l10n);
     final timeAgo = _timeAgo(createdAt);
+
+    // For comment/reply notifications, show the actual comment text.
+    final comment = _relComment(notif);
+    final commentText = (comment?['text'] as String?)?.trim();
+
+    // Post engagement stats (likes/comments on the related post).
+    final post = _relPost(notif);
+    final likes = post != null ? _intOr(post['likes_count']) : null;
+    final comments = post != null ? _intOr(post['comments_count']) : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,19 +521,58 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   height: 1.35,
                 ),
               ),
+              if (commentText != null && commentText.isNotEmpty)
+                TextSpan(
+                  text: ' "$commentText"',
+                  style: GoogleFonts.jost(
+                    color: AppTheme.text2(context),
+                    fontSize: 14,
+                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w400,
+                    height: 1.35,
+                  ),
+                ),
             ],
           ),
         ),
-        const SizedBox(height: 3),
-        Text(
-          timeAgo,
-          style: GoogleFonts.jost(
-            color: AppTheme.textMuted(context),
-            fontSize: 11,
-          ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Text(
+              timeAgo,
+              style: GoogleFonts.jost(
+                color: AppTheme.textMuted(context),
+                fontSize: 11,
+              ),
+            ),
+            if (post != null && (likes! > 0 || comments! > 0)) ...[
+              const SizedBox(width: 8),
+              Icon(Icons.favorite, size: 11, color: AppTheme.textMuted(context)),
+              const SizedBox(width: 2),
+              Text(
+                '$likes',
+                style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 11),
+              ),
+              const SizedBox(width: 6),
+              Icon(Icons.chat_bubble_outline, size: 11, color: AppTheme.textMuted(context)),
+              const SizedBox(width: 2),
+              Text(
+                '${comments ?? 0}',
+                style: GoogleFonts.jost(color: AppTheme.textMuted(context), fontSize: 11),
+              ),
+            ],
+          ],
         ),
       ],
     );
+  }
+
+  /// Defensive int read — counts may arrive as int or string.
+  int _intOr(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? 0;
+    return 0;
   }
 
   String _actionText(String type, AppLocalizations l10n) {

@@ -22,7 +22,28 @@ import 'user_profile_screen.dart';
 
 class FeedScreen extends StatefulWidget {
   final String feedType; // 'following', 'for_you', 'favorites'
-  const FeedScreen({super.key, this.feedType = 'following'});
+
+  /// Single-post mode: when set, the screen shows only this one post (fetched
+  /// by id), gets its own back-button app bar, and skips pagination. Used by
+  /// notification taps so a "liked/commented your post" opens that post.
+  final int? singlePostId;
+
+  /// Optional partial post (e.g. from a notification's `related.post`) shown
+  /// immediately while the full post loads in single-post mode.
+  final Map<String, dynamic>? initialPost;
+
+  /// Auto-open the comments sheet once the single post has loaded.
+  final bool openCommentsOnLoad;
+
+  const FeedScreen({
+    super.key,
+    this.feedType = 'following',
+    this.singlePostId,
+    this.initialPost,
+    this.openCommentsOnLoad = false,
+  });
+
+  bool get isSinglePost => singlePostId != null || initialPost != null;
 
   @override
   State<FeedScreen> createState() => _FeedScreenState();
@@ -89,6 +110,38 @@ class _FeedScreenState extends State<FeedScreen> {
       _hasError = false;
     });
 
+    // ── Single-post mode (notification taps) ──
+    if (widget.isSinglePost) {
+      // Show the partial post immediately if provided, then fetch the full one.
+      if (widget.initialPost != null && _posts.isEmpty) {
+        _posts.add(widget.initialPost!);
+      }
+      final id = widget.singlePostId ?? widget.initialPost?['id'] as int?;
+      Map<String, dynamic>? full;
+      if (id != null) full = await PostService.getPost(id);
+      if (!mounted) return;
+      setState(() {
+        _posts.clear();
+        if (full != null) {
+          _applyLikeCache(full);
+          _posts.add(full);
+        } else if (widget.initialPost != null) {
+          _posts.add(widget.initialPost!);
+        }
+        _nextCursor = null;
+        _isLoading = false;
+        _hasError = _posts.isEmpty;
+      });
+      _fetchFollowStatuses(_posts);
+      // Auto-open comments once the post is on screen.
+      if (widget.openCommentsOnLoad && _posts.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showComments(_posts.first);
+        });
+      }
+      return;
+    }
+
     if (widget.feedType == 'for_you') {
       final result = await PostService.getForYouFeed();
       if (!mounted) return;
@@ -109,7 +162,8 @@ class _FeedScreenState extends State<FeedScreen> {
         setState(() { _isLoading = false; _hasError = true; });
       }
     } else if (widget.feedType == 'favorites') {
-      final result = await SocialService.getSavedPosts();
+      // Chronological feed from your private favourite ("close friends") users.
+      final result = await SocialService.getFavouritesFeed();
       if (!mounted) return;
       if (result.success) {
         setState(() {
@@ -120,9 +174,10 @@ class _FeedScreenState extends State<FeedScreen> {
               _posts.add(p);
             }
           }
-          _nextCursor = null;
+          _nextCursor = result.nextCursor;
           _isLoading = false;
         });
+        _fetchFollowStatuses(_posts);
       } else {
         setState(() { _isLoading = false; _hasError = true; });
       }
@@ -175,6 +230,26 @@ class _FeedScreenState extends State<FeedScreen> {
 
     if (widget.feedType == 'for_you') {
       final result = await PostService.getForYouFeed(cursor: _nextCursor);
+      if (!mounted) return;
+      if (result.success) {
+        final newPosts = <Map<String, dynamic>>[];
+        setState(() {
+          for (final p in result.posts) {
+            if (p is Map<String, dynamic>) {
+              _applyLikeCache(p);
+              _posts.add(p);
+              newPosts.add(p);
+            }
+          }
+          _nextCursor = result.nextCursor;
+          _isLoadingMore = false;
+        });
+        _fetchFollowStatuses(newPosts);
+      } else {
+        setState(() => _isLoadingMore = false);
+      }
+    } else if (widget.feedType == 'favorites') {
+      final result = await SocialService.getFavouritesFeed(cursor: _nextCursor);
       if (!mounted) return;
       if (result.success) {
         final newPosts = <Map<String, dynamic>>[];
@@ -514,6 +589,17 @@ class _FeedScreenState extends State<FeedScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bg(context),
+      appBar: widget.isSinglePost
+          ? AppBar(
+              backgroundColor: AppTheme.bg(context),
+              elevation: 0,
+              iconTheme: IconThemeData(color: AppTheme.text1(context)),
+              title: Text(
+                AppLocalizations.of(context)!.translate('post'),
+                style: AppTheme.heading(context, size: 18),
+              ),
+            )
+          : null,
       body: SafeArea(
         child: Column(
           children: [
@@ -771,33 +857,32 @@ class _FeedScreenState extends State<FeedScreen> {
                           ],
                         ],
                       ),
-                      // Location display hidden until Google Places API integration is ready.
-                      // TODO: re-enable once GET /api/places/search is live and posts carry verified location data.
-                      // if ((post['location_name'] as String?)?.trim().isNotEmpty == true)
-                      //   Padding(
-                      //     padding: const EdgeInsets.only(top: 2),
-                      //     child: Row(
-                      //       children: [
-                      //         Icon(
-                      //           Icons.location_on,
-                      //           size: 12,
-                      //           color: AppTheme.textMuted(context),
-                      //         ),
-                      //         const SizedBox(width: 2),
-                      //         Flexible(
-                      //           child: Text(
-                      //             (post['location_name'] as String).trim(),
-                      //             style: GoogleFonts.jost(
-                      //               color: AppTheme.textMuted(context),
-                      //               fontSize: 12,
-                      //               fontWeight: FontWeight.w500,
-                      //             ),
-                      //             overflow: TextOverflow.ellipsis,
-                      //           ),
-                      //         ),
-                      //       ],
-                      //     ),
-                      //   ),
+                      // Location row — shown only on posts that carry a location.
+                      if ((post['location_name'] as String?)?.trim().isNotEmpty == true)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.location_on,
+                                size: 12,
+                                color: AppTheme.textMuted(context),
+                              ),
+                              const SizedBox(width: 2),
+                              Flexible(
+                                child: Text(
+                                  (post['location_name'] as String).trim(),
+                                  style: GoogleFonts.jost(
+                                    color: AppTheme.textMuted(context),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),

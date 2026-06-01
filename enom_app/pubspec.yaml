@@ -36,6 +36,7 @@ dependencies:
   gal: ^2.3.0
   simple_pip_mode: ^1.1.0
   wakelock_plus: ^1.2.8
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:

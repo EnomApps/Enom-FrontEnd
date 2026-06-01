@@ -83,21 +83,17 @@
   "account": "Account",
   "about": "About",
   "invalid_email": "Please enter a valid email address",
-
   "reels": "Reels",
   "stats": "Stats",
   "search": "Search",
   "posts": "Posts",
-
   "welcome_back_title": "WELCOME BACK",
   "login_to_app": "Login to ENOM",
   "login_tagline": "Track your mood & reconnect\nwith your community",
   "join_app": "Join ENOM",
   "welcome_tagline": "Track your mood & connect\nwith like-minded people",
-
   "search_language": "Search language...",
   "search_hint": "Search users, posts, hashtags...",
-
   "followers": "Followers",
   "following": "Following",
   "saved_posts": "Saved Posts",
@@ -117,7 +113,6 @@
   "enom_premium": "ENOM Premium",
   "max_interests_allowed": "Maximum 10 interests allowed",
   "are_you_sure": "Are you sure?",
-
   "delete_post": "Delete Post",
   "delete": "Delete",
   "post_deleted": "Post deleted",
@@ -125,7 +120,6 @@
   "could_not_load_feed": "Could not load feed",
   "retry": "Retry",
   "be_first_to_share": "Be the first to share something",
-
   "permission_required": "Permission Required",
   "permission_media_photos": "Please allow access to your photos in Settings.",
   "permission_media_videos": "Please allow access to your videos in Settings.",
@@ -143,20 +137,16 @@
   "video": "Video",
   "visibility": "Visibility",
   "preview": "Preview",
-
   "video_compression_failed": "Video compression failed",
   "video_skipped": "Video skipped",
   "post_updated": "Post updated successfully!",
   "new_badge": "New",
-
   "saved": "Saved",
   "share": "Share",
   "link_copied": "Link copied to clipboard",
   "copy_link": "Copy link",
-
   "no_followers_yet": "No followers yet",
   "no_following_yet": "No following yet",
-
   "mood_camera_title": "Mood Detection",
   "mood_camera_subtitle": "Let your face tell the story",
   "mood_camera_desc": "ENOM uses your front camera to analyze facial expressions and detect your current mood. Your face data is processed on-device and never stored or shared.",
@@ -181,7 +171,6 @@
   "mood_scan_error": "Could not detect mood. Please try again.",
   "mood_scan_no_face": "No face detected. Please center your face.",
   "mood_scan_torch": "Flash",
-
   "good_morning": "Good Morning",
   "good_afternoon": "Good Afternoon",
   "good_evening": "Good Evening",
@@ -223,7 +212,6 @@
   "public": "Public",
   "private": "Private",
   "no_posts": "No posts yet",
-
   "like": "like",
   "likes": "likes",
   "likes_and_plays": "Likes and plays",
@@ -241,7 +229,6 @@
   "no_comments_yet": "No comments yet",
   "write_a_comment": "Write a comment...",
   "reply_to": "Reply to {name}...",
-
   "edit_profile_btn": "Edit profile",
   "share_profile": "Share profile",
   "menu": "Menu",
@@ -251,12 +238,10 @@
   "interests": "Interests",
   "upgrade": "UPGRADE",
   "username": "Username",
-
   "thats_right": "That's Right",
   "not_quite": "Not Quite",
   "select_your_mood": "Select how you're really feeling",
   "mood_low": "Low",
-
   "mood_history": "Mood History",
   "mood_trends": "Mood Trends",
   "seven_days": "7 Days",
@@ -266,7 +251,6 @@
   "scan_to_start": "Scan your mood to start tracking",
   "export_csv": "Export as CSV",
   "view_history": "View History",
-
   "exit_app": "Exit App",
   "notif_action_liked": "liked your post",
   "notif_action_commented": "commented on your post",
@@ -280,12 +264,10 @@
   "exit_app_message": "Do you want to exit?",
   "yes": "Yes",
   "no": "No",
-
   "users": "Users",
   "hashtags_tab": "Hashtags",
   "trending": "Trending",
   "no_results": "No results found",
-
   "report": "Report",
   "block_user": "Block User",
   "mark_all_read": "Mark all read",
@@ -294,5 +276,23 @@
   "quote_repost": "Quote Repost",
   "for_you": "For You",
   "favorites": "Favorites",
-  "not_interested_feedback": "Thanks. We'll show you fewer posts like this."
+  "not_interested_feedback": "Thanks. We'll show you fewer posts like this.",
+  "search_for_a_place": "Search for a place",
+  "no_places_found": "No places found",
+  "download": "Download",
+  "qr_saved": "QR code saved to gallery",
+  "scan_qr_to_visit": "Scan the QR code to visit this profile",
+  "could_not_share": "Could not share right now",
+  "color": "Color",
+  "discover_people": "Discover people",
+  "see_all": "See all",
+  "suggested_for_you": "Suggested for you",
+  "no_suggestions_yet": "No suggestions yet",
+  "add_to_favourites": "Add to favourites",
+  "remove_from_favourites": "Remove from favourites",
+  "added_to_favourites": "Added to favourites",
+  "removed_from_favourites": "Removed from favourites",
+  "no_favourites_yet": "No favourites yet",
+  "favourites_hint": "Add people to your favourites to see their posts here and in your Favourites feed.",
+  "favourites": "Favorites"
 }

@@ -53,6 +53,19 @@ class PostService {
     return (success: false, posts: <dynamic>[], pagination: null);
   }
 
+  /// GET /api/posts/{id} — Fetch a single full post by id.
+  static Future<Map<String, dynamic>?> getPost(int postId) async {
+    final result = await ApiService.get('/api/posts/$postId', auth: true);
+    final status = result['statusCode'] as int;
+    final body = result['body'];
+    if (status == 200 && body is Map<String, dynamic>) {
+      // Unwrap common envelopes: { post: {...} } / { data: {...} } / {...}
+      final post = body['post'] ?? body['data'] ?? body;
+      if (post is Map<String, dynamic>) return post;
+    }
+    return null;
+  }
+
   /// Create a new post with optional media files.
   static Future<({bool success, String message, Map<String, dynamic>? post})> createPost({
     String? content,
@@ -298,8 +311,24 @@ class PostService {
     debugPrint('[getShareLink] postId=$postId status=$status body=$body');
 
     if (status == 200 && body is Map<String, dynamic>) {
-      final link = (body['share_url'] ?? body['link'] ?? body['url'] ?? body['share_link'] ?? body['data'] ?? '') as String;
-      return (success: true, link: link);
+      // Safely pull the first string-valued key (avoid casting a nested Map).
+      String? pick(Map<String, dynamic> m) {
+        for (final key in ['share_url', 'link', 'url', 'share_link']) {
+          final v = m[key];
+          if (v is String && v.isNotEmpty) return v;
+        }
+        return null;
+      }
+
+      var link = pick(body);
+      // Some APIs nest under `data`.
+      if (link == null && body['data'] is Map<String, dynamic>) {
+        link = pick(body['data'] as Map<String, dynamic>);
+      }
+      if (link == null && body['data'] is String && (body['data'] as String).isNotEmpty) {
+        link = body['data'] as String;
+      }
+      if (link != null) return (success: true, link: link);
     }
 
     return (success: false, link: '');
