@@ -11,6 +11,7 @@ import '../services/api_service.dart';
 import '../services/mood_detection_service.dart';
 import '../services/mood_history_service.dart';
 import '../services/notification_api_service.dart';
+import '../services/notification_service.dart';
 import 'camera_permission_screen.dart';
 import 'mood_history_screen.dart';
 import 'mood_scan_screen.dart';
@@ -95,8 +96,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<void> _loadUnreadCount() async {
     try {
       final result = await NotificationApiService.getNotifications(page: 1);
-      if (mounted && result.success) {
-        setState(() => _unreadNotifCount = result.unreadCount);
+      if (result.success) {
+        // Reconcile the launcher-icon badge to the server count (single source
+        // of truth) even if this screen is no longer mounted.
+        await NotificationService.updateBadge(result.unreadCount);
+        if (mounted) {
+          setState(() => _unreadNotifCount = result.unreadCount);
+        }
       }
     } catch (_) {}
   }

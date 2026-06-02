@@ -25,6 +25,10 @@ class FeedReelsScreen extends StatefulWidget {
   /// Index of the post the user tapped on in the feed.
   final int initialIndex;
 
+  /// Media position within the tapped post to open on (e.g. the 2nd item in a
+  /// carousel). Applies only to the initial post; other posts start at 0.
+  final int initialMediaIndex;
+
   /// Whether to show the back arrow (false when used as a tab).
   final bool showBackButton;
 
@@ -35,6 +39,7 @@ class FeedReelsScreen extends StatefulWidget {
     super.key,
     required this.videoPosts,
     required this.initialIndex,
+    this.initialMediaIndex = 0,
     this.showBackButton = true,
     this.bottomPadding = 0,
   });
@@ -132,6 +137,10 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
                 return _ReelVideoPage(
                   post: _videoPosts[index],
                   isActive: index == _currentIndex,
+                  // Only the tapped post opens on the chosen media position;
+                  // every other post starts at its first item.
+                  initialMediaIndex:
+                      index == widget.initialIndex ? widget.initialMediaIndex : 0,
                   onCommentTap: (onCommentAdded) => _showComments(_videoPosts[index], onCommentAdded),
                   onNotInterested: () => _removePost(_videoPosts[index]),
                   onVideoEnded: _advanceToNext,
@@ -267,6 +276,8 @@ class _FeedReelsScreenState extends State<FeedReelsScreen> {
 class _ReelVideoPage extends StatefulWidget {
   final Map<String, dynamic> post;
   final bool isActive;
+  /// Media position within this post to open on (carousel start index).
+  final int initialMediaIndex;
   final void Function(VoidCallback onCommentAdded) onCommentTap;
   final VoidCallback onNotInterested;
   final VoidCallback onVideoEnded;
@@ -275,6 +286,7 @@ class _ReelVideoPage extends StatefulWidget {
   const _ReelVideoPage({
     required this.post,
     required this.isActive,
+    this.initialMediaIndex = 0,
     required this.onCommentTap,
     required this.onNotInterested,
     required this.onVideoEnded,
@@ -309,7 +321,7 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
 
   // Inner media page (horizontal swipe across this post's media).
   int _currentMediaIndex = 0;
-  final PageController _mediaPageController = PageController();
+  late final PageController _mediaPageController;
 
   // Long-press menu state
   double _playbackSpeed = 1.0;
@@ -344,6 +356,10 @@ class _ReelVideoPageState extends State<_ReelVideoPage> {
     _viewsCount = widget.post['views_count'] as int? ?? 0;
     _isOwner = widget.post['is_owner'] as bool? ?? false;
     _detectMediaType();
+    // Open on the tapped media position; clamp in case the index is stale.
+    _currentMediaIndex =
+        widget.initialMediaIndex.clamp(0, (_mediaItems.length - 1).clamp(0, 1 << 30));
+    _mediaPageController = PageController(initialPage: _currentMediaIndex);
     if (_isCurrentVideo) {
       _initVideoFor(_mediaItems[_currentMediaIndex].url);
     }

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/notification_api_service.dart';
+import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import 'feed_screen.dart';
 import 'user_profile_screen.dart';
@@ -42,6 +43,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
       _page = result.currentPage;
       _isLoading = false;
     });
+    NotificationService.updateBadge(_unreadCount);
   }
 
   Future<void> _loadMore() async {
@@ -67,6 +69,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
         n['is_read'] = true;
       }
     });
+    NotificationService.updateBadge(_unreadCount);
   }
 
   Future<void> _delete(int index) async {
@@ -80,6 +83,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
         if (wasUnread) _unreadCount = (_unreadCount - 1).clamp(0, 9999);
         _total = (_total - 1).clamp(0, 1 << 30);
       });
+      NotificationService.updateBadge(_unreadCount);
     }
   }
 
@@ -93,6 +97,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
       _notifications[index]['is_read'] = true;
       _unreadCount = (_unreadCount - 1).clamp(0, 9999);
     });
+    NotificationService.updateBadge(_unreadCount);
   }
 
   bool _isUnread(Map<String, dynamic> n) {

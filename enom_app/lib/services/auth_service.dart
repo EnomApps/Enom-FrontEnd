@@ -222,6 +222,7 @@ class AuthService {
       // Even if API call fails, clear local data
     }
     await ApiService.removeToken();
+    await NotificationService.clearBadge();
     return (success: true, message: 'Logged out');
   }
 

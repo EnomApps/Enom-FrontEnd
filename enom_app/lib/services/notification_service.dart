@@ -1,3 +1,4 @@
+import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -81,6 +82,9 @@ class NotificationService {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('[FCM] Foreground: ${message.notification?.title}');
       _showLocalForForeground(message);
+      // If the backend included the new unread count, reconcile the badge now.
+      final unread = unreadFromMessage(message);
+      if (unread != null) updateBadge(unread);
     });
 
     // Handle tap when app was in the background.
@@ -140,6 +144,38 @@ class NotificationService {
       return;
     }
     nav.push(MaterialPageRoute(builder: (_) => const NotificationScreen()));
+  }
+
+  /// Reconcile the launcher-icon badge to the server's unread count.
+  ///
+  /// IMPORTANT: always *set* the badge to the server value — never increment
+  /// it locally. Incrementing per-push is what caused the badge to drift from
+  /// server state previously. The server's `unread_count` is the single source
+  /// of truth; call this at every point the count is fetched or changes.
+  static Future<void> updateBadge(int count) async {
+    try {
+      if (!await AppBadgePlus.isSupported()) return;
+      if (count > 0) {
+        await AppBadgePlus.updateBadge(count);
+      } else {
+        await AppBadgePlus.updateBadge(0); // clears the badge on supported OEMs
+      }
+    } catch (e) {
+      debugPrint('[NOTIF] updateBadge failed: $e');
+    }
+  }
+
+  /// Clear the launcher-icon badge (e.g. on logout).
+  static Future<void> clearBadge() async => updateBadge(0);
+
+  /// Read a server-supplied unread count from an FCM payload, if present.
+  /// Backend must include `unread_count` in the data payload for the badge to
+  /// stay correct while the app is backgrounded/terminated (see backend request).
+  static int? unreadFromMessage(RemoteMessage m) {
+    final raw = m.data['unread_count'];
+    if (raw is int) return raw;
+    if (raw is String) return int.tryParse(raw);
+    return null;
   }
 
   /// Get the current FCM token.

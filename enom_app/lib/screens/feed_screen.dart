@@ -540,8 +540,9 @@ class _FeedScreenState extends State<FeedScreen> {
     );
   }
 
-  /// Open the TikTok/Reels-style screen starting at the given post.
-  void _openReelsScreen(Map<String, dynamic> tappedPost) {
+  /// Open the TikTok/Reels-style screen starting at the given post, on the
+  /// media position the user tapped (e.g. the 2nd image/video in a carousel).
+  void _openReelsScreen(Map<String, dynamic> tappedPost, {int mediaIndex = 0}) {
     // Only posts with media (images/videos), skip text-only posts
     final allPosts = _posts.where((post) {
       final media = post['media'] as List<dynamic>? ?? [];
@@ -562,6 +563,7 @@ class _FeedScreenState extends State<FeedScreen> {
             builder: (_) => FeedReelsScreen(
               videoPosts: allPosts,
               initialIndex: initialIndex >= 0 ? initialIndex : 0,
+              initialMediaIndex: mediaIndex,
             ),
           ),
         )
@@ -1156,15 +1158,17 @@ class _FeedScreenState extends State<FeedScreen> {
     final imageUrls = _getImageUrls(media);
 
     if (media.length == 1) {
-      return _buildMediaItem(media[0], imageUrls, post, index);
+      return _buildMediaItem(media[0], imageUrls, post, index, 0);
     }
 
-    // Multiple media: PageView with dot indicators
+    // Multiple media: PageView with dot indicators. The carousel hands back the
+    // tapped media's position so reels can open on that exact item.
     return _MediaCarousel(
       media: media,
       imageUrls: imageUrls,
       post: post,
-      buildItem: (item) => _buildMediaItem(item, imageUrls, post, index),
+      buildItem: (item, mediaIndex) =>
+          _buildMediaItem(item, imageUrls, post, index, mediaIndex),
     );
   }
 
@@ -1201,6 +1205,7 @@ class _FeedScreenState extends State<FeedScreen> {
     List<String> imageUrls,
     Map<String, dynamic> post,
     int index,
+    int mediaIndex,
   ) {
     final fullUrl = _getMediaUrl(item);
     final type = _getMediaType(item);
@@ -1208,7 +1213,7 @@ class _FeedScreenState extends State<FeedScreen> {
 
     if (type.contains('video')) {
       return DoubleTapHeart(
-        onTap: () => _openReelsScreen(post),
+        onTap: () => _openReelsScreen(post, mediaIndex: mediaIndex),
         onDoubleTap: () => _doubleTapLike(index),
         child: Container(
           width: double.infinity,
@@ -1226,7 +1231,7 @@ class _FeedScreenState extends State<FeedScreen> {
     }
 
     return DoubleTapHeart(
-      onTap: () => _openReelsScreen(post),
+      onTap: () => _openReelsScreen(post, mediaIndex: mediaIndex),
       onDoubleTap: () => _doubleTapLike(index),
       child: Container(
         width: double.infinity,
@@ -1301,7 +1306,7 @@ class _MediaCarousel extends StatefulWidget {
   final List<dynamic> media;
   final List<String> imageUrls;
   final Map<String, dynamic> post;
-  final Widget Function(dynamic item) buildItem;
+  final Widget Function(dynamic item, int mediaIndex) buildItem;
 
   const _MediaCarousel({
     required this.media,
@@ -1329,7 +1334,7 @@ class _MediaCarouselState extends State<_MediaCarousel> {
               physics: pinching ? const NeverScrollableScrollPhysics() : null,
               itemCount: widget.media.length,
               onPageChanged: (i) => setState(() => _current = i),
-              itemBuilder: (_, i) => widget.buildItem(widget.media[i]),
+              itemBuilder: (_, i) => widget.buildItem(widget.media[i], i),
             ),
           ),
         ),

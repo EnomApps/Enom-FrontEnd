@@ -21,7 +21,11 @@
       "Bash(grep -nE 'getPost\\\\b|posts/\\\\$postId'\\\\''|/api/posts/\\\\$|getSinglePost|showPost' lib/services/post_service.dart)",
       "Bash(sed -n '500,536p' lib/screens/feed_screen.dart)",
       "Bash(sed -n '468,492p' lib/screens/feed_screen.dart)",
-      "Bash(node -e \"const e=require\\('./assets/translations/en.json'\\); console.log\\('guide:',JSON.stringify\\(e.mood_scan_guide\\)\\); console.log\\('countdown:',JSON.stringify\\(e.mood_scan_countdown\\)\\); console.log\\('tap_capture:',JSON.stringify\\(e.mood_scan_tap_capture\\)\\);\")"
+      "Bash(node -e \"const e=require\\('./assets/translations/en.json'\\); console.log\\('guide:',JSON.stringify\\(e.mood_scan_guide\\)\\); console.log\\('countdown:',JSON.stringify\\(e.mood_scan_countdown\\)\\); console.log\\('tap_capture:',JSON.stringify\\(e.mood_scan_tap_capture\\)\\);\")",
+      "Bash(curl -s -m 10 -o /dev/null -w \"root:%{http_code}\\\\n\" http://52.221.249.30/)",
+      "Bash(curl -s -m 10 -o /dev/null -w \"api/notifications\\(no-auth\\):%{http_code}\\\\n\" http://52.221.249.30/api/notifications)",
+      "Bash(flutter devices *)",
+      "Bash(tee /tmp/enom_run.log)"
     ],
     "additionalDirectories": [
       "c:\\Users\\JOSEPH\\Documents\\GitHub\\Enom-FrontEnd\\enom_app\\assets"

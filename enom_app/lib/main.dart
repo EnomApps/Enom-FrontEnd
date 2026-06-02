@@ -23,6 +23,10 @@ final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   debugPrint('[FCM] Background message: ${message.messageId}');
+  // Reconcile the launcher badge to the server-supplied count, if present.
+  // (iOS sets its badge from the APNS payload automatically; this covers Android.)
+  final unread = NotificationService.unreadFromMessage(message);
+  if (unread != null) await NotificationService.updateBadge(unread);
 }
 
 void main() async {

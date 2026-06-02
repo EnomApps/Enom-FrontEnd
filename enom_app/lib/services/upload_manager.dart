@@ -36,6 +36,23 @@ class UploadManager {
   /// Generates a unique id per upload so each gets its own notification slot.
   int _nextUploadId = 0;
 
+  /// Caps how many uploads hit the network at the same moment. Firing many
+  /// posts at once previously let them all contend for bandwidth and memory and
+  /// stall (one frozen at 100%, another at 28%). Extra uploads now queue here
+  /// and start as slots free up — nothing is dropped.
+  static const int _maxConcurrentUploads = 2;
+  int _networkActive = 0;
+  final List<Completer<void>> _networkWaiters = [];
+
+  /// Per-attempt network timeout. A stalled request aborts and retries instead
+  /// of freezing the progress bar forever. Generous enough for large videos on
+  /// mobile data, short enough that a dead socket doesn't hang indefinitely.
+  static const Duration _attemptTimeout = Duration(minutes: 4);
+
+  /// How many times a failed/stalled upload is retried before giving up. With
+  /// backoff this is what makes "every post eventually lands" hold.
+  static const int _maxUploadAttempts = 3;
+
   /// Holds uploaded posts keyed by post id so a notification tap can push the
   /// user straight into the Reels view of the right post, even when several
   /// uploads have completed.
@@ -281,41 +298,25 @@ class UploadManager {
       }
 
       // Finalize the multipart request to get body bytes
-      final bodyStream = request.finalize();
-      final bodyBytes = await bodyStream.toBytes();
-      final totalUploadBytes = bodyBytes.length;
+      final bodyBytes = await request.finalize().toBytes();
 
-      // Create a StreamedRequest so we can send in chunks and track progress
-      final rawRequest = http.StreamedRequest('POST', request.url);
-      rawRequest.headers.addAll(request.headers);
-      rawRequest.contentLength = totalUploadBytes;
+      // Send through the queued, timed-out, auto-retrying network layer. This
+      // is what stops a stalled request from freezing at 100% and makes
+      // posting several at once reliable. Returns null only after every
+      // attempt failed.
+      final response = await _sendWithRetry(
+        url: request.url,
+        headers: request.headers,
+        bodyBytes: bodyBytes,
+        notificationId: notificationId,
+        uploadBase: uploadBase,
+      );
 
-      // Send body in chunks to track progress
-      const chunkSize = 16 * 1024; // 16KB chunks
-      int lastPercent = 0;
-      final uploadRange = 100 - uploadBase; // remaining % for upload phase
-
-      // Start sending chunks in background
-      () async {
-        for (int offset = 0; offset < totalUploadBytes; offset += chunkSize) {
-          final end = (offset + chunkSize > totalUploadBytes)
-              ? totalUploadBytes
-              : offset + chunkSize;
-          rawRequest.sink.add(bodyBytes.sublist(offset, end));
-
-          final percent =
-              uploadBase + (end * uploadRange / totalUploadBytes).round();
-          if (percent != lastPercent && percent % 5 == 0) {
-            lastPercent = percent;
-            await _showProgressNotification(
-                notificationId, percent, 'Uploading post... $percent%');
-          }
-        }
-        rawRequest.sink.close();
-      }();
-
-      final streamedResponse = await http.Client().send(rawRequest);
-      final response = await http.Response.fromStream(streamedResponse);
+      if (response == null) {
+        debugPrint('[UPLOAD] #$notificationId all attempts failed');
+        await _showFailedNotification(notificationId);
+        return;
+      }
 
       dynamic decoded;
       try {
@@ -324,7 +325,7 @@ class UploadManager {
         decoded = {'message': 'Server error'};
       }
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 201 || response.statusCode == 200) {
         // Cache the post Map so a notification tap can open Reels on it.
         Map<String, dynamic>? post;
         if (decoded is Map<String, dynamic>) {
@@ -339,9 +340,11 @@ class UploadManager {
         if (post != null && postId != null) {
           _uploadedPosts[postId.toString()] = post;
         }
+        debugPrint('[UPLOAD] #$notificationId complete → post $postId');
         await _showCompletedNotification(notificationId, postId);
         _uploadCompleteController.add(true);
       } else {
+        debugPrint('[UPLOAD] #$notificationId failed status ${response.statusCode}');
         await _showFailedNotification(notificationId);
       }
     } catch (_) {
@@ -426,6 +429,144 @@ class UploadManager {
     return completer.future;
   }
 
+  /// Wait for a free network slot. Hands the slot directly to the next waiter
+  /// on release so the in-flight count never exceeds [_maxConcurrentUploads].
+  Future<void> _acquireNetworkSlot() async {
+    if (_networkActive < _maxConcurrentUploads) {
+      _networkActive++;
+      return;
+    }
+    final waiter = Completer<void>();
+    _networkWaiters.add(waiter);
+    await waiter.future; // resumes already holding the slot (count unchanged)
+  }
+
+  void _releaseNetworkSlot() {
+    if (_networkWaiters.isNotEmpty) {
+      _networkWaiters.removeAt(0).complete(); // pass the slot straight on
+    } else {
+      _networkActive--;
+    }
+  }
+
+  /// Send the post body with a per-attempt timeout and automatic retries,
+  /// gated through the concurrency limit. Returns the final HTTP response, or
+  /// null if every attempt failed (network errors / timeouts).
+  Future<http.Response?> _sendWithRetry({
+    required Uri url,
+    required Map<String, String> headers,
+    required Uint8List bodyBytes,
+    required int notificationId,
+    required int uploadBase,
+  }) async {
+    await _acquireNetworkSlot();
+    try {
+      for (int attempt = 1; attempt <= _maxUploadAttempts; attempt++) {
+        try {
+          final response = await _sendOnce(
+            url: url,
+            headers: headers,
+            bodyBytes: bodyBytes,
+            notificationId: notificationId,
+            uploadBase: uploadBase,
+          );
+          // Success, or a client error that retrying can't fix (bad request,
+          // auth, validation) — return either way. Only 5xx / 408 / 429 retry.
+          final code = response.statusCode;
+          final worthRetry =
+              code >= 500 || code == 408 || code == 429;
+          if (!worthRetry) return response;
+          debugPrint('[UPLOAD] #$notificationId attempt $attempt got $code — retrying');
+        } catch (e) {
+          // Timeout or socket error — fall through to retry.
+          debugPrint('[UPLOAD] #$notificationId attempt $attempt error: $e — retrying');
+        }
+
+        if (attempt < _maxUploadAttempts) {
+          await _showProgressNotification(
+            notificationId,
+            uploadBase,
+            'Upload stalled — retrying ($attempt)...',
+          );
+          // Linear backoff: 2s, 4s. Lets a flaky connection settle.
+          await Future<void>.delayed(Duration(seconds: 2 * attempt));
+        }
+      }
+      return null;
+    } finally {
+      _releaseNetworkSlot();
+    }
+  }
+
+  /// One upload attempt. Streams [bodyBytes] in chunks for progress, with a
+  /// hard timeout on both the send and the response. Always closes the sink and
+  /// the client so a failed attempt can never leak resources or hang.
+  Future<http.Response> _sendOnce({
+    required Uri url,
+    required Map<String, String> headers,
+    required Uint8List bodyBytes,
+    required int notificationId,
+    required int uploadBase,
+  }) async {
+    final client = http.Client();
+    try {
+      final rawRequest = http.StreamedRequest('POST', url);
+      rawRequest.headers.addAll(headers);
+      rawRequest.contentLength = bodyBytes.length;
+
+      const chunkSize = 64 * 1024; // 64KB chunks
+      final uploadRange = 100 - uploadBase; // remaining % for the upload phase
+
+      // Feed the body to the request sink. A failed notification must never
+      // break the stream, and the sink is guaranteed to close — otherwise the
+      // request (with a fixed contentLength) would wait forever for bytes.
+      final feed = () async {
+        int lastPercent = -1;
+        try {
+          for (int offset = 0; offset < bodyBytes.length; offset += chunkSize) {
+            final end = (offset + chunkSize > bodyBytes.length)
+                ? bodyBytes.length
+                : offset + chunkSize;
+            rawRequest.sink.add(bodyBytes.sublist(offset, end));
+
+            final percent =
+                uploadBase + (end * uploadRange / bodyBytes.length).round();
+            if (percent != lastPercent && percent % 5 == 0) {
+              lastPercent = percent;
+              try {
+                await _showProgressNotification(
+                    notificationId, percent, 'Uploading post... $percent%');
+              } catch (_) {
+                // Best-effort progress — never let it abort the upload.
+              }
+            }
+          }
+          // All bytes are on the wire; the server is now processing (saving
+          // media, generating thumbnails). Change the text so a 100% bar
+          // doesn't look frozen while we wait for the 201.
+          try {
+            await _showProgressNotification(
+                notificationId, 100, 'Finishing up...');
+          } catch (_) {}
+        } finally {
+          await rawRequest.sink.close();
+        }
+      }()
+          .catchError((_) {/* swallow — client.close() tears down the rest */});
+
+      debugPrint('[UPLOAD] #$notificationId sending ${bodyBytes.length} bytes');
+      final streamed =
+          await client.send(rawRequest).timeout(_attemptTimeout);
+      final response =
+          await http.Response.fromStream(streamed).timeout(_attemptTimeout);
+      await feed; // feeder has finished by now; surfaces nothing on success
+      debugPrint('[UPLOAD] #$notificationId response ${response.statusCode}');
+      return response;
+    } finally {
+      client.close();
+    }
+  }
+
   Future<void> _showProgressNotification(
       int notificationId, int percent, String body) async {
     final androidDetails = AndroidNotificationDetails(
@@ -459,6 +600,11 @@ class UploadManager {
 
   Future<void> _showCompletedNotification(
       int notificationId, dynamic postId) async {
+    // Android (notably Samsung One UI) often refuses to turn an `ongoing`
+    // progress notification into a normal one by re-showing the same id — it
+    // sticks at the last frame (e.g. 100%). Cancelling first guarantees the
+    // completion notification actually replaces it.
+    await _notifications.cancel(notificationId);
     const title = 'Upload Complete';
     const body = 'See your post';
     final androidDetails = AndroidNotificationDetails(
@@ -487,6 +633,9 @@ class UploadManager {
   }
 
   Future<void> _showFailedNotification(int notificationId) async {
+    // Same reason as completion: cancel the ongoing progress notification so
+    // the failure notice actually shows instead of leaving a frozen bar.
+    await _notifications.cancel(notificationId);
     const title = 'Upload Failed';
     const body = 'Please try again';
     final androidDetails = AndroidNotificationDetails(

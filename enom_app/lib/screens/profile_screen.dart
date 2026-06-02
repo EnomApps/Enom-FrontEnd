@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
 import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
@@ -590,12 +591,46 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 800);
+    // imageQuality forces image_picker to re-encode to JPEG. Without it,
+    // Samsung gallery photos come back as HEIC/HEIF, which Flutter's
+    // Image.memory can't decode — the preview stays blank until the server
+    // re-encodes it on save. Re-encoding here makes the preview show instantly.
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      imageQuality: 85,
+    );
     if (picked != null && mounted) {
-      final bytes = await picked.readAsBytes();
+      final raw = await picked.readAsBytes();
+      final magic =
+          raw.take(4).map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
+      debugPrint(
+          '[PROFILE] picked ${raw.length} bytes, name=${picked.name}, magic=$magic');
+
+      // Normalize through the pure-Dart decoder. Samsung JPEGs can render pure
+      // black under the engine's image decoder (Impeller) even though they're
+      // valid; re-encoding a clean baseline JPEG here fixes the preview. Also
+      // bakes EXIF orientation so the avatar isn't sideways.
+      Uint8List displayBytes = raw;
+      try {
+        final decoded = img.decodeImage(raw);
+        if (decoded != null) {
+          final upright = img.bakeOrientation(decoded);
+          displayBytes =
+              Uint8List.fromList(img.encodeJpg(upright, quality: 90));
+          debugPrint(
+              '[PROFILE] normalized ${decoded.width}x${decoded.height} -> ${displayBytes.length} bytes');
+        } else {
+          debugPrint('[PROFILE] decode returned null — using raw bytes');
+        }
+      } catch (e) {
+        debugPrint('[PROFILE] normalize failed: $e — using raw bytes');
+      }
+
+      if (!mounted) return;
       setState(() {
         _pickedImage = picked;
-        _pickedImageBytes = bytes;
+        _pickedImageBytes = displayBytes;
       });
     }
   }
@@ -2265,6 +2300,22 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         width: 86,
         height: 86,
         fit: BoxFit.cover,
+        // Downscale the decoded texture. Without this the full-res image
+        // (e.g. 800x1778) renders pure black on some Samsung GPUs under
+        // Impeller — the same reason every network avatar here uses cacheWidth.
+        cacheWidth: 300,
+        gaplessPlayback: true,
+        errorBuilder: (context, error, stackTrace) {
+          // A picked image the engine can't decode (e.g. HEIC) lands here. We
+          // re-encode to JPEG on pick, so this is a last-resort fallback.
+          debugPrint('[PROFILE] preview decode failed: $error');
+          return Container(
+            width: 86,
+            height: 86,
+            color: AppTheme.bg2(context),
+            child: Icon(Icons.person, size: 52, color: goldC),
+          );
+        },
       );
     } else if (hasNetworkImage) {
       imageWidget = Image.network(
