@@ -22,8 +22,12 @@ class NotificationService {
     importance: Importance.high,
     playSound: true,
     enableVibration: true,
-    // Skip launcher-icon badge — the count was drifting from server state.
-    showBadge: false,
+    // Let the OS badge the launcher icon from the live tray state. On Samsung
+    // (One UI) this shows a numeric count even while the app is closed, with no
+    // backend `unread_count` needed. The OS self-corrects the count as the user
+    // dismisses notifications, which avoids the drift the old per-push
+    // programmatic increment caused.
+    showBadge: true,
   );
 
   /// Initialize notifications: request permission, get token, register with backend.
@@ -119,7 +123,7 @@ class NotificationService {
       priority: Priority.high,
       playSound: true,
       enableVibration: true,
-      channelShowBadge: false,
+      channelShowBadge: true,
       icon: '@mipmap/ic_launcher',
     );
     const iosDetails = DarwinNotificationDetails(
@@ -154,6 +158,13 @@ class NotificationService {
   /// of truth; call this at every point the count is fetched or changes.
   static Future<void> updateBadge(int count) async {
     try {
+      if (count <= 0) {
+        // Samsung derives the icon badge from the live tray. Clearing the
+        // programmatic count alone won't drop the badge while read pushes still
+        // sit in the tray, so cancel them too to keep the badge in sync with
+        // the "all read" state.
+        await _local.cancelAll();
+      }
       if (!await AppBadgePlus.isSupported()) return;
       if (count > 0) {
         await AppBadgePlus.updateBadge(count);

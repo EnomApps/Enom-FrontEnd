@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart' show MediaType;
@@ -72,6 +73,29 @@ class UploadManager {
   static const int _notificationBaseId = 9001;
   static const String _channelId = 'enom_upload';
   static const String _channelName = 'Post Upload';
+
+  /// Latest progress for each in-flight upload, keyed by notificationId. A
+  /// heartbeat timer re-posts these so a progress notification the user swipes
+  /// away reappears within a second or two, and never looks frozen while the
+  /// server is processing (Android 14+ lets users dismiss even `ongoing`
+  /// notifications, so re-posting is the only reliable way to keep it visible
+  /// without a foreground service).
+  final Map<int, ({int percent, String body})> _liveProgress = {};
+  Timer? _progressHeartbeat;
+  static const Duration _heartbeatInterval = Duration(milliseconds: 1500);
+
+  /// Bridge to the native Android foreground service that owns the upload
+  /// progress notification. On Android the progress bar is rendered by that
+  /// service (sticky, un-swipeable, survives the app being closed); on iOS we
+  /// fall back to the per-upload local notification + heartbeat below.
+  static const MethodChannel _fgsChannel = MethodChannel('enom/upload_fgs');
+  bool get _useForegroundService =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  /// Whether the foreground service is currently running. The first tick of a
+  /// batch must `start` it (foreground-only on Android 12+); later ticks
+  /// `update` the notification (background-safe).
+  bool _fgsRunning = false;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -386,11 +410,16 @@ class UploadManager {
       }
 
       // Map compression progress to 0-50% on this upload's notification.
+      // Fire-and-forget (never await the platform channel inside the progress
+      // callback) and skip duplicate percents to avoid flooding Android.
+      int lastCompressPercent = -1;
       final subscription = VideoCompress.compressProgress$.subscribe(
-        (progress) async {
+        (progress) {
           final percent = (progress * 0.5).round(); // 0-50% for compression
-          await _showProgressNotification(
-              notificationId, percent, 'Uploading post... $percent%');
+          if (percent == lastCompressPercent) return;
+          lastCompressPercent = percent;
+          unawaited(_showProgressNotification(
+              notificationId, percent, 'Uploading post... $percent%'));
         },
       );
 
@@ -517,37 +546,47 @@ class UploadManager {
       const chunkSize = 64 * 1024; // 64KB chunks
       final uploadRange = 100 - uploadBase; // remaining % for the upload phase
 
-      // Feed the body to the request sink. A failed notification must never
-      // break the stream, and the sink is guaranteed to close — otherwise the
-      // request (with a fixed contentLength) would wait forever for bytes.
-      final feed = () async {
+      // Body generator. Using addStream (below) instead of bare sink.add gives
+      // real backpressure: the generator is paused while the socket is busy, so
+      // we never balloon memory or outrun the network, and the percent reflects
+      // bytes actually consumed toward the wire.
+      //
+      // CRITICAL: progress notifications are fired WITHOUT await. Awaiting the
+      // notification platform channel here is what froze the bar mid-upload when
+      // several posts uploaded at once — a congested channel would stall the
+      // byte feed. We also throttle to >=400ms apart so Android doesn't
+      // rate-limit and silently drop our updates (another cause of a stuck bar).
+      Stream<List<int>> body() async* {
         int lastPercent = -1;
-        try {
-          for (int offset = 0; offset < bodyBytes.length; offset += chunkSize) {
-            final end = (offset + chunkSize > bodyBytes.length)
-                ? bodyBytes.length
-                : offset + chunkSize;
-            rawRequest.sink.add(bodyBytes.sublist(offset, end));
+        var lastShownMs = 0;
+        for (int offset = 0; offset < bodyBytes.length; offset += chunkSize) {
+          final end = (offset + chunkSize > bodyBytes.length)
+              ? bodyBytes.length
+              : offset + chunkSize;
+          yield bodyBytes.sublist(offset, end);
 
-            final percent =
-                uploadBase + (end * uploadRange / bodyBytes.length).round();
-            if (percent != lastPercent && percent % 5 == 0) {
-              lastPercent = percent;
-              try {
-                await _showProgressNotification(
-                    notificationId, percent, 'Uploading post... $percent%');
-              } catch (_) {
-                // Best-effort progress — never let it abort the upload.
-              }
-            }
+          final percent =
+              uploadBase + (end * uploadRange / bodyBytes.length).round();
+          final nowMs = DateTime.now().millisecondsSinceEpoch;
+          if (percent != lastPercent && nowMs - lastShownMs >= 400) {
+            lastPercent = percent;
+            lastShownMs = nowMs;
+            unawaited(_showProgressNotification(
+                notificationId, percent, 'Uploading post... $percent%'));
           }
+        }
+      }
+
+      // Pump the body with backpressure. The sink is guaranteed to close —
+      // otherwise the request (with a fixed contentLength) would wait forever.
+      final feed = () async {
+        try {
+          await rawRequest.sink.addStream(body());
           // All bytes are on the wire; the server is now processing (saving
           // media, generating thumbnails). Change the text so a 100% bar
           // doesn't look frozen while we wait for the 201.
-          try {
-            await _showProgressNotification(
-                notificationId, 100, 'Finishing up...');
-          } catch (_) {}
+          unawaited(
+              _showProgressNotification(notificationId, 100, 'Finishing up...'));
         } finally {
           await rawRequest.sink.close();
         }
@@ -567,39 +606,121 @@ class UploadManager {
     }
   }
 
+  /// Record the latest progress for an upload and surface it.
+  ///
+  /// Android: the native foreground service renders a single aggregate progress
+  /// bar (sticky, un-swipeable, survives the app being closed). iOS: per-upload
+  /// local notification, kept alive by the heartbeat so a swipe brings it back.
   Future<void> _showProgressNotification(
       int notificationId, int percent, String body) async {
-    final androidDetails = AndroidNotificationDetails(
-      _channelId,
-      _channelName,
-      channelDescription: 'Shows upload progress for posts',
-      channelShowBadge: false,
-      importance: Importance.low,
-      priority: Priority.low,
-      showProgress: true,
-      maxProgress: 100,
-      progress: percent,
-      ongoing: true,
-      autoCancel: false,
-      onlyAlertOnce: true,
-      icon: '@mipmap/ic_launcher',
-    );
+    _liveProgress[notificationId] = (percent: percent, body: body);
+    if (_useForegroundService) {
+      await _syncForegroundService();
+    } else {
+      _ensureHeartbeat();
+      await _renderProgress(notificationId, percent, body);
+    }
+  }
 
-    final iosDetails = DarwinNotificationDetails(
-      subtitle: body,
-      threadIdentifier: 'upload_$notificationId',
-    );
+  /// Reconcile the Android foreground-service progress notification to the
+  /// aggregate of all in-flight uploads. Starts/updates the service while any
+  /// upload is active and stops it once the last finishes. Best-effort — a
+  /// channel error must never break an upload. No-op off Android.
+  Future<void> _syncForegroundService() async {
+    if (!_useForegroundService) return;
+    try {
+      if (_liveProgress.isEmpty) {
+        if (_fgsRunning) {
+          await _fgsChannel.invokeMethod('stop');
+          _fgsRunning = false;
+        }
+        return;
+      }
+      final values = _liveProgress.values.toList();
+      final count = values.length;
+      final sum = values.fold<int>(0, (a, e) => a + e.percent);
+      final avg = (sum / count).round().clamp(0, 100);
+      final title = count == 1 ? 'Uploading post' : 'Uploading $count posts';
+      // The bar sits at 100 while the server finishes processing; the text says
+      // so instead of looking stuck at 100%.
+      final text = avg >= 100 ? 'Finishing up…' : '$avg%';
+      // First tick starts the service (foreground-only); later ticks just
+      // refresh the notification (background-safe).
+      await _fgsChannel.invokeMethod(_fgsRunning ? 'update' : 'start', {
+        'title': title,
+        'text': text,
+        'progress': avg,
+        'indeterminate': false,
+      });
+      _fgsRunning = true;
+    } catch (_) {
+      // Best-effort — never let the progress UI abort an upload.
+    }
+  }
 
-    await _notifications.show(
-      notificationId,
-      'Enom',
-      body,
-      NotificationDetails(android: androidDetails, iOS: iosDetails),
-    );
+  /// Builds and posts the progress notification. Never throws — a failed
+  /// progress update must never surface as an error or abort the upload.
+  Future<void> _renderProgress(
+      int notificationId, int percent, String body) async {
+    try {
+      final androidDetails = AndroidNotificationDetails(
+        _channelId,
+        _channelName,
+        channelDescription: 'Shows upload progress for posts',
+        channelShowBadge: false,
+        importance: Importance.low,
+        priority: Priority.low,
+        showProgress: true,
+        maxProgress: 100,
+        progress: percent,
+        ongoing: true,
+        autoCancel: false,
+        onlyAlertOnce: true,
+        icon: '@mipmap/ic_launcher',
+      );
+
+      final iosDetails = DarwinNotificationDetails(
+        subtitle: body,
+        threadIdentifier: 'upload_$notificationId',
+      );
+
+      await _notifications.show(
+        notificationId,
+        'Enom',
+        body,
+        NotificationDetails(android: androidDetails, iOS: iosDetails),
+      );
+    } catch (_) {
+      // Best-effort — swallow so progress updates never abort an upload.
+    }
+  }
+
+  /// Start the heartbeat that re-posts every active progress notification, so
+  /// one the user swipes away reappears within [_heartbeatInterval]. Self-stops
+  /// once no uploads are in flight.
+  void _ensureHeartbeat() {
+    _progressHeartbeat ??= Timer.periodic(_heartbeatInterval, (_) {
+      if (_liveProgress.isEmpty) {
+        _progressHeartbeat?.cancel();
+        _progressHeartbeat = null;
+        return;
+      }
+      // Snapshot to avoid concurrent-modification if an upload finishes mid-tick.
+      for (final entry in _liveProgress.entries.toList()) {
+        unawaited(
+            _renderProgress(entry.key, entry.value.percent, entry.value.body));
+      }
+    });
   }
 
   Future<void> _showCompletedNotification(
       int notificationId, dynamic postId) async {
+    // Drop this upload from the live set, then reconcile: on Android this stops
+    // the foreground service once it was the last upload (or updates the
+    // aggregate to the remaining ones); on iOS it stops the heartbeat from
+    // resurrecting the bar over this notice.
+    _liveProgress.remove(notificationId);
+    await _syncForegroundService();
     // Android (notably Samsung One UI) often refuses to turn an `ongoing`
     // progress notification into a normal one by re-showing the same id — it
     // sticks at the last frame (e.g. 100%). Cancelling first guarantees the
@@ -633,6 +754,10 @@ class UploadManager {
   }
 
   Future<void> _showFailedNotification(int notificationId) async {
+    // Drop this upload from the live set and reconcile the foreground service /
+    // heartbeat, same as the completion path.
+    _liveProgress.remove(notificationId);
+    await _syncForegroundService();
     // Same reason as completion: cancel the ongoing progress notification so
     // the failure notice actually shows instead of leaving a frozen bar.
     await _notifications.cancel(notificationId);
