@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The Enom backend is served over plain HTTP (http://52.221.249.30), not HTTPS.
+  Android blocks cleartext HTTP from NATIVE networking by default since Android 9.
+  Dart's own HTTP client bypasses this (its own sockets), which is why the app's
+  API calls work — but native plugins like background_downloader (which performs
+  the post upload) go through Android's networking and were blocked. We permit
+  cleartext only for the backend host, leaving HTTPS enforced everywhere else.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">52.221.249.30</domain>
+    </domain-config>
+</network-security-config>

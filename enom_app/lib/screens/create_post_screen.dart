@@ -155,12 +155,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
       if (video == null) break;
 
-      final videoBytes = await video.readAsBytes();
-
+      // Don't read the whole video into memory — previews use the file path and
+      // the upload streams straight from disk via the native uploader. Loading
+      // a 22-min/55MB clip into RAM here was pure waste and risked an OOM that
+      // could kill the upload mid-way.
       if (mounted) {
         setState(() {
           _mediaFiles.add(_MediaFile(
-            bytes: videoBytes,
+            bytes: Uint8List(0),
             name: video.name,
             type: 'video',
             filePath: video.path,

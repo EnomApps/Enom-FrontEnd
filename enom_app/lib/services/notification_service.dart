@@ -158,6 +158,8 @@ class NotificationService {
   /// of truth; call this at every point the count is fetched or changes.
   static Future<void> updateBadge(int count) async {
     try {
+      final supported = await AppBadgePlus.isSupported();
+      debugPrint('[NOTIF] updateBadge count=$count deviceSupportsBadge=$supported');
       if (count <= 0) {
         // Samsung derives the icon badge from the live tray. Clearing the
         // programmatic count alone won't drop the badge while read pushes still
@@ -165,7 +167,7 @@ class NotificationService {
         // the "all read" state.
         await _local.cancelAll();
       }
-      if (!await AppBadgePlus.isSupported()) return;
+      if (!supported) return;
       if (count > 0) {
         await AppBadgePlus.updateBadge(count);
       } else {

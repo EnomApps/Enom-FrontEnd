@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'package:background_downloader/background_downloader.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart' show MediaType;
 import 'package:video_compress/video_compress.dart';
 import '../main.dart' show rootNavigatorKey;
 import '../screens/feed_reels_screen.dart';
@@ -37,22 +38,34 @@ class UploadManager {
   /// Generates a unique id per upload so each gets its own notification slot.
   int _nextUploadId = 0;
 
-  /// Caps how many uploads hit the network at the same moment. Firing many
-  /// posts at once previously let them all contend for bandwidth and memory and
-  /// stall (one frozen at 100%, another at 28%). Extra uploads now queue here
-  /// and start as slots free up — nothing is dropped.
-  static const int _maxConcurrentUploads = 2;
-  int _networkActive = 0;
-  final List<Completer<void>> _networkWaiters = [];
+  /// The actual network upload now runs in the native background_downloader
+  /// engine (Android WorkManager + foreground service / iOS URLSession), NOT in
+  /// this Dart isolate. That is what lets an upload keep going — and its
+  /// progress notification keep moving — after the user swipes the app away.
+  /// Concurrency, retries and timeouts are handled natively by that engine.
+  static const String _uploadGroup = 'enom_post_upload';
 
-  /// Per-attempt network timeout. A stalled request aborts and retries instead
-  /// of freezing the progress bar forever. Generous enough for large videos on
-  /// mobile data, short enough that a dead socket doesn't hang indefinitely.
-  static const Duration _attemptTimeout = Duration(minutes: 4);
+  /// How many times the native engine retries a failed/stalled upload before
+  /// surfacing the error notification.
+  static const int _uploadRetries = 3;
 
-  /// How many times a failed/stalled upload is retried before giving up. With
-  /// backoff this is what makes "every post eventually lands" hold.
-  static const int _maxUploadAttempts = 3;
+  /// Maps an enqueued upload task id → the bookkeeping needed to finalize it
+  /// when its status update arrives (cache the post, refresh the feed, clear
+  /// the compression notification). Survives only while the app is alive; the
+  /// native engine drives the upload + notification regardless.
+  final Map<String, int> _taskNotificationIds = {};
+
+  /// Videos at or below this size upload as-is, skipping compression. A clip
+  /// this small is already modestly encoded (e.g. a 22-min, 55MB video is
+  /// ~0.33 Mbps) — re-encoding it costs 10-30 min on-device for little to no
+  /// size win and is exactly what made the progress bar appear frozen. Only
+  /// genuinely large, high-bitrate files are worth the compression time.
+  static const int _skipCompressionBytes = 100 * 1024 * 1024; // 100 MB
+
+  /// Hard cap on a single video compression. If the native encoder stalls past
+  /// this, we cancel it and upload the original instead of hanging the progress
+  /// bar forever.
+  static const Duration _compressTimeout = Duration(minutes: 8);
 
   /// Holds uploaded posts keyed by post id so a notification tap can push the
   /// user straight into the Reels view of the right post, even when several
@@ -80,7 +93,8 @@ class UploadManager {
   /// server is processing (Android 14+ lets users dismiss even `ongoing`
   /// notifications, so re-posting is the only reliable way to keep it visible
   /// without a foreground service).
-  final Map<int, ({int percent, String body})> _liveProgress = {};
+  final Map<int, ({int percent, String body, bool indeterminate})>
+      _liveProgress = {};
   Timer? _progressHeartbeat;
   static const Duration _heartbeatInterval = Duration(milliseconds: 1500);
 
@@ -129,6 +143,23 @@ class UploadManager {
         });
       }
     }
+
+    // The actual post upload runs in the native background_downloader engine so
+    // it survives the app being swiped away. These notifications are rendered
+    // and kept moving by the OS even when our Dart code isn't running — that is
+    // what fixes "the bar freezes when I close the app mid-upload". The progress
+    // text uses the {progress} placeholder, which the native side substitutes.
+    FileDownloader().configureNotification(
+      running: const TaskNotification('Uploading post', 'Uploading… {progress}'),
+      complete: const TaskNotification('Upload complete', 'Your post is live'),
+      error: const TaskNotification('Upload failed', 'Please try again'),
+      progressBar: true,
+    );
+    // Persist tasks so they (and their updates) reconnect after a restart, and
+    // listen for completion/failure to refresh the feed while the app is alive.
+    await FileDownloader().trackTasks();
+    FileDownloader().updates.listen(_onTaskUpdate);
+
     _initialized = true;
   }
 
@@ -206,57 +237,43 @@ class UploadManager {
     List<String?>? mediaFilePaths,
   }) async {
     try {
-      // Show initial notification
-      await _showProgressNotification(notificationId, 0, 'Uploading post...');
-
       final token = await ApiService.getToken();
 
-      // Compress videos in background before uploading.
-      final processedBytes = <Uint8List>[];
-      final processedNames = <String>[];
-      // Thumbnails for each video, in the same relative order as the videos
-      // appear in media[]. Backend maps thumbnails[i] → i-th video.
-      final thumbnailBytes = <Uint8List>[];
-      final thumbnailNames = <String>[];
+      // Resolve every media item to a FILE ON DISK and build the multipart file
+      // list for the upload task. The native uploader streams straight from
+      // these paths — nothing is held in memory (no more OOM risk), and the
+      // upload keeps running even after the app is swiped away.
+      final files = <(String, String, String)>[]; // (field, absPath, mime)
+      final count = mediaFilePaths?.length ?? 0;
+      for (int i = 0; i < count; i++) {
+        final type = (mediaTypes != null && i < mediaTypes.length)
+            ? mediaTypes[i]
+            : 'image';
+        final path = mediaFilePaths![i];
+        if (path == null) continue;
 
-      if (mediaBytes != null && mediaNames != null) {
-        for (int i = 0; i < mediaBytes.length; i++) {
-          final type = (mediaTypes != null && i < mediaTypes.length)
-              ? mediaTypes[i]
-              : 'image';
-          final filePath = (mediaFilePaths != null && i < mediaFilePaths.length)
-              ? mediaFilePaths[i]
-              : null;
-
-          if (type == 'video' && filePath != null) {
-            // Compression touches the global VideoCompress plugin, so it must
-            // run exclusively — one video at a time across all uploads.
-            final result = await _compressVideoExclusive(
-              notificationId: notificationId,
-              filePath: filePath,
-              originalBytes: mediaBytes[i],
-              originalName: mediaNames[i],
-              index: i,
-            );
-            processedBytes.add(result.videoBytes);
-            processedNames.add(result.videoName);
-            if (result.thumbBytes != null && result.thumbName != null) {
-              thumbnailBytes.add(result.thumbBytes!);
-              thumbnailNames.add(result.thumbName!);
-            }
-          } else {
-            // Images — already compressed by image_picker
-            processedBytes.add(mediaBytes[i]);
-            processedNames.add(mediaNames[i]);
+        if (type == 'video') {
+          // Compress only large videos (serialized — VideoCompress is a
+          // process-global singleton), then upload the resulting file plus a
+          // thumbnail the backend pairs by order.
+          final v = await _compressVideoExclusive(
+            notificationId: notificationId,
+            filePath: path,
+          );
+          files.add(('media[]', v.videoPath, _mimeForPath(v.videoPath)));
+          if (v.thumbPath != null) {
+            files.add(('thumbnails[]', v.thumbPath!, 'image/jpeg'));
           }
+        } else {
+          // Images are already compressed by image_picker.
+          files.add(('media[]', path, _mimeForPath(path)));
         }
       }
 
-      final hasVideos = mediaTypes?.contains('video') ?? false;
-      // If videos were compressed, the compression phase already covered 0-50%.
-      final uploadBase = hasVideos ? 50 : 0;
-      await _showProgressNotification(
-          notificationId, uploadBase, 'Uploading post... $uploadBase%');
+      // Compression (if any) is finished — clear its notification so the native
+      // upload notification takes over cleanly.
+      _liveProgress.remove(notificationId);
+      await _syncForegroundService();
 
       final fields = <String, String>{
         if (content != null && content.isNotEmpty) 'content': content,
@@ -268,89 +285,174 @@ class UploadManager {
         if (locationName != null && locationName.isNotEmpty && longitude != null)
           'longitude': longitude.toString(),
       };
-
-      // Add hashtags as individual fields: hashtags[0], hashtags[1], etc.
+      // Hashtags as individual fields: hashtags[0], hashtags[1], etc.
       if (hashtags != null && hashtags.isNotEmpty) {
         for (int i = 0; i < hashtags.length; i++) {
           fields['hashtags[$i]'] = hashtags[i];
         }
       }
 
-      // Build multipart request
+      // Text-only post: there's no file to transfer, so the background engine
+      // (which requires at least one file) doesn't apply. A tiny direct POST
+      // finishes instantly — nothing to keep alive across an app-kill.
+      if (files.isEmpty) {
+        await _uploadTextOnly(
+          notificationId: notificationId, token: token, fields: fields);
+        return;
+      }
+
+      // Hand the upload to the native background engine. It owns the network
+      // transfer, the progress notification, retries and concurrency — and all
+      // of it survives the app being closed.
+      final task = MultiUploadTask(
+        url: '${ApiService.baseUrl}/api/posts',
+        files: files,
+        fields: fields,
+        headers: {
+          'Accept': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        httpRequestMethod: 'POST',
+        group: _uploadGroup,
+        updates: Updates.statusAndProgress,
+        retries: _uploadRetries,
+        requiresWiFi: false,
+        displayName: 'post',
+      );
+
+      _taskNotificationIds[task.taskId] = notificationId;
+      final enqueued = await FileDownloader().enqueue(task);
+      if (!enqueued) {
+        _taskNotificationIds.remove(task.taskId);
+        debugPrint('[UPLOAD] #$notificationId enqueue failed');
+        await _showFailedNotification(notificationId);
+        _activeCount--;
+        return;
+      }
+      debugPrint('[UPLOAD] #$notificationId enqueued as ${task.taskId}');
+      // Completion / failure is finalized in [_onTaskUpdate]; the native engine
+      // drives everything from here.
+    } catch (_) {
+      _liveProgress.remove(notificationId);
+      await _syncForegroundService();
+      await _showFailedNotification(notificationId);
+      _activeCount--;
+    }
+  }
+
+  /// Post a text-only update (no media) with a small direct multipart POST.
+  /// Quick and self-contained — handles its own completion/failure notification
+  /// and decrements the active count.
+  Future<void> _uploadTextOnly({
+    required int notificationId,
+    required String? token,
+    required Map<String, String> fields,
+  }) async {
+    try {
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('${ApiService.baseUrl}/api/posts'),
       );
-
       request.headers.addAll({
         'Accept': 'application/json',
         if (token != null) 'Authorization': 'Bearer $token',
       });
-
       request.fields.addAll(fields);
 
-      // Attach processed media files
-      for (int i = 0; i < processedBytes.length; i++) {
-        final name = processedNames[i];
-        final ext = name.split('.').last.toLowerCase();
-        final mimeType = switch (ext) {
-          'png' => MediaType('image', 'png'),
-          'gif' => MediaType('image', 'gif'),
-          'webp' => MediaType('image', 'webp'),
-          'mp4' => MediaType('video', 'mp4'),
-          'mov' => MediaType('video', 'quicktime'),
-          'avi' => MediaType('video', 'x-msvideo'),
-          _ => MediaType('image', 'jpeg'),
-        };
-        request.files.add(http.MultipartFile.fromBytes(
-          'media[]',
-          processedBytes[i],
-          filename: name,
-          contentType: mimeType,
-        ));
-      }
+      final streamed = await request.send().timeout(const Duration(minutes: 1));
+      final response = await http.Response.fromStream(streamed);
 
-      // Attach video thumbnails — one entry per video, in the same relative
-      // order as videos in media[]. Backend pairs thumbnails[i] → i-th video.
-      for (int i = 0; i < thumbnailBytes.length; i++) {
-        request.files.add(http.MultipartFile.fromBytes(
-          'thumbnails[]',
-          thumbnailBytes[i],
-          filename: thumbnailNames[i],
-          contentType: MediaType('image', 'jpeg'),
-        ));
-      }
-
-      // Finalize the multipart request to get body bytes
-      final bodyBytes = await request.finalize().toBytes();
-
-      // Send through the queued, timed-out, auto-retrying network layer. This
-      // is what stops a stalled request from freezing at 100% and makes
-      // posting several at once reliable. Returns null only after every
-      // attempt failed.
-      final response = await _sendWithRetry(
-        url: request.url,
-        headers: request.headers,
-        bodyBytes: bodyBytes,
-        notificationId: notificationId,
-        uploadBase: uploadBase,
-      );
-
-      if (response == null) {
-        debugPrint('[UPLOAD] #$notificationId all attempts failed');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        try {
+          final decoded = json.decode(response.body);
+          if (decoded is Map<String, dynamic>) {
+            final p = decoded['post'];
+            final post = (p is Map<String, dynamic>)
+                ? p
+                : (decoded['id'] != null ? decoded : null);
+            final postId = post?['id'];
+            if (post != null && postId != null) {
+              _uploadedPosts[postId.toString()] = post;
+            }
+          }
+        } catch (_) {}
+        await _showTextPostComplete(notificationId);
+        _uploadCompleteController.add(true);
+      } else {
         await _showFailedNotification(notificationId);
-        return;
       }
+    } catch (_) {
+      await _showFailedNotification(notificationId);
+    } finally {
+      if (_activeCount > 0) _activeCount--;
+    }
+  }
 
-      dynamic decoded;
+  /// Simple completion notice for a text-only post (the media path uses the
+  /// native background_downloader completion notification instead).
+  Future<void> _showTextPostComplete(int notificationId) async {
+    _liveProgress.remove(notificationId);
+    await _syncForegroundService();
+    await _notifications.cancel(notificationId);
+    final androidDetails = AndroidNotificationDetails(
+      _channelId,
+      _channelName,
+      channelDescription: 'Shows upload progress for posts',
+      importance: Importance.defaultImportance,
+      priority: Priority.defaultPriority,
+      ongoing: false,
+      autoCancel: true,
+      icon: '@mipmap/ic_launcher',
+    );
+    const iosDetails = DarwinNotificationDetails(subtitle: 'Your post is live');
+    await _notifications.show(
+      notificationId,
+      'Upload complete',
+      'Your post is live',
+      NotificationDetails(android: androidDetails, iOS: iosDetails),
+    );
+  }
+
+  /// Maps a file path's extension to a MIME type for the multipart part.
+  String _mimeForPath(String path) {
+    switch (path.split('.').last.toLowerCase()) {
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      case 'mp4':
+        return 'video/mp4';
+      case 'mov':
+        return 'video/quicktime';
+      case 'avi':
+        return 'video/x-msvideo';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+
+  /// Finalize an upload when its native status update arrives. The progress
+  /// notification is rendered natively (survives app-kill); here we only do the
+  /// Dart-side bookkeeping when the app happens to be alive: cache the new post
+  /// so the feed can show it immediately, and refresh listeners.
+  void _onTaskUpdate(TaskUpdate update) {
+    if (update.task.group != _uploadGroup) return;
+    if (update is! TaskStatusUpdate) return; // progress handled by native notif
+    final status = update.status;
+    if (!status.isFinalState) return;
+
+    final taskId = update.task.taskId;
+    _taskNotificationIds.remove(taskId);
+    if (_activeCount > 0) _activeCount--;
+
+    if (status == TaskStatus.complete) {
       try {
-        decoded = json.decode(response.body);
-      } catch (_) {
-        decoded = {'message': 'Server error'};
-      }
-
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        // Cache the post Map so a notification tap can open Reels on it.
+        final decoded = json.decode(update.responseBody ?? '');
         Map<String, dynamic>? post;
         if (decoded is Map<String, dynamic>) {
           final p = decoded['post'];
@@ -364,35 +466,40 @@ class UploadManager {
         if (post != null && postId != null) {
           _uploadedPosts[postId.toString()] = post;
         }
-        debugPrint('[UPLOAD] #$notificationId complete → post $postId');
-        await _showCompletedNotification(notificationId, postId);
-        _uploadCompleteController.add(true);
-      } else {
-        debugPrint('[UPLOAD] #$notificationId failed status ${response.statusCode}');
-        await _showFailedNotification(notificationId);
+      } catch (_) {
+        // Response wasn't JSON we recognise — the post still landed (2xx);
+        // the feed will pick it up on its next normal refresh.
       }
-    } catch (_) {
-      await _showFailedNotification(notificationId);
-    } finally {
-      _activeCount--;
+      debugPrint('[UPLOAD] task $taskId complete');
+      _uploadCompleteController.add(true);
+    } else {
+      // failed / canceled / notFound — the native error notification already
+      // informed the user. Log the full reason so we can see WHY it failed
+      // (HTTP status from the server vs a file-system/connection problem).
+      final code = update.responseStatusCode;
+      final ex = update.exception;
+      final body = update.responseBody;
+      debugPrint('[UPLOAD] task $taskId FAILED status=$status '
+          'httpCode=$code exception=$ex');
+      if (body != null && body.isNotEmpty) {
+        debugPrint('[UPLOAD] task $taskId server body: '
+            '${body.length > 500 ? body.substring(0, 500) : body}');
+      }
     }
   }
 
-  /// Result of compressing a single video under the global compression lock.
+  /// Compress a single video under the global compression lock and extract a
+  /// thumbnail, returning the file PATHS to upload (no bytes held in memory).
   Future<_ProcessedVideo> _compressVideoExclusive({
     required int notificationId,
     required String filePath,
-    required Uint8List originalBytes,
-    required String originalName,
-    required int index,
   }) {
     final completer = Completer<_ProcessedVideo>();
     final previous = _compressionLock;
 
     // Chain this compression after any compression already running.
     _compressionLock = previous.then((_) async {
-      Uint8List? thumbBytes;
-      String? thumbName;
+      String? thumbPath;
 
       // Grab a frame at ~1s for the thumbnail. Done before compression so we
       // sample the original quality. Best-effort — backend can derive one.
@@ -402,52 +509,79 @@ class UploadManager {
           quality: 75,
           position: 1000,
         );
-        thumbBytes = await thumbFile.readAsBytes();
-        thumbName =
-            'thumb_${index}_${notificationId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        thumbPath = thumbFile.path;
       } catch (_) {
         // Thumbnail is best-effort.
       }
 
-      // Map compression progress to 0-50% on this upload's notification.
-      // Fire-and-forget (never await the platform channel inside the progress
-      // callback) and skip duplicate percents to avoid flooding Android.
-      int lastCompressPercent = -1;
-      final subscription = VideoCompress.compressProgress$.subscribe(
-        (progress) {
-          final percent = (progress * 0.5).round(); // 0-50% for compression
-          if (percent == lastCompressPercent) return;
-          lastCompressPercent = percent;
-          unawaited(_showProgressNotification(
-              notificationId, percent, 'Uploading post... $percent%'));
-        },
-      );
+      // Default to uploading the original file untouched.
+      String videoPath = filePath;
 
-      Uint8List videoBytes;
-      String videoName = originalName;
+      int sizeBytes = 0;
       try {
-        final info = await VideoCompress.compressVideo(
-          filePath,
-          quality: VideoQuality.MediumQuality,
-          deleteOrigin: false,
-          includeAudio: true,
-        );
-        if (info != null && info.file != null) {
-          videoBytes = await info.file!.readAsBytes();
-        } else {
-          videoBytes = originalBytes; // compression failed, use original
-        }
+        sizeBytes = await File(filePath).length();
       } catch (_) {
-        videoBytes = originalBytes; // fallback to original on error
-      } finally {
-        subscription.unsubscribe();
+        // If we can't size it, treat as small and skip compression.
+      }
+
+      // Only compress genuinely large files. Anything already small uploads
+      // as-is — re-encoding it is slow, barely shrinks it, and is what froze
+      // the bar for long clips that were already modestly encoded.
+      if (sizeBytes > _skipCompressionBytes) {
+        // Show an animated indeterminate bar for the whole compression phase.
+        // video_compress's progress stream is unreliable for long videos, so a
+        // fixed percentage looks frozen; the bar text still reflects progress
+        // when the stream does emit. Fire-and-forget (never await the platform
+        // channel inside the callback) and skip duplicate percents.
+        int lastCompressPercent = -1;
+        final subscription = VideoCompress.compressProgress$.subscribe(
+          (progress) {
+            final percent = progress.round().clamp(0, 100);
+            if (percent == lastCompressPercent) return;
+            lastCompressPercent = percent;
+            unawaited(_showProgressNotification(
+                notificationId, 0, 'Compressing video… $percent%',
+                indeterminate: true));
+          },
+        );
+        unawaited(_showProgressNotification(
+            notificationId, 0, 'Compressing video…',
+            indeterminate: true));
+
+        try {
+          // Cap the encode: if it stalls past the timeout, cancel it and fall
+          // back to the original so the upload never hangs forever.
+          final info = await VideoCompress.compressVideo(
+            filePath,
+            quality: VideoQuality.MediumQuality,
+            deleteOrigin: false,
+            includeAudio: true,
+          ).timeout(_compressTimeout, onTimeout: () {
+            unawaited(VideoCompress.cancelCompression());
+            return null;
+          });
+          final outPath = info?.file?.path;
+          if (outPath != null) {
+            int outSize = 0;
+            try {
+              outSize = await File(outPath).length();
+            } catch (_) {}
+            // Guard against the encoder producing a larger file (can happen for
+            // already-efficient sources) — keep whichever is smaller.
+            if (outSize > 0 && outSize < sizeBytes) {
+              videoPath = outPath;
+            }
+          }
+        } catch (_) {
+          // Fall back to the original on any error.
+        } finally {
+          subscription.unsubscribe();
+        }
       }
 
       completer.complete(_ProcessedVideo(
-        videoBytes: videoBytes,
-        videoName: videoName,
-        thumbBytes: thumbBytes,
-        thumbName: thumbName,
+        videoPath: videoPath,
+        thumbPath: thumbPath,
       ));
     });
 
@@ -458,167 +592,22 @@ class UploadManager {
     return completer.future;
   }
 
-  /// Wait for a free network slot. Hands the slot directly to the next waiter
-  /// on release so the in-flight count never exceeds [_maxConcurrentUploads].
-  Future<void> _acquireNetworkSlot() async {
-    if (_networkActive < _maxConcurrentUploads) {
-      _networkActive++;
-      return;
-    }
-    final waiter = Completer<void>();
-    _networkWaiters.add(waiter);
-    await waiter.future; // resumes already holding the slot (count unchanged)
-  }
-
-  void _releaseNetworkSlot() {
-    if (_networkWaiters.isNotEmpty) {
-      _networkWaiters.removeAt(0).complete(); // pass the slot straight on
-    } else {
-      _networkActive--;
-    }
-  }
-
-  /// Send the post body with a per-attempt timeout and automatic retries,
-  /// gated through the concurrency limit. Returns the final HTTP response, or
-  /// null if every attempt failed (network errors / timeouts).
-  Future<http.Response?> _sendWithRetry({
-    required Uri url,
-    required Map<String, String> headers,
-    required Uint8List bodyBytes,
-    required int notificationId,
-    required int uploadBase,
-  }) async {
-    await _acquireNetworkSlot();
-    try {
-      for (int attempt = 1; attempt <= _maxUploadAttempts; attempt++) {
-        try {
-          final response = await _sendOnce(
-            url: url,
-            headers: headers,
-            bodyBytes: bodyBytes,
-            notificationId: notificationId,
-            uploadBase: uploadBase,
-          );
-          // Success, or a client error that retrying can't fix (bad request,
-          // auth, validation) — return either way. Only 5xx / 408 / 429 retry.
-          final code = response.statusCode;
-          final worthRetry =
-              code >= 500 || code == 408 || code == 429;
-          if (!worthRetry) return response;
-          debugPrint('[UPLOAD] #$notificationId attempt $attempt got $code — retrying');
-        } catch (e) {
-          // Timeout or socket error — fall through to retry.
-          debugPrint('[UPLOAD] #$notificationId attempt $attempt error: $e — retrying');
-        }
-
-        if (attempt < _maxUploadAttempts) {
-          await _showProgressNotification(
-            notificationId,
-            uploadBase,
-            'Upload stalled — retrying ($attempt)...',
-          );
-          // Linear backoff: 2s, 4s. Lets a flaky connection settle.
-          await Future<void>.delayed(Duration(seconds: 2 * attempt));
-        }
-      }
-      return null;
-    } finally {
-      _releaseNetworkSlot();
-    }
-  }
-
-  /// One upload attempt. Streams [bodyBytes] in chunks for progress, with a
-  /// hard timeout on both the send and the response. Always closes the sink and
-  /// the client so a failed attempt can never leak resources or hang.
-  Future<http.Response> _sendOnce({
-    required Uri url,
-    required Map<String, String> headers,
-    required Uint8List bodyBytes,
-    required int notificationId,
-    required int uploadBase,
-  }) async {
-    final client = http.Client();
-    try {
-      final rawRequest = http.StreamedRequest('POST', url);
-      rawRequest.headers.addAll(headers);
-      rawRequest.contentLength = bodyBytes.length;
-
-      const chunkSize = 64 * 1024; // 64KB chunks
-      final uploadRange = 100 - uploadBase; // remaining % for the upload phase
-
-      // Body generator. Using addStream (below) instead of bare sink.add gives
-      // real backpressure: the generator is paused while the socket is busy, so
-      // we never balloon memory or outrun the network, and the percent reflects
-      // bytes actually consumed toward the wire.
-      //
-      // CRITICAL: progress notifications are fired WITHOUT await. Awaiting the
-      // notification platform channel here is what froze the bar mid-upload when
-      // several posts uploaded at once — a congested channel would stall the
-      // byte feed. We also throttle to >=400ms apart so Android doesn't
-      // rate-limit and silently drop our updates (another cause of a stuck bar).
-      Stream<List<int>> body() async* {
-        int lastPercent = -1;
-        var lastShownMs = 0;
-        for (int offset = 0; offset < bodyBytes.length; offset += chunkSize) {
-          final end = (offset + chunkSize > bodyBytes.length)
-              ? bodyBytes.length
-              : offset + chunkSize;
-          yield bodyBytes.sublist(offset, end);
-
-          final percent =
-              uploadBase + (end * uploadRange / bodyBytes.length).round();
-          final nowMs = DateTime.now().millisecondsSinceEpoch;
-          if (percent != lastPercent && nowMs - lastShownMs >= 400) {
-            lastPercent = percent;
-            lastShownMs = nowMs;
-            unawaited(_showProgressNotification(
-                notificationId, percent, 'Uploading post... $percent%'));
-          }
-        }
-      }
-
-      // Pump the body with backpressure. The sink is guaranteed to close —
-      // otherwise the request (with a fixed contentLength) would wait forever.
-      final feed = () async {
-        try {
-          await rawRequest.sink.addStream(body());
-          // All bytes are on the wire; the server is now processing (saving
-          // media, generating thumbnails). Change the text so a 100% bar
-          // doesn't look frozen while we wait for the 201.
-          unawaited(
-              _showProgressNotification(notificationId, 100, 'Finishing up...'));
-        } finally {
-          await rawRequest.sink.close();
-        }
-      }()
-          .catchError((_) {/* swallow — client.close() tears down the rest */});
-
-      debugPrint('[UPLOAD] #$notificationId sending ${bodyBytes.length} bytes');
-      final streamed =
-          await client.send(rawRequest).timeout(_attemptTimeout);
-      final response =
-          await http.Response.fromStream(streamed).timeout(_attemptTimeout);
-      await feed; // feeder has finished by now; surfaces nothing on success
-      debugPrint('[UPLOAD] #$notificationId response ${response.statusCode}');
-      return response;
-    } finally {
-      client.close();
-    }
-  }
-
   /// Record the latest progress for an upload and surface it.
   ///
   /// Android: the native foreground service renders a single aggregate progress
   /// bar (sticky, un-swipeable, survives the app being closed). iOS: per-upload
   /// local notification, kept alive by the heartbeat so a swipe brings it back.
   Future<void> _showProgressNotification(
-      int notificationId, int percent, String body) async {
-    _liveProgress[notificationId] = (percent: percent, body: body);
+      int notificationId, int percent, String body,
+      {bool indeterminate = false}) async {
+    _liveProgress[notificationId] =
+        (percent: percent, body: body, indeterminate: indeterminate);
     if (_useForegroundService) {
       await _syncForegroundService();
     } else {
       _ensureHeartbeat();
-      await _renderProgress(notificationId, percent, body);
+      await _renderProgress(notificationId, percent, body,
+          indeterminate: indeterminate);
     }
   }
 
@@ -640,17 +629,23 @@ class UploadManager {
       final count = values.length;
       final sum = values.fold<int>(0, (a, e) => a + e.percent);
       final avg = (sum / count).round().clamp(0, 100);
+      // While any upload is still compressing, show an animated indeterminate
+      // bar — video_compress's progress stream is unreliable for long videos,
+      // so a fixed percentage there is what looked frozen.
+      final compressing = values.any((e) => e.indeterminate);
       final title = count == 1 ? 'Uploading post' : 'Uploading $count posts';
       // The bar sits at 100 while the server finishes processing; the text says
       // so instead of looking stuck at 100%.
-      final text = avg >= 100 ? 'Finishing up…' : '$avg%';
+      final text = compressing
+          ? 'Compressing video…'
+          : (avg >= 100 ? 'Finishing up…' : '$avg%');
       // First tick starts the service (foreground-only); later ticks just
       // refresh the notification (background-safe).
       await _fgsChannel.invokeMethod(_fgsRunning ? 'update' : 'start', {
         'title': title,
         'text': text,
         'progress': avg,
-        'indeterminate': false,
+        'indeterminate': compressing,
       });
       _fgsRunning = true;
     } catch (_) {
@@ -661,7 +656,8 @@ class UploadManager {
   /// Builds and posts the progress notification. Never throws — a failed
   /// progress update must never surface as an error or abort the upload.
   Future<void> _renderProgress(
-      int notificationId, int percent, String body) async {
+      int notificationId, int percent, String body,
+      {bool indeterminate = false}) async {
     try {
       final androidDetails = AndroidNotificationDetails(
         _channelId,
@@ -673,6 +669,7 @@ class UploadManager {
         showProgress: true,
         maxProgress: 100,
         progress: percent,
+        indeterminate: indeterminate,
         ongoing: true,
         autoCancel: false,
         onlyAlertOnce: true,
@@ -707,50 +704,11 @@ class UploadManager {
       }
       // Snapshot to avoid concurrent-modification if an upload finishes mid-tick.
       for (final entry in _liveProgress.entries.toList()) {
-        unawaited(
-            _renderProgress(entry.key, entry.value.percent, entry.value.body));
+        unawaited(_renderProgress(
+            entry.key, entry.value.percent, entry.value.body,
+            indeterminate: entry.value.indeterminate));
       }
     });
-  }
-
-  Future<void> _showCompletedNotification(
-      int notificationId, dynamic postId) async {
-    // Drop this upload from the live set, then reconcile: on Android this stops
-    // the foreground service once it was the last upload (or updates the
-    // aggregate to the remaining ones); on iOS it stops the heartbeat from
-    // resurrecting the bar over this notice.
-    _liveProgress.remove(notificationId);
-    await _syncForegroundService();
-    // Android (notably Samsung One UI) often refuses to turn an `ongoing`
-    // progress notification into a normal one by re-showing the same id — it
-    // sticks at the last frame (e.g. 100%). Cancelling first guarantees the
-    // completion notification actually replaces it.
-    await _notifications.cancel(notificationId);
-    const title = 'Upload Complete';
-    const body = 'See your post';
-    final androidDetails = AndroidNotificationDetails(
-      _channelId,
-      _channelName,
-      channelDescription: 'Shows upload progress for posts',
-      channelShowBadge: false,
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-      ongoing: false,
-      autoCancel: true,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      subtitle: body,
-    );
-
-    await _notifications.show(
-      notificationId,
-      title,
-      body,
-      NotificationDetails(android: androidDetails, iOS: iosDetails),
-      payload: postId != null ? 'post:$postId' : null,
-    );
   }
 
   Future<void> _showFailedNotification(int notificationId) async {
@@ -792,17 +750,14 @@ class UploadManager {
   }
 }
 
-/// A single processed (compressed) video plus its optional thumbnail.
+/// A single processed video plus its optional thumbnail, as file paths on disk
+/// ready to hand to the native uploader.
 class _ProcessedVideo {
   _ProcessedVideo({
-    required this.videoBytes,
-    required this.videoName,
-    this.thumbBytes,
-    this.thumbName,
+    required this.videoPath,
+    this.thumbPath,
   });
 
-  final Uint8List videoBytes;
-  final String videoName;
-  final Uint8List? thumbBytes;
-  final String? thumbName;
+  final String videoPath;
+  final String? thumbPath;
 }

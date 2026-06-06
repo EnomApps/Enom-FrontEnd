@@ -10,7 +10,10 @@ plugins {
 
 android {
     namespace = "com.enom.enom_app"
-    compileSdk = flutter.compileSdkVersion
+    // background_downloader 9.5.x compiles against Android SDK 36, so the app
+    // must compile against at least 36 too (pinned explicitly rather than via
+    // flutter.compileSdkVersion, which may still resolve to 35).
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
